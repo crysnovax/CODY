@@ -4,7 +4,7 @@ module.exports = {
     desc: 'Repost a replied message',
     category: 'Tools',
 
-    execute: async (sock, m, { reply, args }) => {
+    execute: async (sock, m, { reply, args , prefix}) => {
 
         if (!m.quoted) {
             return reply('⊘ Reply to a message first.');

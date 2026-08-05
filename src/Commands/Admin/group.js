@@ -12,7 +12,7 @@ module.exports = [
         examples: ['.ephemeral 86400', '.ephemeral 0', '.ephemeral 604800'],
         reactions: { start: '⏳', success: '🍃', error: '🥵' },
 
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const seconds = parseInt(args[0]);
 
             if (isNaN(seconds) || seconds < 0) {
@@ -51,7 +51,7 @@ module.exports = [
         examples: ['.addmode admin_add', '.addmode all_member_add'],
         reactions: { start: '👥', success: '🍃', error: '🥵' },
 
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const mode = args[0]?.toLowerCase();
             const valid = ['admin_add', 'all_member_add'];
 
@@ -84,7 +84,7 @@ module.exports = [
         examples: ['.approval on', '.approval off'],
         reactions: { start: '🔐', success: '🍃', error: '🥵' },
 
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const setting = args[0]?.toLowerCase();
             const valid = ['on', 'off'];
 
@@ -119,7 +119,7 @@ module.exports = [
         examples: ['.bottag ⚉ CRYSNOVA AI', '.bottag Admin Bot'],
         reactions: { start: '🏷️', success: '🍃', error: '🥵' },
 
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const label = args.join(' ').trim();
 
             if (!label) {

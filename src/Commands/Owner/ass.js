@@ -36,7 +36,7 @@ module.exports = {
     category: 'Owner',
     usage: '.ass on/off | .ass mode dm/chat/number | .ass set <number/chatJid> | .ass status',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const sub = args[0]?.toLowerCase();
         const value = args.slice(1).join(' ');
 

@@ -13,7 +13,7 @@ module.exports = {
     examples: ['.movieintel The boys', '.moviei Avengers'],
     reactions: { start: '🎬', success: '✨', error: '❕' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const query = args.join(' ').trim();
         if (!query) return reply(`${prefix}彡 *Usage:* movieintel <movie name>\n\nExample: .movieintel The boys`);
 

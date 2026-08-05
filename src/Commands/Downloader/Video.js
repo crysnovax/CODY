@@ -7,7 +7,7 @@ module.exports = {
     desc: 'Download YouTube video',
     category: 'downloader',
 
-    execute: async (sock, m, { text, reply }) => {
+    execute: async (sock, m, { text, reply , prefix}) => {
         try {
 
             if (!text) {

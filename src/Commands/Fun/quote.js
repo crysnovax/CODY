@@ -10,7 +10,7 @@ module.exports = {
     alias: ['quotes', 'motivation'],
     desc: 'Get a motivational quote',
     category: 'Fun',
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         await reply(`${prefix}💬 ${quotes[Mathfloor(Math.random() * quotes.length)]}`);
     }
 };

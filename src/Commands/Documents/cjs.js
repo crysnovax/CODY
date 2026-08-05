@@ -9,7 +9,7 @@ module.exports = {
     category: 'Tools',
     usage: '.comjs <filename.js> (reply to a .js file or code text)  OR  .comjs <filename.js> <code>',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         let customFileName = args[0]?.trim();
         if (customFileName && !customFileName.endsWith('.js')) customFileName += '.js';
 

@@ -40,7 +40,7 @@ module.exports = {
     adminOnly: true,
     reactions: { start: '🛡️', success: '😤' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const db = loadDB();
         const group = m.chat;
         if (!db[group]) db[group] = { enabled: false, action: 'delete' };

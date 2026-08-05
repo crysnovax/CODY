@@ -11,7 +11,7 @@ module.exports = {
     desc: 'Create a round/circle sticker from an image or video',
     usage: '.round (reply to image/video)',
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const quoted = m.quoted || m;
         const mime = quoted.mimetype || '';
 

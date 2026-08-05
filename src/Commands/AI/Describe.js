@@ -13,7 +13,7 @@ module.exports = {
     desc: 'AI describes any image using CRYSNOVA Vision',
     usage: '.caption (reply to image) | .caption <question> (reply to image)',
 
-    execute: async (sock, m, { reply, args }) => {
+    execute: async (sock, m, { reply, args , prefix}) => {
         if (!m.quoted) {
             return reply(
                 `𝌆☇ *AI IMAGE CAPTION*\n\n` +

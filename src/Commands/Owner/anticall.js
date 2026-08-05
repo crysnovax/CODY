@@ -12,7 +12,7 @@ module.exports = {
     desc: 'Manage anti‑call settings (whitelist/blacklist always active)',
     category: 'Owner',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         console.log('[ANTICALL CMD] args:', args);
         const sub = args[0]?.toLowerCase();
         const config = loadConfig();

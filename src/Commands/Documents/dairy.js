@@ -27,7 +27,7 @@ module.exports = {
     desc: 'Write and read encrypted diary entries',
     usage: '.diary write <password> | <entry>\n.diary read <password> | <date>\n.diary list <password>',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const sub = args[0]?.toLowerCase();
         const rest = args.slice(1).join(' ');
 

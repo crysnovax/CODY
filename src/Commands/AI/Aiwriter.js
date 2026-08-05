@@ -39,7 +39,7 @@ module.exports = {
     category: 'AI',
     usage: '.aiwriter\n.aiwriter <number> <prompt>\n.aiwriter <model name/code> <prompt>',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const input = args.join(' ').trim();
         
         // No args: list models

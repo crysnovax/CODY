@@ -10,7 +10,7 @@ module.exports = {
     usage: '.qr <text>   OR   .qrread (reply to QR image)',
     owner: true,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const rawCmd = (m.body || '').trim().toLowerCase().split(/\s+/)[0];
         const cmd = rawCmd.replace(/^[^a-z0-9]+/, '');
 

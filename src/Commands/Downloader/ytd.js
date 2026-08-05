@@ -10,7 +10,7 @@ module.exports = {
     examples: ['.yt https://youtu.be/rsF9VaubHWM'],
     reactions: { start: '📥', success: '❤️‍🩹', error: '❔' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const url = args[0]?.trim();
         if (!url) return reply(`${prefix}Usage: yt <url>`);
 

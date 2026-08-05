@@ -12,7 +12,7 @@ module.exports = {
     desc: 'Convert video/sticker to a large round sticker (10s limit)',
     usage: `.toround (reply to video or sticker)`,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const quoted = m.quoted || m;
         const mime = (quoted.msg || quoted).mimetype || '';
 

@@ -35,7 +35,7 @@ module.exports = {
 .autoreact remove <emoji>
 .autoreact reset`,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const config = loadConfig();
         const cmd = args[0]?.toLowerCase();
 

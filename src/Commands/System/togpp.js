@@ -66,7 +66,7 @@ module.exports = {
     ownerOnly: true,
     reactions: { start: '🍁', success: '🍂' },
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const current = readEnv().MENU_URL;
         const next = current === IMAGE_URL ? VIDEO_URL : IMAGE_URL;
 

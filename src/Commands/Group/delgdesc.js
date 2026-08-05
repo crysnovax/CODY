@@ -3,7 +3,7 @@ module.exports = {
     alias: ['deletedescription'],
     desc: 'Delete group description',
     category: 'Tools',
-    execute: async (sock, m, { isGroup, groupMeta, reply }) => {
+    execute: async (sock, m, { isGroup, groupMeta, reply , prefix}) => {
         if (!isGroup) return reply('_*⚉ GROUP ONLY!!.*_');
 
         try {

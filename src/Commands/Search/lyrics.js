@@ -10,7 +10,7 @@ module.exports = {
     examples: ['.lyrics Assurance by Davido', '.lyrics Shape of You'],
     reactions: { start: '📥', success: '❤️‍🩹', error: '❔' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const query = args.join(' ').trim();
         if (!query) return reply(`${prefix}Usage: lyrics <song title>`);
 

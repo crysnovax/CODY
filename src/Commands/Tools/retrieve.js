@@ -6,7 +6,7 @@ module.exports = {
     usage: `.deleted`,
     reactions: { start: '🗑️', success: '💬', error: '🙈' },
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         await sock.sendMessage(m.chat, { react: { text: '🗑️', key: m.key } });
 
         try {

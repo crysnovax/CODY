@@ -28,7 +28,7 @@ module.exports = {
     owner: true,
     usage: '.autoupdate on/off/status',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const sub = args[0]?.toLowerCase();
 
         if (sub === 'on') {

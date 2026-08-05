@@ -66,7 +66,7 @@ module.exports = {
     owner: true,
     usage: `.format confirm`,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const confirmWord = args[0]?.toLowerCase();
 
         if (confirmWord !== 'confirm') {

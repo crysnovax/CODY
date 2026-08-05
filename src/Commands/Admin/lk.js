@@ -9,7 +9,7 @@ module.exports = {
     admin: false,
     group: true,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         if (!m.isGroup) {
             return reply('`⟁⃝GROUP ONLY! ℘`');
         }

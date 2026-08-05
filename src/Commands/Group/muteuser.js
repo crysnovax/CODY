@@ -195,8 +195,9 @@ const timeArg=args.find(a=>/^\d+(s|m|h|d|w|mo)$/i.test(a));
 if(timeArg)
 timeMs=parseTime(timeArg);
 
+// Default: permanent (no auto-unmute) unless a time is specified
 if(!timeMs)
-timeMs=isAdmin?3600000:600000;
+timeMs=null;
 
 /* ================= REASON ================= */
 
@@ -207,44 +208,44 @@ const reason=args.filter(a=>
 
 /* ================= SAVE ================= */
 
-const until=Date.now()+timeMs;
+const until = timeMs ? Date.now() + timeMs : Infinity;
 
 db[chatId][targetJid]={
 mutedBy:sender,
 reason,
 time:Date.now(),
 until,
-duration:timeMs
+duration:timeMs || null
 };
 
 saveMutedDb(db);
 
-/* ================= AUTO UNMUTE ================= */
+/* ================= AUTO UNMUTE (only if timed) ================= */
 
-setTimeout(async()=>{
-
-const db=getMutedDb();
-
-if(db[chatId]?.[targetJid]){
-delete db[chatId][targetJid];
-saveMutedDb(db);
-
-await sock.sendMessage(chatId,{
-text:`_*⁠☞⁠ ͡⁠°⁠ ͜⁠ʖ⁠ ͡⁠°⁠)⁠☞ ${targetJid.split('@')[0]} auto unmuted*_`,
-mentions:[targetJid]
-}).catch(()=>{});
+if (timeMs) {
+    setTimeout(async()=>{
+        const db=getMutedDb();
+        if(db[chatId]?.[targetJid]){
+            delete db[chatId][targetJid];
+            saveMutedDb(db);
+            await sock.sendMessage(chatId,{
+                text:`_*⁠☞⁠ ͡⁠°⁠ ͜⁠ʖ⁠ ͡⁠°⁠)⁠☞ ${targetJid.split('@')[0]} auto unmuted*_`,
+                mentions:[targetJid]
+            }).catch(()=>{});
+        }
+    }, timeMs);
 }
 
-},timeMs);
-
 /* ================= SUCCESS ================= */
+
+const durationText = timeMs ? formatTime(timeMs) : '∞ Permanent';
 
 await sock.sendMessage(chatId,{
 text:
 `_*⟁⃝ USER MUTED 彡*_\n\n`+
-`—͟͟͞͞𖣘 Target: @${targetJid.split('@')[0]}\n`+
+`—͟͟͞͞𖣘 Target: @${targetJid.split('@')[0]}\n`+
 `✐   Reason: ${reason}\n`+
-`ⓘ Duration: ${formatTime(timeMs)}`,
+`ⓘ Duration: ${durationText}`,
 
 mentions:[targetJid]
 
@@ -270,7 +271,8 @@ return false;
 
 const muteInfo=db[chatId][sender];
 
-if(Date.now()>muteInfo.until){
+// Infinity means permanent — only expire if until is a finite timestamp
+if(muteInfo.until !== Infinity && Date.now() > muteInfo.until){
 delete db[chatId][sender];
 saveMutedDb(db);
 return false;

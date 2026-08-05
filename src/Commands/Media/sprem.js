@@ -9,7 +9,7 @@ module.exports = {
     alias: ['stickerprem', 'spremium'],
     category: 'Media',
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const quoted = m.quoted || m;
         const mime = quoted.mimetype || '';
 

@@ -10,7 +10,7 @@ module.exports = {
     category: 'AI',
     desc: 'Advanced storytelling AI powered by CRYSNOVA',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             if (!args.length) {
                 return reply(`${prefix}ಠ_ಠ *STORYTELLING AI*\n\nUsage:\nstory <prompt>\n.story creative <prompt>\n.story short <prompt>\n.story long <prompt>`);

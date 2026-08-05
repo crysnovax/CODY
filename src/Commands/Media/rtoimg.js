@@ -10,7 +10,7 @@ module.exports = {
     desc: 'Convert a round sticker back to image or video',
     usage: `.rtoimg (reply to a round sticker)`,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const quoted = m.quoted || m;
         const mime = (quoted.msg || quoted).mimetype || '';
 

@@ -4,7 +4,7 @@ module.exports = {
     desc: 'List available SMS24 virtual phone numbers',
     category: 'Tools',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             const country = args[0]?.toUpperCase() || 'US';
             

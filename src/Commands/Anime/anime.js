@@ -41,7 +41,7 @@ const sfwCommands = SFW_ACTIONS.map(action => ({
     usage: `.${action.name} [@mention]`,
     reactions: { start: action.emoji, success: '✨' },
     
-    execute: async (sock, m, { reply, mentioned }) => {
+    execute: async (sock, m, { reply, mentioned , prefix}) => {
         try {
             await sock.sendMessage(m.chat, { react: { text: action.emoji, key: m.key } });
             
@@ -87,7 +87,7 @@ const nsfwCommands = NSFW_ACTIONS.map(action => ({
     usage: `.${action.name}`,
     reactions: { start: action.emoji, success: '🔞' },
     
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         try {
             await sock.sendMessage(m.chat, { react: { text: action.emoji, key: m.key } });
             
@@ -120,7 +120,7 @@ const utilityCommands = [
         usage: `${prefix}anekofact`,
         reactions: { start: '📚', success: '💡' },
         
-        execute: async (sock, m, { reply }) => {
+        execute: async (sock, m, { reply , prefix}) => {
             try {
                 const res = await axios.get(`${BASE}/fact`);
                 const fact = res.data?.fact;
@@ -139,7 +139,7 @@ const utilityCommands = [
         usage: `${prefix}anekoname`,
         reactions: { start: '📛', success: '✨' },
         
-        execute: async (sock, m, { reply }) => {
+        execute: async (sock, m, { reply , prefix}) => {
             try {
                 const res = await axios.get(`${BASE}/name`);
                 const name = res.data?.name;
@@ -158,7 +158,7 @@ const utilityCommands = [
         usage: `${prefix}aowoify <text>`,
         reactions: { start: '😸', success: '✨' },
         
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const text = args.join(' ').trim();
             if (!text) return reply('`×͜× Provide text to owoify ×͜×`');
             try {
@@ -179,7 +179,7 @@ const utilityCommands = [
         usage: `${prefix}awhy`,
         reactions: { start: '🤔', success: '❓' },
         
-        execute: async (sock, m, { reply }) => {
+        execute: async (sock, m, { reply , prefix}) => {
             try {
                 const res = await axios.get(`${BASE}/why`);
                 const why = res.data?.why;
@@ -198,7 +198,7 @@ const utilityCommands = [
         usage: `${prefix}acat`,
         reactions: { start: '🐱', success: '😻' },
         
-        execute: async (sock, m, { reply }) => {
+        execute: async (sock, m, { reply , prefix}) => {
             try {
                 const res = await axios.get(`${BASE}/cat`);
                 const imageUrl = res.data?.cat;
@@ -220,7 +220,7 @@ const utilityCommands = [
         usage: `${prefix}a8ball <question>`,
         reactions: { start: '🎱', success: '🔮' },
         
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const question = args.join(' ').trim();
             if (!question) return reply('`×͜× Ask a question ×͜×`');
             try {
@@ -251,7 +251,7 @@ const utilityCommands = [
         usage: `${prefix}aspoiler <text>`,
         reactions: { start: '🫣', success: '🙈' },
         
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const text = args.join(' ').trim();
             if (!text) return reply('`×͜× Provide text to spoiler ×͜×`');
             try {
@@ -272,7 +272,7 @@ const utilityCommands = [
         usage: `${prefix}achat <message>`,
         reactions: { start: '💬', success: '🤖' },
         
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply , prefix}) => {
             const text = args.join(' ').trim();
             if (!text) return reply('`×͜× Say something ×͜×`');
             try {

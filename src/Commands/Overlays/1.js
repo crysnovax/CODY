@@ -6,7 +6,7 @@ module.exports = {
     desc: "Apply burial effect to an image or a user's profile picture",
     usage: ".burial [@user] or reply to an image/user",
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         let targetBuffer = null;
 
         // 1) Check if replying to an image message

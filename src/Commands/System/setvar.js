@@ -67,7 +67,7 @@ module.exports = {
     ownerOnly: true,
     reactions: { start: '⚙️', success: '👾' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         if (!args[0]) return reply(
             `Usage: .setvar KEY=value\n\nExamples:\n` +
             `• .setvar PREFIX=.\n` +

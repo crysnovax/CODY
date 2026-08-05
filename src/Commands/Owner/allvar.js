@@ -12,7 +12,7 @@ module.exports = {
         success: '❔'
     },
     
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const runtime = allVars();
         if (!Object.keys(runtime).length) {
             const list = Object.keys(VARS).map(v => `• ${v}`).join('\n');

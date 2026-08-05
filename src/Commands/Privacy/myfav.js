@@ -29,7 +29,7 @@ module.exports = {
         success: '✨'
     },
 
-    execute: async (sock, m, { reply, args, usedPrefix, command: cmdName }) => {
+    execute: async (sock, m, { reply, args, usedPrefix, command: cmdName , prefix}) => {
         try {
             const prefix = usedPrefix || '.'
             const command = cmdName || 'myfav'

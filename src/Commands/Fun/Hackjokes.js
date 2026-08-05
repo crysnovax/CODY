@@ -9,7 +9,7 @@ module.exports = {
  usage: `.joke`,
  owner: false,
 
- execute: async (sock, m, { reply }) => {
+ execute: async (sock, m, { reply , prefix}) => {
  try {
  const res = await fetch('https://v2.jokeapi.dev/joke/Programming?type=single');
  const data = await res.json();

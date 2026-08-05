@@ -9,7 +9,7 @@ module.exports = {
     desc: 'Compress an image or video to reduce size',
     usage: '.compress (reply to image/video)',
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const quoted = m.quoted || m;
         const mime = quoted.mimetype || '';
 

@@ -5,7 +5,7 @@ module.exports = {
     category: 'group',
     usage: `.setppgc (reply to image)`,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
 
         if (!m.isGroup)
             return reply('```⚉ Group only```');

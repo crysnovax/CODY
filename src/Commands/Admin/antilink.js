@@ -38,11 +38,14 @@ function ensureGroupConfig(db, group) {
 }
 
 function hasLink(text) {
-    return /(https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me)/i.test(text);
+    // Catches: https://, http://, www., wa.me, t.me, bit.ly, youtu.be, chat.whatsapp.com
+    // Also catches bare domain patterns like t.me/xxx, youtu.be/xxx without https://
+    return /(https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me|t\.me\/|bit\.ly\/|youtu\.be\/|tinyurl\.com\/|discord\.gg\/|invite\.whatsapp\.com|whatsapp\.com\/channel)/i.test(text);
 }
 
 function extractUrls(text) {
-    const matches = text.match(/https?:\/\/[^\s<>]+/gi);
+    // Match both http(s) links and bare domain links (t.me/x, wa.me/x, youtu.be/x etc.)
+    const matches = text.match(/(?:https?:\/\/|www\.|t\.me\/|wa\.me\/|youtu\.be\/|bit\.ly\/|tinyurl\.com\/|discord\.gg\/|chat\.whatsapp\.com\/|invite\.whatsapp\.com\/|whatsapp\.com\/channel\/)[^\s<>"')]+/gi);
     return matches || [];
 }
 
@@ -86,7 +89,7 @@ module.exports = {
     adminOnly: true,
     reactions: { start: '🖇️', success: '🚫' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         if (!m.isGroup) return reply('`⚉ Group only`');
 
         const db = loadDB();
@@ -256,7 +259,7 @@ module.exports = {
             if (warns[key]) {
                 delete warns[key];
                 saveWarns(warns);
-                return reply(`${prefix}✓ Warnings reset for @${mentionedsplit('@')[0]}`, { mentions: [mentioned] });
+                return reply(`✓ Warnings reset for @${mentioned.split('@')[0]}`, { mentions: [mentioned] });
             }
             return reply('`✘ User has no warnings.`');
         }

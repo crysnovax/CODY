@@ -42,7 +42,7 @@ module.exports = {
     category: 'AI',
     usage: '.aiwriter\n.aiwriter <number/code> <prompt>',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const input = args.join(' ').trim();
         
         if (!input) {

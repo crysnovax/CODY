@@ -9,7 +9,7 @@ module.exports = {
     category: 'Tools',
     usage: '.comhtml <filename.html> (reply to a .html file or code text)  OR  .comhtml <filename.html> <code>',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         // 获取用户自定义文件名
         let customFileName = args[0]?.trim();
         if (customFileName && !customFileName.endsWith('.html')) customFileName += '.html';

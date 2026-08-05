@@ -4,7 +4,7 @@ module.exports = {
     desc: 'Text to speech with voice selection',
     category: 'AI',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             if (args.length < 2) {
                 return reply(`${prefix}🎙️ Usage:

@@ -8,7 +8,7 @@ module.exports = {
     groupOnly: false,
     adminOnly: false,
 
-    execute: async (sock, m, { text, reply }) => {
+    execute: async (sock, m, { text, reply , prefix}) => {
         try {
             const chat = m.chat;
             

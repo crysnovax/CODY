@@ -5,7 +5,7 @@ module.exports = {
     category: 'group',
     usage: '.gcname to change group name note: character limit will still not be exceeded',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
 
         if (!m.isGroup)
             return reply('`⟁⃝GROUP ONLY!℘`');

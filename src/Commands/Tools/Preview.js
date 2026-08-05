@@ -10,7 +10,7 @@ module.exports = {
     category: 'Utility',
     usage: `.preview <url> | <title> | <description>`,
     
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const fs = require('fs');
         const path = require('path');
         

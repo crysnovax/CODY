@@ -5,7 +5,7 @@ module.exports = {
     desc: 'Leave the current group',
     owner: true,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
 
         try {
 

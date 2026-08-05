@@ -10,7 +10,7 @@ module.exports = {
     alias: ['say', 'speak', 'voice'],
     category: 'WhatsApp',
 
-    execute: async (sock, m, { reply, args, quoted }) => {
+    execute: async (sock, m, { reply, args, quoted , prefix}) => {
         let text = args.join(' ') || quoted?.text;
         if (!text) {
             return reply(`${prefix}⚉ Provide text to convert to speech

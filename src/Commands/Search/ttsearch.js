@@ -10,7 +10,7 @@ module.exports = {
     examples: ['.tiktok AI automation', '.tt Ronaldo funny'],
     reactions: { start: '📥', success: '❤️‍🩹', error: '❔' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const query = args.join(' ').trim();
         if (!query) return reply(`${prefix}Usage: tiktok <query>`);
 

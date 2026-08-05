@@ -8,7 +8,7 @@ module.exports = {
     botAdmin: false,
     reactions: { start: '♾️', success: '🎉' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
 
         const meta     = await sock.groupMetadata(m.chat).catch(() => null)
         if (!meta) return reply('✘ Could not fetch group info')

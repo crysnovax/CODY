@@ -12,7 +12,7 @@ module.exports = {
     },
 
 
-    execute: async (sock, m, { args, reply, quoted }) => {
+    execute: async (sock, m, { args, reply, quoted , prefix}) => {
         try {
             // Get URL from args or quoted message
             let url = args[0] || m.quoted?.text;

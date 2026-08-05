@@ -11,7 +11,7 @@ module.exports = {
     botAdmin: false,
     reactions: { start: '♾️', success: '🎉' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             if (!m.isGroup) return reply('`⟁⃝GROUP ONLY!℘`');
 

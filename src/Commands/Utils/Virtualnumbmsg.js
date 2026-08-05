@@ -4,7 +4,7 @@ module.exports = {
     desc: 'Get SMS messages for SMS24 virtual number',
     category: 'Tools',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             if (!args.length) {
                 return reply(`${prefix}📩 Usage:

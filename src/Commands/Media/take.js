@@ -10,7 +10,7 @@ module.exports = {
     desc: 'Steal sticker and save with CRYSNOVA AI packname',
     reactions: { start: '🥏', success: '😎' },
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         try {
             const quoted = m.quoted ? m.quoted : m;
             const mime = (quoted.msg || quoted).mimetype || '';

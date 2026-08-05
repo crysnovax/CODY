@@ -7,7 +7,7 @@ module.exports = {
     category: 'Owner',
     usage: '.autorecording on/off',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const action = args[0]?.toLowerCase();
 
         if (action === 'on') {

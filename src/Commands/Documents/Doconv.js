@@ -9,7 +9,7 @@ module.exports = {
     desc: 'Convert between file formats',
     usage: '.convert <to_format> (reply to file)\nFormats: png, jpg, webp, mp4, mp3, pdf, gif',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const format = args[0]?.toLowerCase();
         if (!format) return reply('⚉ Usage: .convert png (reply to image)\nFormats: png, jpg, webp, mp4, mp3, pdf, gif');
 

@@ -11,7 +11,7 @@ module.exports = {
     category: 'Media',
     reactions: { start: '🖼️', success: '🥏' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         const subcommand = args[0]?.toLowerCase();
         const sessionKey = `${m.sender}_${m.chat}`;
 

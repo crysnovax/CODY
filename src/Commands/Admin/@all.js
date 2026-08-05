@@ -8,7 +8,7 @@ module.exports = {
     group: true,
     usage: `.all`,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         try {
             await sock.sendMessage(m.chat, {
                 text: '@all',

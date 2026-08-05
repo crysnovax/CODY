@@ -116,7 +116,7 @@ module.exports = {
         success: '✨'
     },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         let urls = [];
 
         // Check if replying to a message with URLs

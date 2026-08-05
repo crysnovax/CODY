@@ -20,7 +20,7 @@ module.exports = {
     usage: 'Reply to image + .resize 1920x1080 | .scale 200% | .fit 800x600 | .crop 1:1 | .square | .compress 80\nReply to GIF + .resize 640x360',
     owner: false,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         // Must reply to a message
         if (!m.quoted) {
             return reply('*𓉤 Reply to an image to resize it!*');

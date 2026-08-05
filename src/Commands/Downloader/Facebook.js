@@ -13,7 +13,7 @@ module.exports = {
     usage: `.fb <Facebook URL> (or reply to a message containing URL)`,
     owner: false,
 
-    execute: async (sock, m, { args, reply, quoted }) => {
+    execute: async (sock, m, { args, reply, quoted , prefix}) => {
         let url = args[0]?.trim();
 
         // Priority 1: Direct URL from args

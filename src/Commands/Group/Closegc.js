@@ -19,7 +19,7 @@ module.exports = {
 
     // isOwner: true, // ← uncomment to restrict to bot owner only
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         const chatId = m.key.remoteJid;
 
         if (!chatId.endsWith('@g.us')) {

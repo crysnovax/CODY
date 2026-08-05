@@ -9,7 +9,7 @@ module.exports = {
     usage: `.ringtone <name>`,
     reactions: { start: '🔔', success: '🎵' },
 
-    execute: async (sock, m, { args, reply, quoted }) => {
+    execute: async (sock, m, { args, reply, quoted , prefix}) => {
         const rawQuery = (args.join(' ').trim() || quoted?.text || quoted?.body || '').trim();
         if (!rawQuery) {
             return reply(

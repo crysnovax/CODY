@@ -17,7 +17,7 @@ module.exports = {
     category: 'Utils',
     reactions: { start: '🎙️', success: '📑' },
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply , prefix}) => {
         try {
             const isVoiceNote = 
                 m.message?.audioMessage?.ptt === true ||

@@ -3,7 +3,7 @@ const cron = require('node-cron');
 
 module.exports = {
     name: 'mute',
-    alias: ['silence', 'groupmute'],
+    alias: ['silence', 'groupmute', 'mutesch'],
     desc: 'Mute group instantly, for a duration, or on a schedule',
     category: 'Admin',
     groupOnly: true,
@@ -12,7 +12,7 @@ module.exports = {
 
     setupMuteSchedules: core.setupMuteSchedules,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply, prefix }) => {
         const groupJid = m.chat;
         const sub = args[0]?.toLowerCase();
 
@@ -25,7 +25,7 @@ module.exports = {
                 core.activeCrons[s.id]?.stop();
                 delete core.activeCrons[s.id];
             }
-            return reply(`${prefix}✦ ${removedlength} schedule(s) cancelled for this group`);
+            return reply(`✦ ${removed.length} schedule(s) cancelled for this group`);
         }
 
         // ── SHOW SCHEDULES ────────────────────────────────────
@@ -42,7 +42,7 @@ module.exports = {
         if (sub === 'for') {
             const timeArg = args[1];
             const ms = core.parseTime(timeArg);
-            if (!ms) return reply('⚉ Use: `${prefix}mute for 10m | 2h | 1d | 2w`');
+            if (!ms) return reply(`⚉ Use: \`${prefix}mute for 10m | 2h | 1d | 2w\``);
             if (ms > 60 * 24 * 60 * 60 * 1000) return reply('⚉ Maximum is 60 days');
 
             await sock.groupSettingUpdate(groupJid, 'announcement');
@@ -69,7 +69,7 @@ module.exports = {
             const repeat    = args[4]?.toLowerCase() || 'daily';
 
             if (!startTime || !endTime || toWord !== 'to') {
-                return reply('⚉ Use: `${prefix}mute from 12pm to 5am daily` or `once`');
+                return reply(`⚉ Use: \`${prefix}mute from 12pm to 5am daily\` or \`${prefix}mute from 12pm to 5am once\`\nSchedule usage:\n• ${prefix}mute from 10pm to 6am daily\n• ${prefix}mutesch 5pm to 10am once`);
             }
 
             const startCron = core.timeToCron(startTime);
@@ -116,7 +116,7 @@ module.exports = {
                 `✦ Mute at   : ${startTime}\n` +
                 `✦ Unmute at : ${endTime}\n` +
                 `✦ Repeat    : ${repeat}\n\n` +
-                `Use .mute cancel to remove`
+                `Use \`${prefix}mute cancel\` to remove`
             );
         }
 

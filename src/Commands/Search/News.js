@@ -164,7 +164,7 @@ module.exports = {
     
     reactions: { start: '🗞️', success: '❔', read: '📰' },
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             const userId = m.sender || m.key?.participant || m.key?.remoteJid;
             const userRegion = getUserTimezone(userId);

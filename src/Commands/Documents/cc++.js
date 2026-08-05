@@ -9,7 +9,7 @@ module.exports = {
     category: 'Tools',
     usage: '.comcpp <filename.cpp> (reply to a .cpp file or code text)  OR  .comcpp <filename.cpp> <code>',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         // Get custom filename from user
         let customFileName = args[0]?.trim();
         if (customFileName && !customFileName.endsWith('.cpp')) customFileName += '.cpp';

@@ -9,7 +9,7 @@ module.exports = {
     ownerOnly: true,      
     groupOnly: false,     
 
-    execute: async (sock, m, { reply, store }) => {
+    execute: async (sock, m, { reply, store , prefix}) => {
         await sock.sendMessage(m.chat, { react: { text: '📝', key: m.key } });
 
         if (!m.quoted) {

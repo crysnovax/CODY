@@ -8,7 +8,7 @@ module.exports = {
     category: 'Group',
     admin: false,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply , prefix}) => {
         try {
             const groupName = args.join(' ').trim();
             if (!groupName) {
