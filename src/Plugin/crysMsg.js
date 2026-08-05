@@ -151,7 +151,7 @@ const handleMessage = async (sock, m, store) => {
         let prefix = getVar('PREFIX', '.');
         if (prefix === 'null' || prefix === '') prefix = '';
 
-        const autoReact    = getVar('AUTO_REACT', true);
+        const cmdReact     = getVar('CMD_REACT', getVar('AUTO_REACT', true));
         const privateReact = getVar('PRIVATE_REACT', true);
         const cooldown     = getVar('COOLDOWN', 3);
 
@@ -321,7 +321,7 @@ const handleMessage = async (sock, m, store) => {
             cooldowns.set(cdKey, now + cooldown * 1000);
         }
 
-        if (autoReact) {
+        if (cmdReact) {
             await sock.sendMessage(m.chat, { react: { text: cmd.reactions?.start || '🍂', key: m.key } }).catch(() => {});
         }
 
@@ -334,13 +334,24 @@ const handleMessage = async (sock, m, store) => {
 
         if (global.crysStats) global.crysStats.commands++;
 
-        if (autoReact) {
-            await sock.sendMessage(m.chat, { react: { text: cmd.reactions?.success || '🥏', key: m.key } }).catch(() => {});
+        if (cmdReact) {
+            await sock.sendMessage(m.chat, { react: { text: '📅', key: m.key } }).catch(() => {});
+            await sock.sendMessage(m.chat, { react: { text: '', key: m.key } }).catch(() => {});
         }
 
     } catch (err) {
         console.log(chalk.red('[MSG ERROR]'), err.message);
-        sock.sendMessage(m.chat, { react: { text: '🚧', key: m.key } }).catch(() => {});
+        if (cmdReact && m?.key) {
+            await sock.sendMessage(m.chat, { react: { text: '🥀', key: m.key } }).catch(() => {});
+        }
+        const owners = String(process.env.OWNER_NUMBER || getVar('OWNER_NUMBER', '') || '')
+            .split(',').map(value => value.trim()).filter(Boolean);
+        for (const owner of owners) {
+            const ownerJid = owner.includes('@') ? owner : `${owner.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
+            await sock.sendMessage(ownerJid, {
+                text: `*Command error*\nCommand: ${cmdName || 'unknown'}\nChat: ${m?.chat || 'unknown'}\nError: ${err.message}`
+            }).catch(() => {});
+        }
     }
 };
 
