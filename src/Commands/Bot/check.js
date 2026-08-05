@@ -6,7 +6,7 @@ module.exports = [{
     alias: [],
     category: 'Info',
     desc: 'Display bot statistics as poll result',
-    usage: `${prefix}check`,
+    usage: `.check`,
     reactions: { start: '📊', success: '📡' },
     
     execute: async (sock, m, { reply }) => {

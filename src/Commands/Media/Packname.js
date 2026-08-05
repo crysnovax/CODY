@@ -10,7 +10,7 @@ module.exports = {
     alias: ['stpk', 'setpack', 'pk'],
     category: 'tools',
     desc: 'Steal sticker with CRYSNOVA AI pack and custom author name',
-    usage: `${prefix}pk <author name> (reply to a sticker)`,
+    usage: `.pk <author name> (reply to a sticker)`,
 
     execute: async (sock, m, { args, reply }) => {
         try {

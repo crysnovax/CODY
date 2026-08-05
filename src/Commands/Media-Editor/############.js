@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create an anonymous hacker cyan neon text effect',
     category: 'textmaker',
-    usage: `${prefix}hacker <text>`,
+    usage: `.hacker <text>`,
     reactions: {
         start: '💻',
         success: '⌨️'

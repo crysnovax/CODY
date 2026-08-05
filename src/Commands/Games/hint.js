@@ -3,7 +3,7 @@ module.exports = {
     alias: ['answer', 'reveal'],
     desc: 'Reveal answer for games (trivia, riddle, anagram)',
     category: 'Games',
-    usage: `${prefix}hint`,
+    usage: `.hint`,
     reactions: { start: '💡', success: '🎭', error: '😴' },
 
     execute: async (sock, m, { reply }) => {

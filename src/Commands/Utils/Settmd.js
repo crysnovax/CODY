@@ -30,7 +30,7 @@ module.exports = {
     alias: ['settime', 'settimezone', 'st'],
     desc: 'Set your default timezone',
     category: 'Info',
-    usage: `${prefix}settmd <region>`,
+    usage: `.settmd <region>`,
     reactions: { start: '⏰', success: '🔖', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

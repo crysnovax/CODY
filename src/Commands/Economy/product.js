@@ -69,7 +69,7 @@ module.exports = {
     alias: ['shop', 'sell', 'catalog'],
     desc: 'Create a product listing with purchase button',
     category: 'Shop',
-    usage: `${prefix}product <title> | <price> | <description> | <url> (reply to image)`,
+    usage: `.product <title> | <price> | <description> | <url> (reply to image)`,
     reactions: { start: '🛍️', success: '🥏', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

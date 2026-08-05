@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Download TikTok videos without watermark no audio sent',
     category: 'Downloader',
-    usage: `${prefix}ttld <TikTok URL>`,
+    usage: `.ttld <TikTok URL>`,
     reactions: { start: '🎵', success: '✨', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix, quoted }) => {

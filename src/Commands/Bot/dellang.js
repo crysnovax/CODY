@@ -17,7 +17,7 @@ module.exports = {
     alias: ['remlang', 'clearlang', 'rmlang'],
     desc: 'Delete lang_prefs.json (removes all saved language preferences)',
     category: 'tools',
-    usage: `${prefix}dellang`,
+    usage: `.dellang`,
 
     // Strongly recommended: make this owner-only
     // isOwner: true,   // ← uncomment this in your command loader if you have owner check

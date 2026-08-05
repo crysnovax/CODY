@@ -5,6 +5,7 @@ const { exec } = require('child_process');
 // which pulls in the native "sharp" module and crashes on hosts without a
 // prebuilt sharp binary (e.g. bot-hosting.net linux-x64).
 const { addExif } = require('../../../library/exif');
+const { getVar } = require('../../Plugin/configManager');
 
 module.exports = {
     name: 'sticker',
@@ -12,6 +13,10 @@ module.exports = {
     category: 'Media',
 
     execute: async (sock, m, { reply }) => {
+        // Resolve PACK_NAME at execution time so setvar takes effect without restart
+        const rawPack = getVar('PACK_NAME') || process.env.PACK_NAME || getVar('BOT_NAME') || process.env.BOT_NAME || 'crysnovax';
+        const stickerPack = `⚉ • ${rawPack}`;
+        const stickerAuthor = getVar('STICKER_AUTHOR') || process.env.STICKER_AUTHOR || getVar('PACK_NAME') || process.env.PACK_NAME || 'crysnovax';
         const quoted = m.quoted || m;
         const mime = quoted.mimetype || '';
 
@@ -88,8 +93,8 @@ module.exports = {
             // Read the generated WebP
             let buffer = fs.readFileSync(output);
 
-            // Add sticker metadata (pack/author) without the native sharp dep
-            buffer = await addExif(buffer, 'CRYSNOVA AI', 'crysnovax', ['🔥']);
+            // Add sticker metadata (pack/author) — uses live PACK_NAME from getVar
+            buffer = await addExif(buffer, stickerPack, stickerAuthor, ['🔥']);
 
             // Send the sticker
             await sock.sendMessage(m.chat, { sticker: buffer }, { quoted: m });
@@ -100,7 +105,7 @@ module.exports = {
 
         } catch (e) {
             console.error(e);
-            reply(`${prefix}✘ Failed: ${emessage}`);
+            reply(`✘ Failed to create sticker: ${e.message}`);
         }
     }
 };

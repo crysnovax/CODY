@@ -6,7 +6,7 @@ module.exports = {
     alias: ['youtube', 'ytdl', 'youtubedownload'],
     desc: 'Download YouTube video',
     category: 'Search',
-    usage: `${prefix}yt <url>`,
+    usage: `.yt <url>`,
     examples: ['.yt https://youtu.be/rsF9VaubHWM'],
     reactions: { start: '📥', success: '❤️‍🩹', error: '❔' },
 

@@ -5,7 +5,7 @@ module.exports = {
     alias: ['gituser', 'dev'],
     desc: 'Get GitHub user profile information',
     category: 'Search',
-    usage: `${prefix}githubinfo <username>`,
+    usage: `.githubinfo <username>`,
     reactions: { start: '🐙', success: '🎭', error: '🏗️' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

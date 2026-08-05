@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a Brat-style image with text',
     category: 'Maker',
-    usage: `${prefix}brat <text>`,
+    usage: `.brat <text>`,
     reactions: { start: '🎬', success: '✨', error: '🎭' },
 
     execute: async (sock, m, { args, reply }) => {

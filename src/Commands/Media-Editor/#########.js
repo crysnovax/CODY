@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a green leaves/nature text effect',
     category: 'textmaker',
-    usage: `${prefix}leaves <text>`,
+    usage: `.leaves <text>`,
     reactions: {
         start: '🌿',
         success: '🍃'

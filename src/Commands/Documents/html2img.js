@@ -5,7 +5,7 @@ module.exports = [{
     alias: ['h2i', 'htmltoimg'],
     category: 'Converter',
     desc: 'Convert HTML code to an image',
-    usage: `${prefix}html2img <html code>`,
+    usage: `.html2img <html code>`,
     reactions: { start: '📄', success: '🖼️' },
     
     execute: async (sock, m, { args, reply }) => {

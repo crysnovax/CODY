@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a futuristic light/neon text effect',
     category: 'textmaker',
-    usage: `${prefix}light <text>`,
+    usage: `.light <text>`,
     reactions: {
         start: '💡',
         success: '✨'

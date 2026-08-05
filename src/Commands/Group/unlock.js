@@ -13,7 +13,7 @@ module.exports = {
     alias: ['unlockgroup', 'gcunlock', 'unfulllock'],
     desc: 'Unlock group settings (allow everyone to send messages again)',
     category: 'group',
-    usage: `${prefix}unlockgc`,
+    usage: `.unlockgc`,
 
     execute: async (sock, m, { reply, isGroupAdmin }) => {
         const chatId = m.key.remoteJid;

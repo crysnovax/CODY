@@ -5,7 +5,7 @@ module.exports = {
     alias: ['phone', 'number', 'whoiscalling'],
     desc: 'Get phone number information',
     category: 'Search',
-    usage: `${prefix}phoneinfo <number with country code>`,
+    usage: `.phoneinfo <number with country code>`,
     reactions: { start: '📞', success: '📡', error: '🏗️' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

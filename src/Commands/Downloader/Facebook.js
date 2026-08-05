@@ -10,7 +10,7 @@ module.exports = {
     alias: ['facebook', 'fbdown'],
     desc: 'Download Facebook video via CRYSNOVA Gateway',
     category: 'downloader',
-    usage: `${prefix}fb <Facebook URL> (or reply to a message containing URL)`,
+    usage: `.fb <Facebook URL> (or reply to a message containing URL)`,
     owner: false,
 
     execute: async (sock, m, { args, reply, quoted }) => {

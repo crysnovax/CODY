@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a Blackpink style logo text effect',
     category: 'textmaker',
-    usage: `${prefix}blackpink <text>`,
+    usage: `.blackpink <text>`,
     reactions: {
         start: '🖤',
         success: '💗'

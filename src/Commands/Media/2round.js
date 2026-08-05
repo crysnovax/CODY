@@ -10,7 +10,7 @@ module.exports = {
     alias: ['2round', 'makeround', 'tround'],
     category: 'Media',
     desc: 'Convert video/sticker to a large round sticker (10s limit)',
-    usage: `${prefix}toround (reply to video or sticker)`,
+    usage: `.toround (reply to video or sticker)`,
 
     execute: async (sock, m, { reply }) => {
         const quoted = m.quoted || m;

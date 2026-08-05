@@ -18,7 +18,7 @@ module.exports = {
     desc: 'Delete all bound sticker commands',
     category: 'owner',
     ownerOnly: true,
-    usage: `${prefix}clearcmd`,
+    usage: `.clearcmd`,
 
     execute: async (sock, m, { reply }) => {
         try {

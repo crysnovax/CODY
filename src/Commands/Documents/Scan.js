@@ -6,7 +6,7 @@ module.exports = {
     alias: ['ocr', 'read'],
     category: 'Documents',
     desc: 'Extract text from image (OCR)',
-    usage: `${prefix}scan (reply to image)`,
+    usage: `.scan (reply to image)`,
      // ⭐ Reaction config
     reactions: {
         start: '💬',

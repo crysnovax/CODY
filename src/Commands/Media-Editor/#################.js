@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create an Arena of Valor style text effect',
     category: 'textmaker',
-    usage: `${prefix}arena <text>`,
+    usage: `.arena <text>`,
     reactions: {
         start: '🎬',
         success: '✨'

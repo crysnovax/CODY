@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a thunder/lightning text effect',
     category: 'textmaker',
-    usage: `${prefix}thunder <text>`,
+    usage: `.thunder <text>`,
     reactions: {
         start: '🌩️',
         success: '⚡'

@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a snow 3D winter text effect',
     category: 'textmaker',
-    usage: `${prefix}snow <text>`,
+    usage: `.snow <text>`,
     reactions: {
         start: '🌨️',
         success: '⛄'

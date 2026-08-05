@@ -58,7 +58,7 @@ module.exports = {
     alias: ['wyr', 'rather'],
     desc: 'Would You Rather questions (3 options - A, B, or C)',
     category: 'Games',
-    usage: `${prefix}wyr`,
+    usage: `.wyr`,
 
     execute: async (sock, m) => {
         await sock.sendMessage(m.chat, { react: { text: '🤔', key: m.key } });

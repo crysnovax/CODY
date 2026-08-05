@@ -3,7 +3,7 @@ module.exports = {
     alias: ['phone', 'dial', 'ring'],
     desc: 'Create a WhatsApp call button',
     category: 'Tools',
-    usage: `${prefix}call <number> | <text>`,
+    usage: `.call <number> | <text>`,
     reactions: { start: '📞', success: '🥏', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

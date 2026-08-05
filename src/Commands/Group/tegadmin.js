@@ -3,7 +3,7 @@ module.exports = {
     alias: ['admins', 'admin'],
     category: 'group',
     desc: 'Tag all group admins',
-    usage: `${prefix}tagadmin <message>`,
+    usage: `.tagadmin <message>`,
      // ⭐ Reaction config
     reactions: {
         start: '💫',

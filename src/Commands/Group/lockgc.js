@@ -9,7 +9,7 @@ module.exports = {
     alias: ['lockgroup', 'gclock', 'lock', 'fulllock'],
     desc: 'Lock group settings (only admins can edit group info, add/remove members, etc.)',
     category: 'group',
-    usage: `${prefix}lockgc`,
+    usage: `.lockgc`,
 
     execute: async (sock, m, { reply, isGroupAdmin }) => {
         const chatId = m.key.remoteJid;

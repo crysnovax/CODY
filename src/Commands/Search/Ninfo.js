@@ -5,7 +5,7 @@ module.exports = {
     alias: ['name', 'meaning', 'namesake'],
     desc: 'Get name meaning and origin',
     category: 'Search',
-    usage: `${prefix}nameinfo <name>`,
+    usage: `.nameinfo <name>`,
     reactions: { start: '👤', success: '🎭', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

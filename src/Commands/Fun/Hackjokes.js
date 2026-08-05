@@ -6,7 +6,7 @@ module.exports = {
  alias: ['funjoke', 'randomjoke'],
  desc: 'Fetch a random programming joke',
  category: 'fun',
- usage: `${prefix}joke`,
+ usage: `.joke`,
  owner: false,
 
  execute: async (sock, m, { reply }) => {

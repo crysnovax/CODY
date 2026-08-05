@@ -6,7 +6,7 @@ module.exports = {
     desc: 'List all emoji-to-command bindings',
     category: 'owner',
     ownerOnly: true,
-    usage: `${prefix}listemoji`,
+    usage: `.listemoji`,
 
     execute: async (sock, m, { reply, prefix }) => {
         const entries = Object.entries(emojiCmds);

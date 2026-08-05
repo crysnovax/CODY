@@ -300,13 +300,21 @@ const config = {
     // STICKER (CRYSNOVA V2 style)
     // ════════════════════════════════════════════
     sticker: {
-        packname:
-            process.env.BOT_NAME         ||
-            getVar('BOT_NAME')           ||
-            'CRYSNOVA AI',
+        // PACK_NAME drives the sticker pack name: all stickers become "⚉ • <PACK_NAME>"
+        packname: (() => {
+            const raw =
+                process.env.PACK_NAME    ||
+                getVar('PACK_NAME')      ||
+                process.env.BOT_NAME     ||
+                getVar('BOT_NAME')       ||
+                'crysnovax';
+            return `⚉ • ${raw}`;
+        })(),
         author:
             process.env.STICKER_AUTHOR   ||
             getVar('STICKER_AUTHOR')     ||
+            process.env.PACK_NAME        ||
+            getVar('PACK_NAME')          ||
             'crysnovax'
     },
 

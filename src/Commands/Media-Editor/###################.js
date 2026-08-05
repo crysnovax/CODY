@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a matrix text effect on an image',
     category: 'textmaker',
-    usage: `${prefix}matrix <text>`,
+    usage: `.matrix <text>`,
     // ⭐ Reaction config
     reactions: {
         start: '🎬',

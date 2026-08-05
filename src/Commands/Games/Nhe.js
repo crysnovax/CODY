@@ -12,7 +12,7 @@ module.exports = {
     alias: ['nhie', 'never'],
     desc: 'Never Have I Ever game',
     category: 'Games',
-    usage: `${prefix}nhie`,
+    usage: `.nhie`,
     reactions: { start: '🙈', success: '🎭', error: '🏗️' },
 
     execute: async (sock, m, { reply }) => {

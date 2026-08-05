@@ -9,7 +9,7 @@ module.exports = {
     alias: ['removepp', 'deletepp', 'rmpp'],
     desc: 'Remove your WhatsApp profile picture',
     category: 'utility',
-    usage: `${prefix}delpp`,
+    usage: `.delpp`,
 
     execute: async (sock, m, { args, reply }) => {
         const chatId = m.key.remoteJid;

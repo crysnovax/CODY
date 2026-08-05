@@ -5,7 +5,7 @@ module.exports = [{
     alias: ['yttext','yttranscript'],
     category: 'Tools',
     desc: 'Get transcript/subtitles from YouTube video',
-    usage: `${prefix}ytranscript <youtube url>`,
+    usage: `.ytranscript <youtube url>`,
     reactions: { start: '📜', success: '💬' },
     
     execute: async (sock, m, { args, reply }) => {

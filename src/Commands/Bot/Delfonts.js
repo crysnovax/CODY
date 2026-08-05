@@ -16,7 +16,7 @@ module.exports = {
     alias: ['remfonts', 'clearfonts', 'rmfonts'],
     desc: 'Delete botfont.json (removes all saved fonts)',
     category: 'tools',
-    usage: `${prefix}remfonts`,
+    usage: `.remfonts`,
 
     // Strongly recommended: make this owner-only
     // isOwner: true,   // ← uncomment this in your command loader if you have owner check

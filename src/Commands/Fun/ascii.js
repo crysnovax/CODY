@@ -5,7 +5,7 @@ module.exports = {
  alias: ['bigtext'],
  desc: 'Convert text into ASCII art',
  category: 'fun',
- usage: `${prefix}ascii <text>`,
+ usage: `.ascii <text>`,
  owner: false,
 
  execute: async (sock, m, { args, reply }) => {

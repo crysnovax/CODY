@@ -6,7 +6,7 @@ module.exports = {
     alias: ['download', 'dl'],
     desc: 'Download & send media from direct URL',
     category: 'Downloader',
-    usage: `${prefix}d <URL>`,
+    usage: `.d <URL>`,
     reactions: { start: '📥', success: '🔖', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

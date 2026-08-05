@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a flame/fire text effect',
     category: 'textmaker',
-    usage: `${prefix}fire <text>`,
+    usage: `.fire <text>`,
     reactions: {
         start: '🔥',
         success: '🧯'

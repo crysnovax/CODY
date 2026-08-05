@@ -32,7 +32,7 @@ module.exports = {
     desc: 'Bind a command to a sticker',
     category: 'owner',
     ownerOnly: true,
-    usage: `${prefix}setcmd <command> (reply to sticker)`,
+    usage: `.setcmd <command> (reply to sticker)`,
 
     execute: async (sock, m, { args, reply, prefix }) => {
         const quotedMsg = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;

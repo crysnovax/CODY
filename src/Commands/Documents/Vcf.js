@@ -6,7 +6,7 @@ module.exports = {
     alias: ['contact','savecontact'],
     category: 'Documents',
     desc: 'Generate a contact card (.vcf file)',
-    usage: `${prefix}vcf Name | Phone | Email | Org`,
+    usage: `.vcf Name | Phone | Email | Org`,
 
     execute: async (sock, m, { args, reply }) => {
         const input = args.join(' ').trim();

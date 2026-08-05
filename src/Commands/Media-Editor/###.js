@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a sand/beach writing text effect',
     category: 'textmaker',
-    usage: `${prefix}sand <text>`,
+    usage: `.sand <text>`,
     reactions: {
         start: '🏖️',
         success: '🏝️'

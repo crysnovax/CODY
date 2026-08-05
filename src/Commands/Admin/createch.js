@@ -6,7 +6,7 @@ module.exports = {
     desc: 'Create a WhatsApp channel/newsletter',
     category: 'Newsletter',
     ownerOnly: true,
-    usage: `${prefix}channel <name>`,
+    usage: `.channel <name>`,
     examples: ['.channel My Channel', '.nl TEST'],
     reactions: { start: '📢', success: '🎉', error: '🙈' },
 

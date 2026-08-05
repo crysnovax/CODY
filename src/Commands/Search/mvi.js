@@ -9,7 +9,7 @@ module.exports = {
     alias: ['moviei', 'filmintel', 'movies'],
     desc: 'Search movies with interactive carousel',
     category: 'Search',
-    usage: `${prefix}movieintel <movie name>`,
+    usage: `.movieintel <movie name>`,
     examples: ['.movieintel The boys', '.moviei Avengers'],
     reactions: { start: '🎬', success: '✨', error: '❕' },
 

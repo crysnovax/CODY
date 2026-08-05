@@ -24,7 +24,7 @@ module.exports = {
     alias: ['checkdevice', 'dev'],
     desc: 'Detect the device a message was sent from',
     category: 'Tools',
-    usage: `${prefix}device (reply to a message)`,
+    usage: `.device (reply to a message)`,
     reactions: { start: '💭', success: '🐾', error: '🪲' },
 
     execute: async (sock, m, { reply }) => {

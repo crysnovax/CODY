@@ -3,7 +3,7 @@ module.exports = {
     alias: ['getquoted', 'showquoted'],
     desc: 'Get the exact quoted message content',
     category: 'Tools',
-    usage: `${prefix}quoted (reply to a message that quotes another)`,
+    usage: `.quoted (reply to a message that quotes another)`,
     reactions: { start: '📝', success: '💬', error: '📡' },
     adminOnly: false,      
     ownerOnly: true,      

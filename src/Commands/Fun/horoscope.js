@@ -13,7 +13,7 @@ module.exports = {
     alias: ['zodiac', 'starsign', 'astrology'],
     desc: 'Get daily horoscope for any zodiac sign',
     category: 'Fun',
-    usage: `${prefix}horoscope <sign>`,
+    usage: `.horoscope <sign>`,
     reactions: { start: '⭐', success: '👽', error: '🏗️' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

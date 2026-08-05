@@ -3,7 +3,7 @@ module.exports = {
     alias: ['view', 'website'],
     desc: 'Create a website button that opens in-app',
     category: 'Tools',
-    usage: `${prefix}url <link> | <button text>`,
+    usage: `.url <link> | <button text>`,
     reactions: { start: '🌐', success: '🥏', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

@@ -8,7 +8,7 @@ module.exports = {
     alias: ['wlp', 'wall',],
     desc: 'Search for beautiful wallpapers',
     category: 'Search',
-    usage: `${prefix}wallpaper <query>`,
+    usage: `.wallpaper <query>`,
 
     execute: async (sock, m, { args, reply }) => {
         const query = args.join(' ').trim();

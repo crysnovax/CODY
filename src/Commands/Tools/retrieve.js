@@ -3,7 +3,7 @@ module.exports = {
     alias: ['getdeleted', 'retrieve'],
     desc: 'Recover the last deleted message in this chat',
     category: 'Tools',
-    usage: `${prefix}deleted`,
+    usage: `.deleted`,
     reactions: { start: '🗑️', success: '💬', error: '🙈' },
 
     execute: async (sock, m, { reply }) => {

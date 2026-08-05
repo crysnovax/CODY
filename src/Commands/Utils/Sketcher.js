@@ -5,7 +5,7 @@ module.exports = {
     alias: ['sketch', 'pencil', 'draw'],
     desc: 'Convert image to pencil sketch',
     category: 'image',
-    usage: `${prefix}sketcher (reply to image)`,
+    usage: `.sketcher (reply to image)`,
     owner: false,
      // ⭐ Reaction config
     reactions: {

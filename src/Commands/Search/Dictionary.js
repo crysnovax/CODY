@@ -5,7 +5,7 @@ module.exports = {
     alias: ['dict', 'define', 'meaning'],
     desc: 'Get word definitions and phonetics',
     category: 'Search',
-    usage: `${prefix}dictionary <word>`,
+    usage: `.dictionary <word>`,
     reactions: { start: '📖', success: '✨', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {

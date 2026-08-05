@@ -11,7 +11,7 @@ module.exports = {
     alias: ['removebg', 'nobg', 'bgremove'],
     desc: 'Remove background from replied image',
     category: 'AI',
-    usage: `${prefix}rembg (reply to an image)`,
+    usage: `.rembg (reply to an image)`,
     owner: false,
 
     execute: async (sock, m, { reply }) => {

@@ -50,7 +50,7 @@ module.exports = {
     name: 'chrome',
     category: 'Search',
     desc: 'Advanced web search with detailed results',
-    usage: `${prefix}get <query>`,
+    usage: `.get <query>`,
 
     execute: async (sock, m, { args, reply }) => {
         const query = args.join(' ').trim();

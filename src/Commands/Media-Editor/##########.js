@@ -5,7 +5,7 @@ module.exports = {
     alias: [],
     desc: 'Create a 3D colorful paint text effect',
     category: 'textmaker',
-    usage: `${prefix}impressive <text>`,
+    usage: `.impressive <text>`,
     reactions: {
         start: '🎨',
         success: '🖌️'

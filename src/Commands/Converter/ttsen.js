@@ -5,7 +5,7 @@ module.exports = [{
     alias: ['englishtts'],
     category: 'Tools',
     desc: 'Text to speech in English (for chatbot voice mode)',
-    usage: `${prefix}ttsen <text>`,
+    usage: `.ttsen <text>`,
     reactions: { start: '🇬🇧', success: '🎤' },
     
     execute: async (sock, m, { args, reply }) => {
