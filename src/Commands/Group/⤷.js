@@ -17,14 +17,35 @@ const RESTRICTED_GROUPS = new Set([
 
 const normalizeJid = (jid = '') => String(jid || '').replace(/:\d+@/, '@');
 const STATUS_COLORS = ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#845EC2', '#00C9A7'];
+const NAMED_STATUS_COLORS = { red: '#FF6B6B', blue: '#4D96FF', green: '#6BCB77', yellow: '#FFD93D', purple: '#845EC2', violet: '#845EC2', teal: '#00C9A7', cyan: '#00C9A7', orange: '#FF9671', pink: '#FF6F91', white: '#FFFFFF', black: '#000000' };
 let statusColorIndex = 0;
 const nextStatusColor = () => STATUS_COLORS[statusColorIndex++ % STATUS_COLORS.length];
+const normalizeBackgroundColor = value => {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return undefined;
+    if (NAMED_STATUS_COLORS[raw]) return NAMED_STATUS_COLORS[raw];
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toUpperCase();
+    if (/^[0-9a-f]{6}$/i.test(raw)) return `#${raw.toUpperCase()}`;
+    return undefined;
+};
 const parseStatusOptions = (text = '', args = []) => {
-    const tokens = Array.isArray(args) && args.length ? args : String(text).split(/\s+/).filter(Boolean);
-    const backgroundToken = tokens.find(token => /^--bg=/i.test(token));
-    const backgroundColor = backgroundToken ? backgroundToken.slice(backgroundToken.indexOf('=') + 1) : undefined;
-    const cleanTokens = tokens.filter(token => !/^--bg=/i.test(token));
-    return { backgroundColor, cleanText: cleanTokens.join(' ').trim() };
+    let source = Array.isArray(args) && args.length ? args.join(' ') : String(text);
+    let caption;
+    const bgMatch = source.match(/(?:^|\s)--bg=([^\s]+)/i);
+    const backgroundColor = normalizeBackgroundColor(bgMatch?.[1]);
+    source = source.replace(/(?:^|\s)--bg=[^\s]+/gi, ' ').trim();
+    const cpMatch = source.match(/(?:^|\s)--cp=(.+)$/i);
+    if (cpMatch) { caption = cpMatch[1].trim().replace(/^['\"]|['\"]$/g, ''); source = source.slice(0, cpMatch.index).trim(); }
+    const copyCaption = /(?:^|\s)(?:-cp|--copy-caption)(?=\s|$)/i.test(source);
+    source = source.replace(/(?:^|\s)(?:-cp|--copy-caption)(?=\s|$)/gi, ' ').trim();
+    const cleanTokens = source.split(/\s+/).filter(Boolean).filter(token => !/^id.+@g\.us$/i.test(token));
+    return { backgroundColor, copyCaption, caption, cleanText: cleanTokens.join(' ').trim() };
+};
+const resolveStatusTarget = (command = 'gstatus', args = [], currentChat = '') => {
+    const tokens = Array.isArray(args) ? args : String(args || '').split(/\s+/);
+    if (String(command).toLowerCase() === 'gstatusall') return 'all';
+    const idToken = tokens.find(token => /^id.+@g\.us$/i.test(String(token)));
+    return idToken ? String(idToken).slice(2) : currentChat;
 };
 
 // True when the sender is a group admin of the given group (checked by JID
@@ -178,18 +199,19 @@ function buildGroupStatusTextMessage(text, preview) {
 
 module.exports = {
     name: 'gstatus',
-    alias: ['groupstatus', 'gs'],
+    alias: ['groupstatus', 'gs', 'gstatusall'],
     desc: 'Post a status to the group',
     category: 'Admin',
     groupOnly: true,
     adminOnly: true,
 
-    execute: async (sock, m, { text, args, reply }) => {
+    execute: async (sock, m, { text, args, reply, command }) => {
         try {
             const quoted = m.quoted || {};
             const chat = m.chat;
             const statusOptions = parseStatusOptions(text, args);
             text = statusOptions.cleanText;
+            const routeTarget = resolveStatusTarget(command || 'gstatus', args, chat);
 
             await sock.sendMessage(chat, {
                 react: { text: '📸', key: m.key }
@@ -217,21 +239,30 @@ module.exports = {
 
             // ─────────────────────────────
             // FEATURE: BROADCAST TO ALL GROUPS
-            // !gstatus text | all
-            // !gstatus | all (reply)
+            // !gstatus text | all, !gstatusall text, or !gstatusall -cp
             // ─────────────────────────────
-            if (text && text.includes('|')) {
-                const [left, right] = text.split('|').map(v => v.trim());
+            if (routeTarget === 'all' || (text && text.includes('|'))) {
+                const [left, right] = text.includes('|') ? text.split('|').map(v => v.trim()) : [text, 'all'];
 
                 if (right && right.toLowerCase() === 'all') {
-                    const messageText = left || quoted.text || quoted.caption || '';
+                    const messageText = left || statusOptions.caption || (statusOptions.copyCaption ? (quoted.caption || quoted.text || '') : '') || quoted.text || quoted.caption || '';
 
-                    if (!messageText) {
-                        return reply('`✘ Please provide a message to broadcast`');
+                    if (!messageText && !(quoted.mtype && typeof quoted.download === 'function')) {
+                        return reply('`✘ Please provide a message or reply to media to broadcast`');
                     }
 
                     const groups = await sock.groupFetchAllParticipating();
                     const groupIds = Object.keys(groups);
+                    let broadcastMedia = null;
+                    const quotedType = quoted.mtype;
+                    if (quotedType && ['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'].includes(quotedType) && typeof quoted.download === 'function') {
+                        const media = await quoted.download();
+                        const caption = messageText || statusOptions.caption || (statusOptions.copyCaption ? (quoted.caption || quoted.text || '') : '') || quoted.caption || quoted.text || '';
+                        if (quotedType === 'imageMessage' || quotedType === 'stickerMessage') broadcastMedia = { image: media, caption };
+                        if (quotedType === 'videoMessage') broadcastMedia = { video: media, caption };
+                        if (quotedType === 'audioMessage') broadcastMedia = { audio: media, mimetype: quoted.mimetype || 'audio/ogg; codecs=opus', ptt: !!quoted.ptt };
+                        if (quotedType === 'documentMessage') broadcastMedia = { document: media, mimetype: quoted.mimetype, fileName: quoted.fileName || 'document', caption };
+                    }
 
                     if (!groupIds.length) {
                         return reply('`✘ Bot is not in any groups`');
@@ -261,7 +292,12 @@ module.exports = {
                             continue;
                         }
                         try {
-                            await relayAndTrack(sock, groupId, message);
+                            if (broadcastMedia) {
+                                const sent = await sendGroupStatusCompat(sock, groupId, broadcastMedia, statusOptions.backgroundColor);
+                                saveId(groupId, sent?.key?.id);
+                            } else {
+                                await relayAndTrack(sock, groupId, message);
+                            }
                             success++;
                         } catch (err) {
                             failed++;
@@ -281,7 +317,7 @@ module.exports = {
             // PARSE: text | jid
             // ─────────────────────────────
             let messageText = '';
-            let targetJid = chat;
+            let targetJid = routeTarget && routeTarget !== 'all' ? routeTarget : chat;
 
             if (text && text.includes('|')) {
                 const [left, right] = text.split('|').map(v => v.trim());
@@ -289,11 +325,11 @@ module.exports = {
                 if (!left && right) {
                     targetJid = right;
                 } else {
-                    messageText = left || '';
+                    messageText = left || statusOptions.caption || '';
                     if (right) targetJid = right;
                 }
             } else {
-                messageText = text || '';
+                messageText = text || statusOptions.caption || '';
             }
 
             if (!targetJid.endsWith('@g.us')) {
@@ -324,7 +360,7 @@ module.exports = {
             // IMAGE
             if (imageMsg) {
                 let media = await quoted.download();
-                const finalCaption = messageText || quoted.caption || quoted.text || '';
+                const finalCaption = messageText || (statusOptions.copyCaption ? (quoted.caption || quoted.text || '') : '') || quoted.caption || quoted.text || '';
                 try {
                     media = await sharp(media)
                         .resize({ width: 1920, height: 1080, fit: 'inside' })
@@ -342,7 +378,7 @@ module.exports = {
             // VIDEO
             if (videoMsg) {
                 const media = await quoted.download();
-                const finalCaption = messageText || quoted.caption || quoted.text || '';
+                const finalCaption = messageText || (statusOptions.copyCaption ? (quoted.caption || quoted.text || '') : '') || quoted.caption || quoted.text || '';
                 const vidMsg = await sendGroupStatusCompat(sock, targetJid, {
                     video: media,
                     caption: finalCaption
@@ -418,19 +454,24 @@ module.exports = {
   ✦  GROUP STATUS
 ─────────────────
 ▸ !gstatus <text>
-▸ !gstatus <url>  ← with rich preview
-▸ Reply to image + .gstatus [caption]
-▸ Reply to video + .gstatus [caption]
-▸ Reply to audio + .gstatus
-▸ Reply to document + .gstatus [caption]
-▸ !gstatus <text> | <groupJID>
-▸ !gstatus <text> | all  ← broadcast
-▸ !gstatus clear  ← delete all
+▸ !gstatus <url>  ← rich preview
+▸ Reply to image/video/audio/document + .gstatus [caption]
+▸ .gstatus --cp=<caption>  ← set caption explicitly
+▸ Reply to media + .gstatus -cp  ← copy its existing caption
+▸ .gstatus --bg=red|blue|green|yellow|purple|teal
+▸ .gstatus --bg=#RRGGBB  ← hex color; omitted = rotating color
+▸ .gstatus <text> | <groupJID>
+▸ .gstatus id<groupJID> <text>  ← direct target
+▸ .gstatusall <text>  ← broadcast to all groups
+▸ .gstatusall --cp=<caption> --bg=red  ← broadcast media/caption
+▸ .gstatus clear  ← delete tracked statuses
 ─────────────────
 EXAMPLES:
-!gstatus hello world | 120363425204601114@g.us
-!gstatus hello everyone | all
-!gstatus clear
+.gstatus hello world --bg=red
+.gstatus id120363425204601114@g.us hello
+.gstatus --cp=Fresh caption --bg=#112233
+.gstatusall hello everyone
+.gstatus clear
 ─────────────────`
             );
 
@@ -440,3 +481,7 @@ EXAMPLES:
         }
     }
 };
+
+module.exports.parseStatusOptions = parseStatusOptions;
+module.exports.resolveStatusTarget = resolveStatusTarget;
+module.exports.normalizeBackgroundColor = normalizeBackgroundColor;

@@ -9,7 +9,10 @@ test('testcard sends the Meta AI-style image-backed rich grid', async () => {
     const sock = {
         sendRichButtonGrid: async (jid, payload) => {
             calls.push({ jid, payload });
-            return { key: { id: 'grid-1' } };
+            return {
+                key: { id: 'grid-1' },
+                message: { cards: payload.cards.map(card => ({ ...card, nativeFlow: card.buttons })) }
+            };
         },
         sendMessage: async () => {
             throw new Error('fallback sendMessage should not be used');
@@ -30,7 +33,7 @@ test('testcard sends the Meta AI-style image-backed rich grid', async () => {
     assert.ok(calls[0].payload.cards.every(card => card.buttons.length > 0));
     assert.match(calls[0].payload.text, /MENU/);
     assert.equal(replies.length, 1);
-    assert.match(replies[0], /relay accepted/i);
+    assert.match(replies[0], /payload verified and relayed/i);
 });
 
  test('testcard reports a clear error when the rich-grid helper is unavailable', async () => {

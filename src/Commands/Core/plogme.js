@@ -25,7 +25,18 @@
 // which short-circuits the other handlers. @crysnovax—FIX08-07-26
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
+const axios = {
+    get: async (url, options = {}) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), options.timeout || 15000);
+        try {
+            const response = await fetch(url, { headers: options.headers || {}, signal: controller.signal });
+            return { data: await response.text(), status: response.status };
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+};
 const { execSync } = require('child_process');
 const { getVar } = require('../../Plugin/configManager');
 
@@ -144,6 +155,70 @@ function fuzzyFindFile(raw) {
         if (hit) return { abs: hit, display: path.relative(ROOT, hit) };
     }
     return null;
+}
+
+// Bounded workspace helpers used by PLOGME’s structured tools. Every file search stays
+// inside the project and skips secrets, dependencies, sessions, and git metadata.
+function walkWorkspace(start = ROOT, maxDepth = 4) {
+    const found = [];
+    const walk = (dir, depth) => {
+        if (depth > maxDepth) return;
+        let entries = [];
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        for (const entry of entries) {
+            if (entry.name.startsWith('.') || ['node_modules', '.git', 'sessions'].includes(entry.name)) continue;
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) walk(full, depth + 1);
+            else found.push(full);
+        }
+    };
+    walk(path.resolve(start), 0);
+    return found;
+}
+function searchWorkspace(query, options = {}) {
+    const needle = String(query || '').trim();
+    if (!needle) return [];
+    const paths = walkWorkspace(ROOT, options.maxDepth || 4);
+    const codeOnly = options.codeOnly === true;
+    const regex = options.regex ? new RegExp(needle, options.flags || 'i') : null;
+    const results = [];
+    for (const file of paths) {
+        if (codeOnly && !/\.(?:js|mjs|cjs|ts|tsx|jsx|py|json|md|yml|yaml)$/i.test(file)) continue;
+        let stat;
+        try { stat = fs.statSync(file); } catch { continue; }
+        if (stat.size > 1024 * 1024) continue;
+        let content;
+        try { content = fs.readFileSync(file, 'utf8'); } catch { continue; }
+        const lines = content.split(/\r?\n/);
+        lines.forEach((line, index) => {
+            if ((regex ? regex.test(line) : line.toLowerCase().includes(needle.toLowerCase()))) {
+                results.push({ file: path.relative(ROOT, file), line: index + 1, text: line.trim().slice(0, 240) });
+            }
+        });
+        if (results.length >= (options.limit || 40)) break;
+    }
+    return results;
+}
+function environmentSnapshot() {
+    const packageJson = loadJson(path.join(ROOT, 'package.json'), {});
+    return {
+        cwd: ROOT,
+        platform: process.platform,
+        node: process.version,
+        package: packageJson.name || 'unknown',
+        packageVersion: packageJson.version || 'unknown',
+        uptimeSeconds: Math.round(process.uptime()),
+        memoryMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        commandsDir: fs.existsSync(USER_CMD_DIR),
+        outputDir: fs.existsSync(OUT_DIR),
+        files: walkWorkspace(ROOT, 2).length
+    };
+}
+async function reportProgress(opts, message) {
+    try {
+        if (typeof opts?.progress === 'function') return await opts.progress(String(message));
+        if (typeof opts?.reply === 'function') return await opts.reply(`_*🛠️ PLOGME:*_ ${String(message)}`);
+    } catch {}
 }
 
 // Render markdown/text to a PDF buffer with pdfkit (already a dependency —
@@ -973,7 +1048,7 @@ const KNOWN_ACTIONS = new Set([
     'set_pp', 'group_pp', 'group_name', 'kick', 'promote', 'demote',
     'mute_user', 'unmute_user', 'mutesch', 'antis', 'plogme_mode',
     // FIX12-08-26: file delivery — send files, generate PDFs, zip archives
-    'send_file', 'make_pdf', 'zip',
+    'send_file', 'make_pdf', 'zip', 'search_file', 'search_code', 'search_web', 'environment', 'create_tool',
 ]);
 
 // Strip markdown fences / extra text and pull out the first JSON object.
@@ -1036,13 +1111,17 @@ function buildClassifierPrompt(userText) {
         `- "turn on/off all the antis / protections / security" -> {"action":"antis","state":"on"}\n` +
         `- "set plogme mode to all/tag" -> {"action":"plogme_mode","mode":"all"}\n` +
         `- "send/attach/share the file X" / "send me the pdf" / "send the file" -> {"action":"send_file","path":"<path>"}\n` +
+        `- "find/search for X in my files/code" -> {"action":"search_file"|"search_code","query":"X"}\n` +
+        `- "search the web for X" -> {"action":"search_web","query":"X"}\n` +
+        `- "what is the bot environment/status" -> {"action":"environment"}\n` +
+        `- "create a tool for X" -> {"action":"create_tool","name":"<name>","content":"<full JS module>"}\n` +
         `- "make/generate/create a PDF from X" / "convert X to pdf" / "write a pdf about/on X" -> {"action":"make_pdf","path":"<path or topic>"} (or "content":"<text>" for pasted text)\n` +
         `- "zip/compress these files" -> {"action":"zip","files":["<path1>","<path2>"]}\n` +
         `(for user actions the target comes from the @mention or the quoted message, so "mentioned" is the right value)\n\n` +
         `Possible actions: run_command, create_file, edit_file, delete_file, toggle_command, ` +
         `list_commands, reload, restart, status, memory, clear_memory, remember, forget, ` +
         `test, fix_code, train, personality, dev, set_pp, group_name, group_pp, kick, promote, ` +
-        `demote, mute_user, unmute_user, mutesch, antis, plogme_mode, send_file, make_pdf, zip, chat.\n\n` +
+        `demote, mute_user, unmute_user, mutesch, antis, plogme_mode, send_file, make_pdf, zip, search_file, search_code, search_web, environment, create_tool, chat.\n\n` +
         `JSON shapes:\n` +
         `- {"action":"run_command","command":"<name>","args":"<optional>"}\n` +
         `- {"action":"create_file","path":"src/Commands/User/name.js","content":"<FULL file content>"}\n` +
@@ -1061,10 +1140,13 @@ function buildClassifierPrompt(userText) {
         `- {"action":"mutesch","start":"5pm","end":"10am","repeat":"daily|once"}\n` +
         `- {"action":"antis","state":"on|off"} {"action":"plogme_mode","mode":"all|tag"}\n` +
         `- {"action":"send_file","path":"<path>"} {"action":"make_pdf","path":"<path>"|"content":"<text>"} {"action":"zip","files":["<path1>"]}\n` +
+        `- {"action":"search_file"|"search_code","query":"<text>"} {"action":"search_web","query":"<text>"}\n` +
+        `- {"action":"environment"} {"action":"create_tool","name":"<name>","content":"<full JS module>"}\n` +
         `- {"action":"chat","reply":"<your short reply>"}\n\n` +
         `Available commands (ONLY use these exact names for run_command):\n` +
         (realCommands.length ? realCommands.slice(0, 160).join(', ') : '(command list unavailable)') +
         refNote +
+        `\n\nLIVE ENVIRONMENT SNAPSHOT (use this to reason about paths, runtime, and available workspace): ${JSON.stringify(environmentSnapshot())}` +
         `\n\nOwner message: "${String(userText || '').slice(0, 2000)}"`;
 }
 
@@ -1085,7 +1167,11 @@ async function classifyIntent(userText) {
 // with the message (including as a chat reply).
 async function executeIntent(sock, m, opts, intent) {
     try {
+        opts = { ...opts, sendMessage: opts?.sendMessage || (typeof sock?.sendMessage === 'function' ? sock.sendMessage.bind(sock) : null) };
         const action = intent.action;
+        if (['create_file', 'edit_file', 'create_tool', 'send_file', 'search_file', 'search_code', 'search_web', 'make_pdf', 'zip'].includes(action)) {
+            await reportProgress(opts, `starting ${action.replace(/_/g, ' ')}…`);
+        }
 
         switch (action) {
             case 'run_command': {
@@ -1433,6 +1519,61 @@ async function executeIntent(sock, m, opts, intent) {
                 return { handled: true };
             }
 
+            case 'search_file':
+            case 'search_code': {
+                const query = String(intent.query || intent.text || intent.pattern || '').trim();
+                if (!query) { await opts.reply('_✘ Tell me what text or pattern to search for_'); return { handled: true }; }
+                const results = searchWorkspace(query, { codeOnly: action === 'search_code', regex: intent.regex === true, limit: 40 });
+                const rendered = results.map(r => '• `' + r.file + ':' + r.line + '` ' + r.text).join('\n');
+                await opts.reply(results.length
+                    ? `_*🔎 ${action === 'search_code' ? 'Code' : 'File'} search results for* _${query.slice(0, 80)}_\n${rendered}`
+                    : `_*🔎 No matches found for* _${query.slice(0, 80)}_`);
+                logOp(action, `${query.slice(0, 100)} (${results.length} matches)`);
+                return { handled: true };
+            }
+
+            case 'search_web': {
+                const query = String(intent.query || intent.text || '').trim();
+                if (!query) { await opts.reply('_✘ Tell me what to search for on the web_'); return { handled: true }; }
+                try {
+                    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+                    const response = await axios.get(url, { timeout: 15000, headers: { 'user-agent': 'CODY-PLOGME/1.0' } });
+                    const html = String(response.data || '');
+                    const matches = [...html.matchAll(/class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)].slice(0, 5);
+                    const clean = value => String(value || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").trim();
+                    const lines = matches.map((match, i) => `${i + 1}. ${clean(match[2])}\n${match[1]}`);
+                    await opts.reply(lines.length ? `_*🌐 Web results for* _\`${query.slice(0, 80)}\`_\n${lines.join('\n')}` : '_*🌐 Search completed, but no results were returned.*_');
+                    logOp('search_web', `${query.slice(0, 100)} (${lines.length} results)`);
+                } catch (err) {
+                    await opts.reply(`_✘ Web search failed:_ ${err.message}`);
+                }
+                return { handled: true };
+            }
+
+            case 'environment': {
+                const env = environmentSnapshot();
+                await opts.reply(`_*🧭 PLOGME ENVIRONMENT*_\n\n` +
+                    `• cwd: \`${env.cwd}\`\n• platform: ${env.platform}\n• Node: ${env.node}\n` +
+                    `• package: ${env.package}@${env.packageVersion}\n• uptime: ${env.uptimeSeconds}s\n` +
+                    `• memory: ${env.memoryMb} MB\n• workspace files: ${env.files}\n` +
+                    `• commands dir: ${env.commandsDir ? 'ready' : 'missing'}\n• output dir: ${env.outputDir ? 'ready' : 'will be created'}`);
+                return { handled: true };
+            }
+
+            case 'create_tool': {
+                const toolName = sanitizeCommandName(intent.name || intent.tool || 'plogme-tool');
+                const content = String(intent.content || intent.code || '').trim();
+                if (!toolName || !content) { await opts.reply('_✘ A tool name and complete JavaScript module are required_'); return { handled: true }; }
+                const target = resolveWritePath(path.join('src', 'Commands', 'User', 'Tools', `${toolName}.js`));
+                if (!target) { await opts.reply('_✘ Invalid tool path_'); return { handled: true }; }
+                const res = await writeFileWithAgentFix(target.abs, content, opts);
+                if (!res.ok) { await opts.reply('_*✘ Tool syntax failed:*_\n' + String(res.error || '').slice(0, 1400)); return { handled: true }; }
+                logOp('create_tool', target.display);
+                await opts.reply('_*✅ Tool created and syntax-checked:*_ ' + target.display);
+                try { await opts.sendMessage(m.chat, { document: fs.readFileSync(target.abs), mimetype: 'application/javascript', fileName: `${toolName}.js` }, { quoted: m }); } catch (err) { await opts.reply(`_⚠️ Tool created, but attachment failed:_ ${err.message}`); }
+                return { handled: true };
+            }
+
             case 'send_file': {
                 // "send as a js file" (no name) → newest command file just created
                 // (@crysnovax—FIX14-08-26)
@@ -1746,6 +1887,10 @@ module.exports = {
     resolveWritePath,
     ensureCommandModule,
     writeFileWithAgentFix,
+    walkWorkspace,
+    searchWorkspace,
+    environmentSnapshot,
+    reportProgress,
     logOp,
     getOps,
 };

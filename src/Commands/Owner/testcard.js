@@ -13,7 +13,7 @@ const testcard = {
     category: 'Owner',
     execute: async (sock, m, { reply }) => {
         if (typeof sock.sendRichButtonGrid !== 'function') {
-            return reply('sendRichButtonGrid is unavailable. Install @crysnovax/baileys@2.7.10 and restart CODY.');
+            return reply('sendRichButtonGrid is unavailable. Install the upgraded @crysnovax/plug runtime and restart CODY.');
         }
 
         const payload = {
@@ -42,10 +42,16 @@ const testcard = {
         try {
             const result = await sock.sendRichButtonGrid(m.chat, payload);
             const messageId = result?.key?.id || result?.messageId;
-            if (!messageId) {
-                throw new Error('rich-grid relay returned no message key');
+            const renderedCards = result?.message?.cards || result?.cards;
+            const cardCount = Array.isArray(renderedCards) ? renderedCards.length : 0;
+            const buttonCount = Array.isArray(renderedCards)
+                ? renderedCards.reduce((total, item) => total + (Array.isArray(item?.nativeFlow) ? item.nativeFlow.length : Array.isArray(item?.buttons) ? item.buttons.length : 0), 0)
+                : 0;
+            if (!messageId) throw new Error('rich-grid sender returned no message key');
+            if (cardCount !== payload.cards.length || buttonCount < payload.cards.reduce((n, card) => n + card.buttons.length, 0)) {
+                return reply(`Rich-grid relay returned message ${messageId}, but the returned payload was incomplete (${cardCount}/${payload.cards.length} cards, ${buttonCount} buttons). WhatsApp may not render this grid.`);
             }
-            return reply(`Meta AI-style rich-grid relay accepted (message ${messageId}). Check the chat for rendering.`);
+            return reply(`Rich-grid payload verified and relayed (message ${messageId}; ${cardCount} cards, ${buttonCount} buttons). This confirms CODY handed WhatsApp a complete grid; client rendering still depends on WhatsApp support.`);
         } catch (error) {
             return reply(`testcard failed: ${error?.message || error}`);
         }
