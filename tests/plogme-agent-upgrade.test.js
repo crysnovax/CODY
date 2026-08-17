@@ -75,3 +75,35 @@ test('PLOGME rejects HTML and 414 upstream payloads', () => {
     assert.equal(plogme.extractAIText({ response: 'normal answer' }, 200), 'normal answer');
     assert.equal(plogme.extractAIText({ response: 'bad' }, 502), '');
 });
+
+test('PLOGME routes natural-language file requests to send_file and verifies delivery', async () => {
+    const replies = [];
+    const sent = [];
+    const sock = {
+        sendMessage: async (jid, content) => {
+            sent.push({ jid, content });
+            return { key: { id: 'file-message-1' } };
+        }
+    };
+    const handled = await plogme.handleControlIntent(sock, { chat: '12345@s.whatsapp.net', key: {} }, {
+        reply: async value => replies.push(String(value)),
+        sendMessage: sock.sendMessage
+    }, 'please send me src/Commands/Owner/mention.js file');
+    assert.equal(handled, true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].content.fileName, 'mention.js');
+    assert.match(replies.at(-1), /File sent/);
+    assert.match(replies.at(-1), /file-message-1/);
+});
+
+test('PLOGME does not claim a file was sent without a WhatsApp message key', async () => {
+    const replies = [];
+    const sock = { sendMessage: async () => ({}) };
+    const result = await plogme.executeIntent(sock, { chat: '12345@s.whatsapp.net', key: {} }, {
+        reply: async value => replies.push(String(value)),
+        sendMessage: sock.sendMessage
+    }, { action: 'send_file', path: 'src/Commands/Owner/mention.js' });
+    assert.equal(result.handled, true);
+    assert.match(replies.at(-1), /no delivery key/i);
+    assert.doesNotMatch(replies.at(-1), /File sent/);
+});

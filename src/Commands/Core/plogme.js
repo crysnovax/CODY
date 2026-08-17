@@ -1056,9 +1056,13 @@ async function handleControlIntent(sock, m, opts, text) {
     // ── File delivery: send a file / make a PDF / zip files ──
     // These run BEFORE the lenient command matcher so "send X" can never be
     // misread as the .send (pay) economy command. (@crysnovax—FIX12-08-26)
-    const sendMatch = text.match(/^(?:plogme\s+)?(?:send|attach|share)\s+(?:me\s+|the\s+|this\s+|that\s+)*(?:file\s+)?(.+)$/i);
+    const sendMatch = text.match(/^(?:plogme\s+)?(?:(?:can|could)\s+you\s+|please\s+|pls\s+|hey\s+|i\s+need\s+you\s+to\s+)?(?:send|attach|share)\s+(?:me\s+|the\s+|this\s+|that\s+)*(?:file\s+)?(.+)$/i);
     if (sendMatch && sendMatch[1] && !/^(on|off|all)$/i.test(sendMatch[1].trim())) {
-        const want = sendMatch[1].trim();
+        const want = sendMatch[1].trim()
+            .replace(/\s+to\s+me[.!?]*$/i, '')
+            .replace(/\s+(?:file|document|attachment|now|please)[.!?]*$/i, '')
+            .replace(/^["'`]|["'`]$/g, '')
+            .trim();
         // "send me a pdf of X" → generate & send a PDF of that file/topic
         const wantPdf = /^(?:a\s+|an\s+|the\s+)?pdf\s+(?:of|from|for|on)\s+(.+)$/i.exec(want);
         if (wantPdf) {
@@ -1823,8 +1827,10 @@ async function executeIntent(sock, m, opts, intent) {
                 try { buffer = fs.readFileSync(resolved.abs); } catch (err) { await opts.reply(`_✘ Could not read \`${resolved.display}\`:_ ${err.message}`); return { handled: true }; }
                 let mime = 'application/octet-stream';
                 try { mime = require('mime-types').lookup(resolved.abs) || mime; } catch {}
+                let sent;
                 try {
-                    await opts.sendMessage(m.chat, {
+                    if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
+                    sent = await opts.sendMessage(m.chat, {
                         document: buffer,
                         mimetype: mime,
                         fileName: path.basename(resolved.abs)
@@ -1833,8 +1839,13 @@ async function executeIntent(sock, m, opts, intent) {
                     await opts.reply(`_✘ Failed to send file:_ ${err.message}`);
                     return { handled: true };
                 }
-                logOp('send', `sent file ${resolved.display}`);
-                await opts.reply(`_*📄 File sent:*_ \`${resolved.display}\``);
+                const messageId = sent?.key?.id || sent?.messageId || sent?.id;
+                if (!messageId) {
+                    await opts.reply(`_⚠️ File was prepared, but WhatsApp returned no delivery key for \`${resolved.display}\`. I will not claim it was sent._`);
+                    return { handled: true };
+                }
+                logOp('send', `sent file ${resolved.display} (${messageId})`);
+                await opts.reply(`_*📄 File sent:*_ \`${resolved.display}\`\n_Message ID:_ ${messageId}`);
                 return { handled: true };
             }
 
