@@ -179,3 +179,34 @@ test('live .plogme wrapper propagates the WhatsApp file receipt', async () => {
     assert.equal(sent[0].content.fileName, 'mention.js');
     assert.match(replies.at(-1), /Message ID:.*wrapper-file-message-1/);
 });
+
+test('PLOGME converts raw upload URLs safely and classifies code files for CDN fallback', () => {
+    assert.equal(plogme.isTextFilePath('ping.js'), true);
+    assert.equal(plogme.isTextFilePath('photo.jpg'), false);
+    assert.equal(plogme.toRawCdnUrl('https://cdn.crysnovax.link/file/abc.html'), 'https://cdn.crysnovax.link/raw/abc.txt');
+    assert.throws(() => plogme.toRawCdnUrl('file:///tmp/x.txt'), /non-HTTP URL/);
+});
+
+test('PLOGME uses the verified CDN fallback after direct code attachment failure', async () => {
+    const replies = [];
+    const sent = [];
+    const source = Buffer.from('module.exports = { name: \'cdn-fallback-test\' };');
+    const result = await plogme.executeIntent({}, { chat: '12345@s.whatsapp.net' }, {
+        reply: async value => replies.push(String(value)),
+        sendMessage: async (jid, content) => {
+            sent.push({ jid, content });
+            if (sent.length === 1) throw new Error('direct upload unavailable');
+            return { key: { id: 'cdn-message-1' } };
+        },
+        cdnUpload: async (buffer, filename) => {
+            assert.equal(filename, 'mention.js');
+            assert.ok(buffer.length > 0);
+            return { url: 'https://cdn.crysnovax.link/raw/verified-mention.txt', buffer: Buffer.from(buffer) };
+        }
+    }, { action: 'send_file', path: 'src/Commands/Owner/mention.js' });
+    assert.equal(result.handled, true);
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1].content.fileName, 'mention.js');
+    assert.match(replies.at(-1), /Delivery:\* cdn/);
+    assert.match(replies.at(-1), /cdn-message-1/);
+});

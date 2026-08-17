@@ -25,6 +25,11 @@
 // which short-circuits the other handlers. @crysnovax—FIX08-07-26
 const fs = require('fs');
 const path = require('path');
+let projectConfig = {};
+const NativeFormData = globalThis.FormData;
+const NativeBlob = globalThis.Blob;
+try { projectConfig = require('../../../settings/config'); } catch {}
+
 async function httpRequest(method, url, body, options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeout || 15000);
@@ -58,6 +63,42 @@ const { buildProjectIndex } = require('./plogme-project-index');
 const DATA_DIR = path.join(process.cwd(), 'database');
 const USER_CMD_DIR = path.join(__dirname, '../Commands/User');
 const ROOT = process.cwd();
+const CDN_BASE = String(process.env.CDN_URL || projectConfig.api?.cdn || '').replace(/\/$/, '');
+const TEXT_FILE_RE = /\.(?:js|mjs|cjs|ts|tsx|jsx|py|java|go|rs|php|rb|json|md|txt|css|scss|html?|xml|yml|yaml|toml|ini|sh|bat|ps1)$/i;
+function isTextFilePath(filePath) { return TEXT_FILE_RE.test(String(filePath || '')); }
+function toRawCdnUrl(url) {
+    const parsed = new URL(String(url));
+    if (!/^https?:$/.test(parsed.protocol)) throw new Error('CDN returned a non-HTTP URL');
+    return parsed.toString().replace(/\/(upload|file)\//, '/raw/').replace(/\.html?$/, '.txt');
+}
+async function fetchWithTimeout(url, options = {}, timeout = 60000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try { return await fetch(url, { ...options, signal: controller.signal }); }
+    finally { clearTimeout(timer); }
+}
+async function uploadTextToCdn(buffer, filename, mimetype = 'text/plain') {
+    if (!CDN_BASE) throw new Error('CDN_URL is not configured');
+    if (typeof NativeFormData !== 'function' || typeof NativeBlob !== 'function') throw new Error('Runtime does not provide multipart FormData support');
+    const form = new NativeFormData();
+    form.append('file', new NativeBlob([buffer], { type: mimetype || 'text/plain' }), `${path.basename(filename)}.txt`);
+    const res = await fetchWithTimeout(`${CDN_BASE}/upload`, {
+        method: 'POST',
+        body: form
+    });
+    const rawResponse = await res.text();
+    let data = {};
+    try { data = JSON.parse(rawResponse); } catch {}
+    if (!res.ok) throw new Error(`CDN upload failed (${res.status})`);
+    const url = data?.url;
+    if (!url) throw new Error('CDN returned no upload URL');
+    const rawUrl = toRawCdnUrl(url);
+    const downloaded = await fetchWithTimeout(rawUrl, {}, 60000);
+    if (!downloaded.ok) throw new Error(`CDN raw download failed (${downloaded.status})`);
+    const downloadedBuffer = Buffer.from(await downloaded.arrayBuffer());
+    if (!downloadedBuffer.equals(Buffer.from(buffer))) throw new Error('CDN round-trip content verification failed');
+    return { url: rawUrl, buffer: downloadedBuffer, contentType: downloaded.headers.get('content-type') || mimetype };
+}
 
 // Generated files (PDFs / zips) land here so "send me the pdf" can find them.
 // (@crysnovax—FIX12-08-26)
@@ -1888,6 +1929,9 @@ async function executeIntent(sock, m, opts, intent) {
                 let mime = 'application/octet-stream';
                 try { mime = require('mime-types').lookup(resolved.abs) || mime; } catch {}
                 let sent;
+                let deliveryMode = 'direct';
+                let cdnUrl = '';
+                let directError = null;
                 try {
                     if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
                     sent = await opts.sendMessage(m.chat, {
@@ -1896,7 +1940,33 @@ async function executeIntent(sock, m, opts, intent) {
                         fileName: path.basename(resolved.abs)
                     }, { quoted: m });
                 } catch (err) {
-                    await opts.reply(`_✘ Failed to send file:_ ${err.message}`);
+                    directError = err;
+                }
+                // Code/text fallback: reuse /raw’s CDN upload contract, fetch the
+                // raw URL back, verify the bytes, then send that downloaded buffer.
+                // This avoids claiming a file was sent when direct media transport
+                // is unavailable while preserving the original filename.
+                if (directError && isTextFilePath(resolved.abs) && (CDN_BASE || typeof opts.cdnUpload === 'function')) {
+                    try {
+                        await reportProgress(opts, `direct attachment failed; using verified CDN fallback for ${resolved.display}`);
+                        const uploaded = typeof opts.cdnUpload === 'function'
+                            ? await opts.cdnUpload(buffer, path.basename(resolved.abs), mime)
+                            : await uploadTextToCdn(buffer, path.basename(resolved.abs), mime);
+                        if (!uploaded?.url || !Buffer.isBuffer(uploaded.buffer)) throw new Error('CDN fallback did not return a verified buffer and URL');
+                        if (!uploaded.buffer.equals(buffer)) throw new Error('CDN fallback byte verification failed');
+                        cdnUrl = uploaded.url;
+                        sent = await opts.sendMessage(m.chat, {
+                            document: uploaded.buffer,
+                            mimetype: mime,
+                            fileName: path.basename(resolved.abs)
+                        }, { quoted: m });
+                        deliveryMode = 'cdn';
+                    } catch (fallbackError) {
+                        await opts.reply(`_✘ Direct and CDN file delivery failed:_ ${fallbackError.message}`);
+                        return { handled: true };
+                    }
+                } else if (directError) {
+                    await opts.reply(`_✘ Failed to send file:_ ${directError.message}`);
                     return { handled: true };
                 }
                 const messageId = sent?.key?.id || sent?.messageId || sent?.id;
@@ -1904,8 +1974,8 @@ async function executeIntent(sock, m, opts, intent) {
                     await opts.reply(`_⚠️ File was prepared, but WhatsApp returned no delivery key for \`${resolved.display}\`. I will not claim it was sent._`);
                     return { handled: true };
                 }
-                logOp('send', `sent file ${resolved.display} (${messageId})`);
-                await opts.reply(`_*📄 File sent:*_ \`${resolved.display}\`\n_Message ID:_ ${messageId}`);
+                logOp('send', `${deliveryMode} sent file ${resolved.display} (${messageId})`);
+                await opts.reply(`_*📄 File sent:*_ \`${resolved.display}\`\n*Delivery:* ${deliveryMode}${cdnUrl ? `\n*CDN URL:* ${cdnUrl}` : ''}\n_Message ID:_ ${messageId}`);
                 return { handled: true };
             }
 
@@ -2203,6 +2273,9 @@ module.exports = {
     runCommandAction,
 
     isAddressed,
+    isTextFilePath,
+    toRawCdnUrl,
+    uploadTextToCdn,
     resolveWritePath,
     ensureCommandModule,
     writeFileWithAgentFix,
