@@ -745,7 +745,16 @@ async function runCommandAction(sock, m, opts, target) {
     if (SELF_NAMES.has(cmdName.toLowerCase())) {
         return '_PLOGME is always running — just talk to me._\n_Try: "plogme status", "plogme run menu", "plogme on / off"._';
     }
-    const cmd = getCommand(cmdName);
+    let cmd = getCommand(cmdName);
+    // AI-triggered send_file must use the same registered command callback as
+    // manual `.send_file`, even if a stale command registry has not refreshed.
+    if (!cmd && ['send_file', 'sendfile'].includes(String(cmdName).toLowerCase())) {
+        try {
+            const { registerCommand } = require('../../Plugin/crysCmd');
+            registerCommand(require('../Tools/send_file'));
+            cmd = getCommand(cmdName);
+        } catch {}
+    }
     if (!cmd || typeof cmd.execute !== 'function') {
         // Never just say "not found" — suggest the closest real command and
         // point at the menu so the user can recover. (@crysnovax—FIX11-08-26)
@@ -769,6 +778,8 @@ async function runCommandAction(sock, m, opts, target) {
             isOwner: true, isSudo: true, isDual: true,
             isAdmin: true, isGroupAdmin: true, isBotAdmin: true, isOwnerAdmin: true,
             isGroup: m.isGroup, groupMeta: null, config: cfg, getVar,
+            sendMessage: opts.sendMessage,
+            cdnUpload: opts.cdnUpload,
         });
         return true;
     } catch (e) {
@@ -1326,6 +1337,73 @@ async function classifyIntent(userText) {
 
 // Execute a classified intent. Returns { handled: true } when PLOGME dealt
 // with the message (including as a chat reply).
+async function sendFileCommandAction(sock, m, opts, intent) {
+                // "send as a js file" (no name) → newest command file just created
+                // (@crysnovax—FIX14-08-26)
+                const rawPath = String(intent.path || intent.file || intent.fileName || intent.name || '');
+                let resolved = null;
+                if (/^(last_created|newest|latest|just created)$/i.test(rawPath)) {
+                    const newest = findNewestCommandFile();
+                    if (newest) resolved = { abs: path.join(ROOT, newest), display: newest };
+                } else {
+                    resolved = resolveReadPath(rawPath);
+                }
+                if (!resolved) { await opts.reply('_✘ Invalid or blocked file path_'); return { handled: true }; }
+                if (!fs.existsSync(resolved.abs)) { await opts.reply(`_✘ \`${resolved.display}\` not found_`); return { handled: true }; }
+                let buffer;
+                try { buffer = fs.readFileSync(resolved.abs); } catch (err) { await opts.reply(`_✘ Could not read \`${resolved.display}\`:_ ${err.message}`); return { handled: true }; }
+                let mime = 'application/octet-stream';
+                try { mime = require('mime-types').lookup(resolved.abs) || mime; } catch {}
+                let sent;
+                let deliveryMode = 'direct';
+                let cdnUrl = '';
+                if (isTextFilePath(resolved.abs)) {
+                    // Code/text files always use the proven /raw → CDN URL →
+                    // downloader-style round trip. Direct document transport is
+                    // intentionally not attempted for this class of file.
+                    try {
+                        if (!CDN_BASE && typeof opts.cdnUpload !== 'function') throw new Error('CDN_URL is not configured');
+                        await reportProgress(opts, `uploading ${resolved.display} to the verified CDN path`);
+                        const uploaded = typeof opts.cdnUpload === 'function'
+                            ? await opts.cdnUpload(buffer, path.basename(resolved.abs), mime)
+                            : await uploadTextToCdn(buffer, path.basename(resolved.abs), mime);
+                        if (!uploaded?.url || !Buffer.isBuffer(uploaded.buffer)) throw new Error('CDN did not return a verified buffer and URL');
+                        if (!uploaded.buffer.equals(buffer)) throw new Error('CDN round-trip byte verification failed');
+                        cdnUrl = uploaded.url;
+                        if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
+                        sent = await opts.sendMessage(m.chat, {
+                            document: uploaded.buffer,
+                            mimetype: mime,
+                            fileName: path.basename(resolved.abs)
+                        }, { quoted: m });
+                        deliveryMode = 'cdn';
+                    } catch (cdnError) {
+                        await opts.reply(`_✘ Verified CDN file delivery failed:_ ${cdnError.message}`);
+                        return { handled: true };
+                    }
+                } else {
+                    try {
+                        if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
+                        sent = await opts.sendMessage(m.chat, {
+                            document: buffer,
+                            mimetype: mime,
+                            fileName: path.basename(resolved.abs)
+                        }, { quoted: m });
+                    } catch (directError) {
+                        await opts.reply(`_✘ Failed to send file:_ ${directError.message}`);
+                        return { handled: true };
+                    }
+                }
+                const messageId = sent?.key?.id || sent?.messageId || sent?.id;
+                if (!messageId) {
+                    await opts.reply(`_⚠️ File was prepared, but WhatsApp returned no delivery key for \`${resolved.display}\`. I will not claim it was sent._`);
+                    return { handled: true };
+                }
+                logOp('send', `${deliveryMode} sent file ${resolved.display} (${messageId})`);
+                await opts.reply(`_*📄 File sent:*_ \`${resolved.display}\`\n*Delivery:* ${deliveryMode}${cdnUrl ? `\n*CDN URL:* ${cdnUrl}` : ''}\n_Message ID:_ ${messageId}`);
+                return { handled: true };
+}
+
 async function executeIntent(sock, m, opts, intent) {
     try {
         opts = { ...opts, sendMessage: opts?.sendMessage || (typeof sock?.sendMessage === 'function' ? sock.sendMessage.bind(sock) : null) };
@@ -1912,72 +1990,11 @@ async function executeIntent(sock, m, opts, intent) {
             }
 
             case 'send_file': {
-                // "send as a js file" (no name) → newest command file just created
-                // (@crysnovax—FIX14-08-26)
-                const rawPath = String(intent.path || intent.file || intent.fileName || intent.name || '');
-                let resolved = null;
-                if (/^(last_created|newest|latest|just created)$/i.test(rawPath)) {
-                    const newest = findNewestCommandFile();
-                    if (newest) resolved = { abs: path.join(ROOT, newest), display: newest };
-                } else {
-                    resolved = resolveReadPath(rawPath);
-                }
-                if (!resolved) { await opts.reply('_✘ Invalid or blocked file path_'); return { handled: true }; }
-                if (!fs.existsSync(resolved.abs)) { await opts.reply(`_✘ \`${resolved.display}\` not found_`); return { handled: true }; }
-                let buffer;
-                try { buffer = fs.readFileSync(resolved.abs); } catch (err) { await opts.reply(`_✘ Could not read \`${resolved.display}\`:_ ${err.message}`); return { handled: true }; }
-                let mime = 'application/octet-stream';
-                try { mime = require('mime-types').lookup(resolved.abs) || mime; } catch {}
-                let sent;
-                let deliveryMode = 'direct';
-                let cdnUrl = '';
-                if (isTextFilePath(resolved.abs)) {
-                    // Code/text files always use the proven /raw → CDN URL →
-                    // downloader-style round trip. Direct document transport is
-                    // intentionally not attempted for this class of file.
-                    try {
-                        if (!CDN_BASE && typeof opts.cdnUpload !== 'function') throw new Error('CDN_URL is not configured');
-                        await reportProgress(opts, `uploading ${resolved.display} to the verified CDN path`);
-                        const uploaded = typeof opts.cdnUpload === 'function'
-                            ? await opts.cdnUpload(buffer, path.basename(resolved.abs), mime)
-                            : await uploadTextToCdn(buffer, path.basename(resolved.abs), mime);
-                        if (!uploaded?.url || !Buffer.isBuffer(uploaded.buffer)) throw new Error('CDN did not return a verified buffer and URL');
-                        if (!uploaded.buffer.equals(buffer)) throw new Error('CDN round-trip byte verification failed');
-                        cdnUrl = uploaded.url;
-                        if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
-                        sent = await opts.sendMessage(m.chat, {
-                            document: uploaded.buffer,
-                            mimetype: mime,
-                            fileName: path.basename(resolved.abs)
-                        }, { quoted: m });
-                        deliveryMode = 'cdn';
-                    } catch (cdnError) {
-                        await opts.reply(`_✘ Verified CDN file delivery failed:_ ${cdnError.message}`);
-                        return { handled: true };
-                    }
-                } else {
-                    try {
-                        if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
-                        sent = await opts.sendMessage(m.chat, {
-                            document: buffer,
-                            mimetype: mime,
-                            fileName: path.basename(resolved.abs)
-                        }, { quoted: m });
-                    } catch (directError) {
-                        await opts.reply(`_✘ Failed to send file:_ ${directError.message}`);
-                        return { handled: true };
-                    }
-                }
-                const messageId = sent?.key?.id || sent?.messageId || sent?.id;
-                if (!messageId) {
-                    await opts.reply(`_⚠️ File was prepared, but WhatsApp returned no delivery key for \`${resolved.display}\`. I will not claim it was sent._`);
-                    return { handled: true };
-                }
-                logOp('send', `${deliveryMode} sent file ${resolved.display} (${messageId})`);
-                await opts.reply(`_*📄 File sent:*_ \`${resolved.display}\`\n*Delivery:* ${deliveryMode}${cdnUrl ? `\n*CDN URL:* ${cdnUrl}` : ''}\n_Message ID:_ ${messageId}`);
+                const target = String(intent.path || intent.file || intent.fileName || intent.name || '').trim();
+                const result = await runCommandAction(sock, m, opts, `send_file ${target}`.trim());
+                if (result !== true) await opts.reply(result);
                 return { handled: true };
             }
-
             case 'make_pdf': {
                 let source = String(intent.content || '').trim();
                 const srcPath = String(intent.path || intent.source || intent.file || '').trim();
@@ -2270,6 +2287,7 @@ module.exports = {
     executeIntent,
     handleControlIntent,
     runCommandAction,
+    sendFileCommandAction,
 
     isAddressed,
     isTextFilePath,

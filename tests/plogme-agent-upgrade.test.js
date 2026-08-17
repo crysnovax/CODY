@@ -241,3 +241,21 @@ test('PLOGME keeps the file mission alive until CDN processing and send receipt 
     assert.equal(sent.length, 1);
     assert.match(replies.at(-1), /lifecycle-message-1/);
 });
+
+test('manual send_file command adapter uses the same shared callback contract', async () => {
+    const command = require('../src/Commands/Tools/send_file');
+    const replies = [];
+    const sent = [];
+    await command.execute({}, { chat: '12345@s.whatsapp.net' }, {
+        args: ['src/Commands/Owner/mention.js'],
+        reply: async value => replies.push(String(value)),
+        sendMessage: async (jid, content) => {
+            sent.push({ jid, content });
+            return { key: { id: 'manual-send-file-1' } };
+        },
+        cdnUpload: async buffer => ({ url: 'https://cdn.crysnovax.link/raw/manual.txt', buffer: Buffer.from(buffer) })
+    });
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].content.fileName, 'mention.js');
+    assert.match(replies.at(-1), /manual-send-file-1/);
+});
