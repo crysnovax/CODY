@@ -60,3 +60,18 @@ test('PLOGME executes mission and health actions with structured replies', async
     assert.equal(healthResult.handled, true);
     assert.match(replies.join('\n'), /CODY health/);
 });
+
+test('PLOGME compacts oversized context and removes upstream error envelopes', () => {
+    const huge = 'x'.repeat(50000);
+    const compacted = plogme.buildPrompt('plogme-414-test', huge);
+    assert.ok(compacted.length <= plogme.MAX_PROMPT_CHARS);
+    assert.match(compacted, /older context compacted|User:/);
+    assert.equal(plogme.sanitizeMemoryContent('<html><h1>414 Request-URI Too Large</h1></html>'), '[upstream HTTP error omitted from memory]');
+    assert.equal(plogme.sanitizeMemoryContent(JSON.stringify({ query: huge, response: 'safe answer' })), 'safe answer');
+});
+
+test('PLOGME rejects HTML and 414 upstream payloads', () => {
+    assert.equal(plogme.extractAIText('<html><h1>414 Request-URI Too Large</h1></html>', 200), '');
+    assert.equal(plogme.extractAIText({ response: 'normal answer' }, 200), 'normal answer');
+    assert.equal(plogme.extractAIText({ response: 'bad' }, 502), '');
+});

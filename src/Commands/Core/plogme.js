@@ -25,17 +25,28 @@
 // which short-circuits the other handlers. @crysnovax—FIX08-07-26
 const fs = require('fs');
 const path = require('path');
-const axios = {
-    get: async (url, options = {}) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), options.timeout || 15000);
-        try {
-            const response = await fetch(url, { headers: options.headers || {}, signal: controller.signal });
-            return { data: await response.text(), status: response.status };
-        } finally {
-            clearTimeout(timer);
+async function httpRequest(method, url, body, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeout || 15000);
+    try {
+        const headers = { ...(options.headers || {}) };
+        const init = { method, headers, signal: controller.signal };
+        if (body !== undefined) {
+            headers['Content-Type'] ||= 'application/json';
+            init.body = JSON.stringify(body);
         }
+        const response = await fetch(url, init);
+        const raw = await response.text();
+        let data = raw;
+        try { data = JSON.parse(raw); } catch {}
+        return { data, status: response.status, headers: response.headers };
+    } finally {
+        clearTimeout(timer);
     }
+}
+const axios = {
+    get: (url, options = {}) => httpRequest('GET', url, undefined, options),
+    post: (url, body, options = {}) => httpRequest('POST', url, body, options)
 };
 const { execSync } = require('child_process');
 const { getVar } = require('../../Plugin/configManager');
@@ -416,11 +427,25 @@ const isDev = () => loadJson(FILES.dev, { enabled: false }).enabled === true;
 const setDev = (v) => saveJson(FILES.dev, { enabled: !!v });
 
 /* ───────────────────────── persistent memory ───────────────────────── */
+const MAX_MEMORY_ITEM_CHARS = 2800;
+const MAX_PROMPT_CHARS = 14000;
+function sanitizeMemoryContent(content) {
+    let value = String(content ?? '');
+    if (/<!doctype html|<html[\s>]|414 request-uri too large|request uri too large/i.test(value)) return '[upstream HTTP error omitted from memory]';
+    // The pasted API envelope duplicated the entire system prompt inside a
+    // `query` field. Keep only its response when such an envelope is received.
+    try {
+        const parsed = JSON.parse(value);
+        if (parsed && typeof parsed === 'object' && parsed.response) value = String(parsed.response);
+    } catch {}
+    if (value.length > MAX_MEMORY_ITEM_CHARS) value = `${value.slice(0, MAX_MEMORY_ITEM_CHARS)}…[truncated]`;
+    return value;
+}
 const getMemory = (chat) => { const d = loadJson(FILES.memory); if (!Array.isArray(d[chat])) d[chat] = []; return d[chat]; };
 const addToMemory = (chat, role, content) => {
     const d = loadJson(FILES.memory);
     if (!Array.isArray(d[chat])) d[chat] = [];
-    d[chat].push({ role, content, ts: Date.now() });
+    d[chat].push({ role, content: sanitizeMemoryContent(content), ts: Date.now() });
     if (d[chat].length > MAX_MEMORY) d[chat] = d[chat].slice(-MAX_MEMORY);
     saveJson(FILES.memory, d);
 };
@@ -471,23 +496,39 @@ const getToggledList = () => Object.entries(loadJson(FILES.toggled)).filter(([k,
 // itself falls back to askgpt5 for the same reason). These are the models
 // the user chose, and the model chain the chatbot actually answers with.
 // @crysnovax—FIX08-07-26
+function extractAIText(data, status) {
+    if (status && status >= 400) return '';
+    if (typeof data === 'string') {
+        if (/<!doctype html|<html[\s>]|414 request-uri too large|request uri too large/i.test(data)) return '';
+        return data;
+    }
+    const txt = data?.response || data?.result || data?.text || data?.message || data?.output;
+    return typeof txt === 'string' && !/<!doctype html|414 request-uri too large/i.test(txt) ? txt : '';
+}
+
 async function askAI(prompt) {
-    // Primary free endpoints — /ai/ch first (verified live), then the rest
+    const normalizedPrompt = String(prompt || '');
+    // Long prompts must never be placed in a URL. Each endpoint receives a
+    // provider-compatible POST field; GET is retained only as a short-prompt
+    // compatibility fallback for older deployments that do not expose POST.
     const endpoints = [
-        `${PREXZY}/ai/ch?q=`,
-        `${PREXZY}/ai/askgpt5?prompt=`,
-        `${PREXZY}/ai/grok-4?prompt=`,
-        `${PREXZY}/ai/gpt-5?text=`,
-        `${PREXZY}/ai/deepseekchat?prompt=`,
-        `${PREXZY}/ai/chatgpt?text=`,
+        [`${PREXZY}/ai/ch`, 'q'],
+        [`${PREXZY}/ai/askgpt5`, 'prompt'],
+        [`${PREXZY}/ai/grok-4`, 'prompt'],
+        [`${PREXZY}/ai/gpt-5`, 'text'],
+        [`${PREXZY}/ai/deepseekchat`, 'prompt'],
+        [`${PREXZY}/ai/chatgpt`, 'text'],
     ];
-    for (const ep of endpoints) {
+    for (const [url, field] of endpoints) {
         try {
-            const res = await axios.get(ep + encodeURIComponent(prompt), { timeout: 15000 });
-            const data = res.data;
-            const txt = data?.response || data?.result || data?.text || data?.message || data?.output
-                || (typeof data === 'string' ? data : '');
-            if (typeof txt === 'string' && txt.trim().length > 3) return txt.trim();
+            const res = await axios.post(url, { [field]: normalizedPrompt }, { timeout: 15000 });
+            const txt = extractAIText(res.data, res.status);
+            if (txt.trim().length > 3) return txt.trim();
+            if (normalizedPrompt.length <= 1200) {
+                const legacy = await axios.get(`${url}?${field}=${encodeURIComponent(normalizedPrompt)}`, { timeout: 15000 });
+                const legacyText = extractAIText(legacy.data, legacy.status);
+                if (legacyText.trim().length > 3) return legacyText.trim();
+            }
         } catch {}
     }
 
@@ -532,22 +573,26 @@ async function askAI(prompt) {
 }
 
 function buildPrompt(chat, userText) {
-    const facts = getFacts();
-    const memory = getMemory(chat);
+    const facts = getFacts().map(sanitizeMemoryContent).slice(-20);
+    const memory = getMemory(chat).slice(-20).map(item => ({ ...item, content: sanitizeMemoryContent(item.content) }));
     const ops = getOps();
-    let prompt = getPersonality();
-    if (getTraining()) prompt += '\n\nAdditional instructions: ' + getTraining();
+    let prompt = sanitizeMemoryContent(getPersonality());
+    if (getTraining()) prompt += '\n\nAdditional instructions: ' + sanitizeMemoryContent(getTraining());
     if (facts.length) prompt += '\n\nPersistent facts I remember:\n- ' + facts.join('\n- ');
     if (memory.length) {
         prompt += '\n\nRecent conversation history:\n' +
-            memory.slice(-20).map(t => `${t.role === 'user' ? 'User' : 'PLOGME'}: ${t.content}`).join('\n');
+            memory.map(t => `${t.role === 'user' ? 'User' : 'PLOGME'}: ${t.content}`).join('\n');
     }
     if (ops.length) {
         prompt += '\n\nRecent actions I performed (my own memory of what I changed):\n' +
-            ops.slice(-8).map(o => `- ${o.summary}`).join('\n');
+            ops.slice(-8).map(o => `- ${sanitizeMemoryContent(o.summary)}`).join('\n');
     }
-    prompt += '\n\nUser: ' + userText + '\nPLOGME:';
-    return prompt;
+    prompt += '\n\nUser: ' + sanitizeMemoryContent(userText) + '\nPLOGME:';
+    if (prompt.length <= MAX_PROMPT_CHARS) return prompt;
+    // Preserve the personality, current request, and most recent context; the
+    // middle of old history is the least valuable part when compacting.
+    const suffix = `\n\nUser: ${sanitizeMemoryContent(userText)}\nPLOGME:`;
+    return `${prompt.slice(0, MAX_PROMPT_CHARS - suffix.length - 80)}\n[older context compacted]\n${suffix}`;
 }
 
 /* ───────────────────────── identity (owner / sudo / dual) ───────────────────────── */
@@ -2033,8 +2078,14 @@ async function execute(sock, m, opts) {
             if (retry && !REFUSAL_RE.test(retry)) answer = retry;
         }
 
-        addToMemory(m.chat, 'assistant', answer);
-        await opts.reply(answer);
+        const safeAnswer = sanitizeMemoryContent(answer);
+        if (safeAnswer === '[upstream HTTP error omitted from memory]') {
+            await sock.sendPresenceUpdate('paused', m.chat).catch(() => {});
+            await opts.reply('_🤖 The AI provider returned an HTTP error instead of an answer. I did not save that error into memory._');
+            return true;
+        }
+        addToMemory(m.chat, 'assistant', safeAnswer);
+        await opts.reply(safeAnswer);
         await sock.sendPresenceUpdate('paused', m.chat).catch(() => {});
         return true;
     } catch (err) {
@@ -2059,7 +2110,10 @@ module.exports = {
     isDev,
     setDev,
     getMemory,
+    addToMemory,
     clearMemory,
+    sanitizeMemoryContent,
+    MAX_PROMPT_CHARS,
     getFacts,
     addFact,
     removeFact,
@@ -2082,6 +2136,7 @@ module.exports = {
     searchWorkspace,
     environmentSnapshot,
     reportProgress,
+    extractAIText,
     logOp,
     getOps,
 };
