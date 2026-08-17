@@ -182,7 +182,7 @@ module.exports = {
                 const restText = args.join(' ').trim();
                 if (restText && await plogme.handleControlIntent(sock, m, {
                     reply,
-                    sendMessage: async (jid, content, opts) => { try { await sock.sendMessage(jid, content, opts); } catch (e) {} }
+                    sendMessage: async (jid, content, opts) => sock.sendMessage(jid, content, opts)
                 }, 'plogme ' + restText)) return;
                 // Never dump the menu for a bare name-call / unknown sub — a
                 // short nudge keeps "plogme do this" from being answered with

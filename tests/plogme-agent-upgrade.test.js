@@ -159,3 +159,23 @@ test('PLOGME normalizes malformed emphasis without altering ordinary bold marker
     assert.equal(plogme.normalizePlogmeFormatting('**Running** and ****wrong****'), '**Running** and **wrong**');
     assert.equal(plogme.normalizePlogmeFormatting('____ok____'), '__ok__');
 });
+
+test('live .plogme wrapper propagates the WhatsApp file receipt', async () => {
+    const aiCommand = require('../src/Commands/AI/plogme');
+    const replies = [];
+    const sent = [];
+    const sock = {
+        sendMessage: async (jid, content, options) => {
+            sent.push({ jid, content, options });
+            return { key: { id: 'wrapper-file-message-1' } };
+        }
+    };
+    await aiCommand.execute(sock, { chat: '12345@s.whatsapp.net', key: {} }, {
+        args: ['send', 'file', 'src/Commands/Owner/mention.js'],
+        prefix: '.',
+        reply: async value => replies.push(String(value))
+    });
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].content.fileName, 'mention.js');
+    assert.match(replies.at(-1), /Message ID:.*wrapper-file-message-1/);
+});
