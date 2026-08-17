@@ -1931,43 +1931,42 @@ async function executeIntent(sock, m, opts, intent) {
                 let sent;
                 let deliveryMode = 'direct';
                 let cdnUrl = '';
-                let directError = null;
-                try {
-                    if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
-                    sent = await opts.sendMessage(m.chat, {
-                        document: buffer,
-                        mimetype: mime,
-                        fileName: path.basename(resolved.abs)
-                    }, { quoted: m });
-                } catch (err) {
-                    directError = err;
-                }
-                // Code/text fallback: reuse /raw’s CDN upload contract, fetch the
-                // raw URL back, verify the bytes, then send that downloaded buffer.
-                // This avoids claiming a file was sent when direct media transport
-                // is unavailable while preserving the original filename.
-                if (directError && isTextFilePath(resolved.abs) && (CDN_BASE || typeof opts.cdnUpload === 'function')) {
+                if (isTextFilePath(resolved.abs)) {
+                    // Code/text files always use the proven /raw → CDN URL →
+                    // downloader-style round trip. Direct document transport is
+                    // intentionally not attempted for this class of file.
                     try {
-                        await reportProgress(opts, `direct attachment failed; using verified CDN fallback for ${resolved.display}`);
+                        if (!CDN_BASE && typeof opts.cdnUpload !== 'function') throw new Error('CDN_URL is not configured');
+                        await reportProgress(opts, `uploading ${resolved.display} to the verified CDN path`);
                         const uploaded = typeof opts.cdnUpload === 'function'
                             ? await opts.cdnUpload(buffer, path.basename(resolved.abs), mime)
                             : await uploadTextToCdn(buffer, path.basename(resolved.abs), mime);
-                        if (!uploaded?.url || !Buffer.isBuffer(uploaded.buffer)) throw new Error('CDN fallback did not return a verified buffer and URL');
-                        if (!uploaded.buffer.equals(buffer)) throw new Error('CDN fallback byte verification failed');
+                        if (!uploaded?.url || !Buffer.isBuffer(uploaded.buffer)) throw new Error('CDN did not return a verified buffer and URL');
+                        if (!uploaded.buffer.equals(buffer)) throw new Error('CDN round-trip byte verification failed');
                         cdnUrl = uploaded.url;
+                        if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
                         sent = await opts.sendMessage(m.chat, {
                             document: uploaded.buffer,
                             mimetype: mime,
                             fileName: path.basename(resolved.abs)
                         }, { quoted: m });
                         deliveryMode = 'cdn';
-                    } catch (fallbackError) {
-                        await opts.reply(`_✘ Direct and CDN file delivery failed:_ ${fallbackError.message}`);
+                    } catch (cdnError) {
+                        await opts.reply(`_✘ Verified CDN file delivery failed:_ ${cdnError.message}`);
                         return { handled: true };
                     }
-                } else if (directError) {
-                    await opts.reply(`_✘ Failed to send file:_ ${directError.message}`);
-                    return { handled: true };
+                } else {
+                    try {
+                        if (typeof opts.sendMessage !== 'function') throw new Error('WhatsApp sender is unavailable in this handler');
+                        sent = await opts.sendMessage(m.chat, {
+                            document: buffer,
+                            mimetype: mime,
+                            fileName: path.basename(resolved.abs)
+                        }, { quoted: m });
+                    } catch (directError) {
+                        await opts.reply(`_✘ Failed to send file:_ ${directError.message}`);
+                        return { handled: true };
+                    }
                 }
                 const messageId = sent?.key?.id || sent?.messageId || sent?.id;
                 if (!messageId) {
