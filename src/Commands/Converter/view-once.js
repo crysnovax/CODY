@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
 
 const DATA_FILE = path.join(__dirname, '../../../database/vv-reactions.json');
 const AUTOVV_FILE = path.join(__dirname, '../../../database/autovv.json');
@@ -220,7 +221,17 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     const content = unwrapViewOnce(mek?.message || m?.message);
     const media = await downloadMedia(content);
     if (!media) return false;
-    const recipient = m?.sender || mek?.key?.participant || chat;
+    const senderCandidates = [
+      m?.sender,
+      mek?.key?.participant,
+      mek?.key?.participantAlt,
+      m?.key?.participant,
+      m?.key?.participantAlt
+    ].filter(Boolean);
+    const recipient = await resolvePhoneJidWithMetadata(sock, chat, senderCandidates)
+      || senderCandidates.find(jid => String(jid).endsWith('@s.whatsapp.net'))
+      || senderCandidates[0];
+    if (!recipient) return false;
     const sendType = media.type.replace('Message', '').toLowerCase();
     await sock.sendMessage(recipient, { [sendType]: media.buffer });
     await sock.sendMessage(chat, { react: { text: '👁️', key: m?.key || mek?.key } }).catch(() => {});

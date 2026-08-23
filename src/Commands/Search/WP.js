@@ -65,24 +65,24 @@ module.exports = {
             let delivered = false;
             if (typeof sock.sendRichButtonGrid === 'function') {
                 try {
-                    await sock.sendRichButtonGrid(m.chat, {
+                    const sent = await sock.sendRichButtonGrid(m.chat, {
                         text: `🖼️ *WALLPAPER SEARCH: ${query}*`,
                         footer: `Found ${results.length} results · ${source}`,
                         cards
                     }, { quoted: m });
-                    delivered = true;
+                    delivered = Boolean(sent?.key?.id || sent?.message?.key?.id || sent?.id);
                 } catch (error) {
                     console.warn('[WALLPAPER] Rich-grid delivery failed; using image fallback:', error.message);
                 }
             }
             if (!delivered && typeof sock.sendInteractiveCarousel === 'function') {
                 try {
-                    await sock.sendInteractiveCarousel(m.chat, {
+                    const sent = await sock.sendInteractiveCarousel(m.chat, {
                         text: `🖼️ *WALLPAPER SEARCH: ${query}*`,
                         footer: `Found ${results.length} results · ${source}`,
                         cards
                     }, { quoted: m });
-                    delivered = true;
+                    delivered = Boolean(sent?.key?.id || sent?.message?.key?.id || sent?.id);
                 } catch (error) {
                     console.warn('[WALLPAPER] Carousel delivery failed; using image fallback:', error.message);
                 }
