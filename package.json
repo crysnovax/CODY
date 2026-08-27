@@ -28,7 +28,7 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@google/generative-ai": "^0.24.1",
     "@hapi/boom": "^10.0.1",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.0",
     "archiver": "^7.0.1",
     "axios": "^1.13.5",
     "canvas": "npm:@napi-rs/canvas@^1.0.2",
