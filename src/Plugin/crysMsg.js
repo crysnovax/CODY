@@ -1,6 +1,7 @@
 // crysMsg.js
-const { getCommand } = require('./crysCmd');
+const { getCommand, getAll } = require('./crysCmd');
 const { getVar }     = require('./configManager');
+const { handleAntiLink } = require('../Commands/Admin/antilink');
 const { normalizeDeployButton, normalizeDeployButtonMessage } = require('./deployButtonRouter');
 const chalk = require('chalk');
 const fs    = require('fs');
@@ -147,6 +148,15 @@ const handleMessage = async (sock, m, store) => {
     try {
         if (!m || !m.message) return;
         if (m.key?.remoteJid === 'status@broadcast') return;
+
+        // Run content moderation before command parsing. The antilink command
+        // has a legacy handler; newer protections expose handleModeration.
+        const moderationPayload = m.rawMessage || m.message;
+        await handleAntiLink(sock, m, moderationPayload);
+        for (const command of new Set(getAll().values())) {
+            if (typeof command.handleModeration !== 'function') continue;
+            await command.handleModeration(sock, m, moderationPayload);
+        }
 
         // ── PREFIX — supports null/empty for no-prefix mode ──
         let prefix = getVar('PREFIX', '.');
