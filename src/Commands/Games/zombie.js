@@ -1,120 +1,241 @@
 const games = new Map();
-const EVENTS = [
-    { action: 'shoot', damage: 3, icon: '\u{1F52B}', text: 'Headshot landed!' },
-    { action: 'barricade', damage: 0, icon: '\u{1FAB5}', text: 'Barricade reinforced.' },
-    { action: 'run', damage: -1, icon: '\u{1F3C3}', text: 'Sprinted through.' },
-];
+
+const EVENTS = {
+    shoot: { damage: 3, icon: '\u{1F52B}', text: 'Headshot landed!', threatMod: -2 },
+    barricade: { damage: 0, icon: '\u{1FAB5}', text: 'Barricade reinforced.', threatMod: 0 },
+    run: { damage: -1, icon: '\u{1F3C3}', text: 'Sprinted through.', threatMod: 1 },
+};
 
 function healthBar(hp, max = 10) {
     const filled = Math.max(0, Math.min(max, hp));
     const empty = max - filled;
     const color = hp > 6 ? '#00ff88' : hp > 3 ? '#fbbf24' : '#ff6b6b';
-    return `<span style="color:${color}">${'\u2588'.repeat(filled)}</span><span style="color:#1c2333">${'\u2591'.repeat(empty)}</span>`;
+    return `\u2588`.repeat(filled) + `\u2591`.repeat(empty) + ` (${hp}/${max} HP)`;
 }
 
-function buildHtml(game) {
-    const now = new Date();
-    const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-    const hpColor = game.health > 6 ? '#00ff88' : game.health > 3 ? '#fbbf24' : '#ff6b6b';
-    const pct = Math.round((game.health / 10) * 100);
-    const dayPct = Math.round((game.day / 10) * 100);
-    return `<style>
-@keyframes zbScan{0%{background-position:0 0}100%{background-position:0 40px}}
-@keyframes zbPulse{0%,100%{box-shadow:0 0 6px rgba(255,62,62,.2)}50%{box-shadow:0 0 16px rgba(255,62,62,.4)}}
-@keyframes zbFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@keyframes zbCardIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
-@keyframes zbGlitch{0%,90%,100%{transform:none;opacity:1}92%{transform:translateX(2px);opacity:.8}94%{transform:translateX(-2px);opacity:.9}96%{transform:none}}
-@keyframes zbBar{from{width:0}to{width:${pct}%}}
-@keyframes zbDot{0%,100%{opacity:1}50%{opacity:.3}}
-</style>
-<div style="font-family:'Courier New',Consolas,monospace;padding:0;background:#0a0e17;color:#c9d1d9;border-radius:10px;overflow:hidden;max-width:360px;border:1px solid #1c2333;animation:zbPulse 3s ease-in-out infinite">
-  <div style="position:relative;overflow:hidden">
-    <div style="position:absolute;top:0;left:0;right:0;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,62,62,.01) 2px,rgba(255,62,62,.01) 4px);pointer-events:none;z-index:10;animation:zbScan 5s linear infinite"></div>
-    <div style="background:linear-gradient(90deg,#1a0505,#0d1321);padding:10px 14px;border-bottom:1px solid #2d0a0a;display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="width:8px;height:8px;border-radius:50%;background:#ff3e3e;animation:zbDot 1.5s ease-in-out infinite"></div>
-        <span style="font-size:11px;color:#6b7280;letter-spacing:2px;text-transform:uppercase">\u{1F9DF} ZOMBIE NIGHTFALL</span>
-      </div>
-      <span style="font-size:10px;color:#4b5563">${ts}</span>
-    </div>
-    <div style="padding:14px 16px 10px;animation:zbFadeIn .4s ease-out">
-      <!-- Day -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="font-size:10px;color:#ff6b6b;letter-spacing:2px;font-weight:700;animation:zbGlitch 4s infinite">DAY ${game.day}</span>
-        <span style="font-size:10px;color:#4b5563">${game.day}/10</span>
-      </div>
-      <!-- Health bar -->
-      <div style="margin-bottom:10px">
-        <div style="font-size:10px;color:#4b5563;letter-spacing:2px;margin-bottom:4px">HEALTH</div>
-        <div style="height:8px;background:#1c2333;border-radius:4px;overflow:hidden">
-          <div style="height:100%;background:linear-gradient(90deg,${hpColor},${hpColor}88);border-radius:4px;animation:zbBar 1s ease-out forwards;box-shadow:0 0 8px ${hpColor}44"></div>
-        </div>
-        <div style="font-size:11px;color:${hpColor};margin-top:3px;font-weight:700">${game.health}/10 HP</div>
-      </div>
-      <!-- Stats -->
-      <div style="display:flex;gap:10px;margin-bottom:12px">
-        <div style="flex:1;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);border-radius:6px;padding:8px;text-align:center;animation:zbCardIn .4s">
-          <div style="font-size:9px;color:#4b5563;letter-spacing:1px">AMMO</div>
-          <div style="font-size:18px;font-weight:800;color:#fbbf24">${game.ammo}</div>
-        </div>
-        <div style="flex:1;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);border-radius:6px;padding:8px;text-align:center;animation:zbCardIn .4s .1s both">
-          <div style="font-size:9px;color:#4b5563;letter-spacing:1px">BARRICADE</div>
-          <div style="font-size:18px;font-weight:800;color:#00ff88">${game.barricade}</div>
-        </div>
-      </div>
-      <!-- Event log -->
-      <div style="background:#111827;border:1px solid #1c2333;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#e2e8f0;animation:zbCardIn .5s .2s both">
-        <div style="font-size:9px;color:#4b5563;letter-spacing:1px;margin-bottom:4px">SYSTEM LOG</div>
-        ${game.message}
-      </div>
-      <!-- Actions -->
-      <div style="display:flex;gap:6px;justify-content:center">
-        <span style="padding:6px 12px;background:rgba(255,62,62,.08);border:1px solid rgba(255,62,62,.2);border-radius:5px;color:#ff6b6b;font-size:11px;font-weight:600;letter-spacing:1px">\u{1F52B} SHOOT</span>
-        <span style="padding:6px 12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:5px;color:#fbbf24;font-size:11px;font-weight:600;letter-spacing:1px">\u{1FAB5} BARRICADE</span>
-        <span style="padding:6px 12px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);border-radius:5px;color:#00ff88;font-size:11px;font-weight:600;letter-spacing:1px">\u{1F3C3} RUN</span>
-      </div>
-    </div>
-    <div style="padding:8px 14px;border-top:1px solid #1c2333;text-align:center">
-      <span style="font-size:10px;color:#4b5563">Day ${game.day}/10 \u2022 ${game.health} HP \u2022 stop to abandon</span>
-    </div>
-  </div>
-</div>`;
+function buildText(game) {
+    const hpColor = game.health > 6 ? '🟢' : game.health > 3 ? '🟡' : '🔴';
+    const hpBar = healthBar(game.health);
+    return `*ZOMBIE NIGHTFALL*\n` +
+        `\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n` +
+        `*DAY ${game.day} / 10*\n\n` +
+        `${hpColor} Health: ${hpBar}\n` +
+        `\u{1F4A3} Ammo: *${game.ammo}*\n` +
+        `\u{1F6E1}\uFE0F Barricade: *${game.barricade}*\n\n` +
+        `*SYSTEM LOG*\n${game.message}\n\n` +
+        `_Day ${game.day}/10 \u2022 Type actions below or tap a button_`;
+}
+
+function buildListMessage(game, chatId) {
+    return {
+        text: buildText(game),
+        footer: '\u{1F9DF} Zombie Nightfall \u2022 Tap an action below',
+        title: `DAY ${game.day}/10 \u2022 ${game.health} HP`,
+        buttonText: '\u{1F3AF} Choose Action',
+        sections: [{
+            title: '\u{1F52B} Actions',
+            rows: [
+                {
+                    header: '\u{1F52B}',
+                    title: 'SHOOT',
+                    description: game.ammo > 0 ? `Headshot! (Ammo: ${game.ammo})` : 'No ammo left!',
+                    id: `#zb_shoot`
+                },
+                {
+                    header: '\u{1F6E1}\uFE0F',
+                    title: 'BARRICADE',
+                    description: `Reinforce defenses (+2 barricade)`,
+                    id: `#zb_barricade`
+                },
+                {
+                    header: '\u{1F3C3}',
+                    title: 'RUN',
+                    description: 'Sprint through (-1 hp, higher threat)',
+                    id: `#zb_run`
+                }
+            ]
+        }]
+    };
+}
+
+function resolveAction(actionName, game) {
+    const action = EVENTS[actionName];
+    if (!action) return null;
+
+    if (actionName === 'shoot' && game.ammo < 1) return 'no_ammo';
+
+    if (actionName === 'shoot') game.ammo--;
+    if (actionName === 'barricade') game.barricade = Math.min(5, game.barricade + 2);
+
+    const threat = Math.max(0, 3 - Math.floor(game.barricade / 2) + action.threatMod);
+    game.health -= threat;
+    game.day++;
+
+    game.message = `${action.icon} *${action.text}*\n\u{1F9DF} Horde hits for *${threat}* damage`;
+
+    if (game.health <= 0) {
+        game.health = 0;
+        return 'dead';
+    }
+    if (game.day > 10) {
+        return 'survived';
+    }
+    return 'alive';
+}
+
+function gameOverText(game, survived) {
+    const title = survived ? '\u{1F3C6} NIGHTFALL SURVIVED!' : '\u{1F480} GAME OVER';
+    return `*${title}*\n` +
+        `\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n` +
+        `Days survived: *${survived ? 10 : game.day - 1}*\n` +
+        `Final HP: *${game.health}*\n` +
+        `Ammo remaining: *${game.ammo}*\n` +
+        `\n_Start *${'.zombie'}* to play again!_`;
 }
 
 module.exports = {
-    name: 'zombie', alias: ['zombies', 'survival'], desc: 'Survive the zombie nightfall with animated HTML.', category: 'Games', usage: '.zombie',
+    name: 'zombie',
+    alias: ['zombies', 'survival'],
+    desc: 'Survive 10 days of zombie nightfall with interactive buttons!',
+    category: 'Games',
+    usage: '.zombie',
+
     execute: async (sock, m, { args, reply }) => {
         const key = m.chat;
-        const send = async (html) => {
-            if (typeof sock.sendHtmlMessage === 'function') return sock.sendHtmlMessage(m.chat, { html }, { quoted: m });
-            return reply(html.replace(/<[^>]+>/g, ''));
-        };
-        if (args[0] === 'stop') { games.delete(key); return reply('Zombie run ended.'); }
+
+        if (args[0] === 'stop') {
+            games.delete(key);
+            return reply('Zombie run ended. \u{1F480}');
+        }
+
         let game = games.get(key);
-        if (!game) {
-            game = { day: 1, health: 10, ammo: 6, barricade: 2, message: '<span style="color:#ff6b6b">\u{1F9DF} The dead are moving...</span>' };
+
+        if (!game && !args[0]) {
+            // Start new game
+            game = {
+                day: 1,
+                health: 10,
+                ammo: 6,
+                barricade: 2,
+                message: '\u{1F9DF} *The dead are moving...*'
+            };
             games.set(key, game);
-            return send(buildHtml(game));
+
+            // Send with native interactive list buttons
+            const listMsg = buildListMessage(game, key);
+            if (typeof sock.sendMessage === 'function') {
+                await sock.sendMessage(key, {
+                    text: listMsg.text,
+                    footer: listMsg.footer,
+                    title: listMsg.title,
+                    buttonText: listMsg.buttonText,
+                    sections: listMsg.sections
+                }, { quoted: m });
+                return;
+            }
+            return reply(buildText(game));
         }
-        const actionName = args[0]?.toLowerCase();
-        const action = EVENTS.find(e => e.action === actionName);
-        if (!action) return send(buildHtml(game));
-        if (actionName === 'shoot' && game.ammo < 1) return reply('Out of ammo. Try *run* or *barricade*.');
-        if (actionName === 'shoot') game.ammo--;
-        if (actionName === 'barricade') game.barricade = Math.min(5, game.barricade + 2);
-        const threat = Math.max(0, 3 - Math.floor(game.barricade / 2) - action.damage);
-        game.health -= threat;
-        game.day++;
-        game.message = `<span style="color:#00ff88">${action.icon} ${action.text}</span><br><span style="color:#ff6b6b">\u{1F9DF} Horde hits for <b>${threat}</b> damage</span>`;
-        if (game.health <= 0) {
-            game.health = 0;
-            games.delete(key);
-            return send(buildHtml(game) + `<div style="text-align:center;padding:10px;font-size:18px;font-weight:800;color:#ff6b6b;animation:zbCardIn .3s">\u{1F480} GAME OVER \u2014 ${game.day - 1} days survived</div>`);
+
+        // Handle command args (.zombie shoot, .zombie barricade, .zombie run)
+        if (args[0]) {
+            const actionName = args[0].toLowerCase();
+            if (!EVENTS[actionName]) {
+                return reply('Available actions: *shoot*, *barricade*, *run*\nType `.zombie stop` to quit.');
+            }
+
+            if (!game) {
+                game = { day: 1, health: 10, ammo: 6, barricade: 2, message: '\u{1F9DF} *The dead are moving...*' };
+                games.set(key, game);
+            }
+
+            const result = resolveAction(actionName, game);
+
+            if (result === 'no_ammo') {
+                return reply('Out of ammo! Try *barricade* or *run*.');
+            }
+
+            if (result === 'dead' || result === 'survived') {
+                games.delete(key);
+                return reply(gameOverText(game, result === 'survived'));
+            }
+
+            // Send updated game with interactive list
+            const listMsg = buildListMessage(game, key);
+            if (typeof sock.sendMessage === 'function') {
+                await sock.sendMessage(key, {
+                    text: listMsg.text,
+                    footer: listMsg.footer,
+                    title: listMsg.title,
+                    buttonText: listMsg.buttonText,
+                    sections: listMsg.sections
+                }, { quoted: m });
+                return;
+            }
+            return reply(buildText(game));
         }
-        if (game.day > 10) {
-            games.delete(key);
-            return send(buildHtml(game) + `<div style="text-align:center;padding:10px;font-size:18px;font-weight:800;color:#00ff88;animation:zbCardIn .3s">\u{1F3C6} NIGHTFALL SURVIVED!</div>`);
+
+        // No args, show current state
+        if (game) {
+            const listMsg = buildListMessage(game, key);
+            if (typeof sock.sendMessage === 'function') {
+                await sock.sendMessage(key, {
+                    text: listMsg.text,
+                    footer: listMsg.footer,
+                    title: listMsg.title,
+                    buttonText: listMsg.buttonText,
+                    sections: listMsg.sections
+                }, { quoted: m });
+                return;
+            }
+            return reply(buildText(game));
         }
-        return send(buildHtml(game));
+
+        return reply('Type *.zombie* to start a new game!');
+    },
+
+    // Handle button/list clicks from native WhatsApp interactive messages
+    handleGameReply: async (sock, m) => {
+        const buttonId =
+            m.msg?.buttonsResponseMessage?.selectedButtonId ||
+            m.msg?.templateButtonReplyMessage?.selectedId ||
+            m.msg?.listResponseMessage?.singleSelectReply?.selectedRowId;
+
+        if (!buttonId || !buttonId.startsWith('#zb_')) return false;
+
+        const chatKey = m.chat;
+        let game = games.get(chatKey);
+
+        if (!game) {
+            await sock.sendMessage(chatKey, { text: 'Game expired. Type *.zombie* to start a new one!' });
+            return true;
+        }
+
+        const actionName = buttonId.replace('#zb_', '');
+        if (!EVENTS[actionName]) return false;
+
+        const result = resolveAction(actionName, game);
+
+        if (result === 'no_ammo') {
+            await sock.sendMessage(chatKey, { text: 'Out of ammo! Tap *BARRICADE* or *RUN*.' });
+            return true;
+        }
+
+        if (result === 'dead' || result === 'survived') {
+            games.delete(chatKey);
+            await sock.sendMessage(chatKey, { text: gameOverText(game, result === 'survived') });
+            return true;
+        }
+
+        // Send updated game state with new list buttons
+        const listMsg = buildListMessage(game, chatKey);
+        await sock.sendMessage(chatKey, {
+            text: listMsg.text,
+            footer: listMsg.footer,
+            title: listMsg.title,
+            buttonText: listMsg.buttonText,
+            sections: listMsg.sections
+        });
+
+        return true;
     }
 };

@@ -595,6 +595,24 @@ try {
                 }
             } catch {}
 
+            // ── ZOMBIE GAME button handler ──
+            try {
+                const zombie = require('./src/Commands/Games/zombie.js');
+                if (zombie?.handleGameReply) {
+                    const handled = await zombie.handleGameReply(sock, m);
+                    if (handled) return;
+                }
+            } catch {}
+
+            // ── PENALTY GAME button handler ──
+            try {
+                const penalty = require('./src/Commands/Games/penalty.js');
+                if (penalty?.handleGameReply) {
+                    const handled = await penalty.handleGameReply(sock, m);
+                    if (handled) return;
+                }
+            } catch {}
+
             // ── PLOGME: block toggled-off commands BEFORE the router runs ──
             // PLOGME's own names are NEVER blocked here — ".plogme on/off"
             // must always reach the plogme handler, otherwise the toggle
