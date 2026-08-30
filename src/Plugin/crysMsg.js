@@ -155,8 +155,12 @@ const handleMessage = async (sock, m, store) => {
         // both the decoded content and the original key/participant metadata.
         await handleAntiLink(sock, m, m);
         for (const command of new Set(getAll().values())) {
-            if (typeof command.handleModeration !== 'function') continue;
-            await command.handleModeration(sock, m, m);
+            if (command === getCommand('antilink') || typeof command.handleModeration !== 'function') continue;
+            try {
+                await command.handleModeration(sock, m, m);
+            } catch (moderationError) {
+                console.error('[MODERATION ERROR]', moderationError.message);
+            }
         }
 
         // ── PREFIX — supports null/empty for no-prefix mode ──
