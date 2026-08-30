@@ -151,11 +151,12 @@ const handleMessage = async (sock, m, store) => {
 
         // Run content moderation before command parsing. The antilink command
         // has a legacy handler; newer protections expose handleModeration.
-        const moderationPayload = m.rawMessage || m.message;
-        await handleAntiLink(sock, m, moderationPayload);
+        // Pass the full normalized message so moderation plugins can access
+        // both the decoded content and the original key/participant metadata.
+        await handleAntiLink(sock, m, m);
         for (const command of new Set(getAll().values())) {
             if (typeof command.handleModeration !== 'function') continue;
-            await command.handleModeration(sock, m, moderationPayload);
+            await command.handleModeration(sock, m, m);
         }
 
         // ── PREFIX — supports null/empty for no-prefix mode ──
