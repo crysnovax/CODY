@@ -22,7 +22,7 @@
   "license": "MIT",
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
-    "@crysnovax/baileys": "2.8.3",
+    "@crysnovax/baileys": "^2.8.3",
     "@distube/ytdl-core": "^4.16.12",
     "@faker-js/faker": "^10.3.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
