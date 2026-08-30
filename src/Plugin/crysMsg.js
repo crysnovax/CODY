@@ -1,6 +1,7 @@
 // crysMsg.js
-const { getCommand } = require('./crysCmd');
+const { getCommand, getAll } = require('./crysCmd');
 const { getVar }     = require('./configManager');
+const { handleAntiLink } = require('../Commands/Admin/antilink');
 const { normalizeDeployButton, normalizeDeployButtonMessage } = require('./deployButtonRouter');
 const chalk = require('chalk');
 const fs    = require('fs');
@@ -147,6 +148,30 @@ const handleMessage = async (sock, m, store) => {
     try {
         if (!m || !m.message) return;
         if (m.key?.remoteJid === 'status@broadcast') return;
+
+        // Run content moderation before command parsing. The antilink command
+        // has a legacy handler; newer protections expose handleModeration.
+        // Pass the full normalized message so moderation plugins can access
+        // both the decoded content and the original key/participant metadata.
+        await handleAntiLink(sock, m, m);
+        for (const command of new Set(getAll().values())) {
+            if (command === getCommand('antilink') || typeof command.handleModeration !== 'function') continue;
+            try {
+                await command.handleModeration(sock, m, m);
+            } catch (moderationError) {
+                console.error('[MODERATION ERROR]', moderationError.message);
+            }
+        }
+
+        // Reply-driven games get first chance to consume their move.
+        for (const command of new Set(getAll().values())) {
+            if (typeof command.handleGameReply !== 'function') continue;
+            try {
+                if (await command.handleGameReply(sock, m)) return;
+            } catch (gameError) {
+                console.error('[GAME REPLY ERROR]', gameError.message);
+            }
+        }
 
         // ── PREFIX — supports null/empty for no-prefix mode ──
         let prefix = getVar('PREFIX', '.');
