@@ -163,6 +163,16 @@ const handleMessage = async (sock, m, store) => {
             }
         }
 
+        // Reply-driven games get first chance to consume their move.
+        for (const command of new Set(getAll().values())) {
+            if (typeof command.handleGameReply !== 'function') continue;
+            try {
+                if (await command.handleGameReply(sock, m)) return;
+            } catch (gameError) {
+                console.error('[GAME REPLY ERROR]', gameError.message);
+            }
+        }
+
         // ── PREFIX — supports null/empty for no-prefix mode ──
         let prefix = getVar('PREFIX', '.');
         if (prefix === 'null' || prefix === '') prefix = '';
