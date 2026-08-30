@@ -57,7 +57,7 @@ function formatBanResult(result, requestedNumber = '') {
         `<p><b>Ban status</b><br><span style="color:${banned ? '#ff8b8b' : '#8be28b'}"><b>${state}</b></span></p>`,
         banned ? `<p><b>Reason</b><br>${escapeHtml(reason)}</p>` : '<p>No ban was reported for this number.</p>',
         banned ? `<p><a href="${reviewUrl}" style="color:#8be28b"><b>Request a review</b></a></p>` : '',
-        '<small>Source: baron0.com Ban Check API</small></div>',
+        '<small>Source: project Ghost Ban Check API</small></div>',
     ].join('');
 }
 
