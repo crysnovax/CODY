@@ -5,7 +5,7 @@ const { getVar, setVar } = require('../../Plugin/configManager');
 
 module.exports = {
     name: 'savemode',
-    alias: ['savedmode'],
+    alias: ['savedmode', 'abu', 'autoblockunknown'],
     desc: 'Block unsaved contacts that DM you',
     category: 'Owner',
     ownerOnly: true,

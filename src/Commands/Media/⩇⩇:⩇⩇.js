@@ -11,7 +11,7 @@ module.exports = {
     alias: ['tg', 'telegramsticker', 'tgs'],
     desc: 'Download Telegram sticker pack and send as one WhatsApp sticker pack',
     category: 'Tools',
-    usage: `${prefix}tg <Telegram sticker URL>`,
+    usage: '.tg <Telegram sticker URL>',
     examples: ['.tg https://t.me/addstickers/HoppersCartoon'],
     reactions: { start: '📦', success: '🍃', error: '🕸️' },
 
@@ -54,7 +54,8 @@ module.exports = {
         // PACK_NAME branding — ⚉ • <PACK_NAME>, author from STICKER_AUTHOR (@crysnovax—FIX09-08-26)
         const { pack: brandPack, author: brandAuthor } = getStickerBranding();
 
-        const botToken = '8785971951:AAEpZnwIrkH7zpmNK3Dwtzr8xgymLPBuppE';
+        const botToken = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
+        if (!botToken) return safeReply('✘ Telegram sticker support is not configured on this deployment.');
 
         // Local temp dir for this run's processed .webp files, since the pack
         // API takes file urls, not buffers.

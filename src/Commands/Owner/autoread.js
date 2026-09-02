@@ -10,13 +10,22 @@ module.exports = {
 
     execute: async (sock, m, { args, reply }) => {
         const current = getVar('AUTO_READ', true);
+        const groupCurrent = getVar('AUTO_READ_GROUP', false);
 
         if (!args[0]) {
             return reply(
                 `👁️ *Auto Read*\n\n` +
-                `Status: ${current !== false ? '💬 ON' : '✘ OFF'}\n\n` +
-                `Usage:\n• .autoread on\n• .autoread off`
+                `Private: ${current !== false ? '💬 ON' : '✘ OFF'}\n` +
+                `Groups: ${groupCurrent ? '💬 ON' : '✘ OFF'}\n\n` +
+                `Usage:\n• .autoread on\n• .autoread off\n• .autoread group on\n• .autoread group off`
             );
+        }
+
+        if (args[0].toLowerCase() === 'group') {
+            const mode = String(args[1] || '').toLowerCase();
+            if (!['on', 'off'].includes(mode)) return reply('Usage: .autoread group on | .autoread group off');
+            setVar('AUTO_READ_GROUP', mode === 'on');
+            return reply(`🥏 Group auto read: *${mode.toUpperCase()}*`);
         }
 
         if (args[0].toLowerCase() === 'on') {
