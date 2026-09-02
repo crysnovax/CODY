@@ -2,6 +2,7 @@
 const { getCommand, getAll } = require('./crysCmd');
 const { getVar }     = require('./configManager');
 const { handleAntiLink } = require('../Commands/Admin/antilink');
+const { handleAutoVV } = require('../Commands/Converter/view-once');
 const { normalizeDeployButton, normalizeDeployButtonMessage } = require('./deployButtonRouter');
 const chalk = require('chalk');
 const fs    = require('fs');
@@ -148,6 +149,11 @@ const handleMessage = async (sock, m, store) => {
     try {
         if (!m || !m.message) return;
         if (m.key?.remoteJid === 'status@broadcast') return;
+
+        // Auto-VV must run on the raw message before command parsing because a
+        // view-once media message normally has no command text. The handler is
+        // opt-in per chat and returns true only after successful delivery.
+        if (await handleAutoVV(sock, m, m)) return;
 
         // Run content moderation before command parsing. The antilink command
         // has a legacy handler; newer protections expose handleModeration.

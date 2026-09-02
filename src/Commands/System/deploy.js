@@ -87,7 +87,7 @@ const STEPS = {
         )
     },
     step2: {
-        title: 'Step 2 · Speciefy panel',
+        title: 'Step 2 · Specify panel',
         rows: tableRows(
             ['Open', PANEL_URL],
             ['Account', 'Create an account and verify it with Discord and your email address.'],
@@ -137,6 +137,7 @@ const deployCommand = {
     alias: ['pair'],
     desc: 'Open the interactive Gen4 CODY deployment guide',
     category: 'System',
+    ownerOnly: true,
     reactions: { start: '📚', success: '✅', error: '❌' },
     execute: async (sock, message, { args, reply }) => {
         const action = String(args?.[0] || 'menu').toLowerCase();
