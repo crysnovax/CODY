@@ -364,7 +364,10 @@ setupPromotionGuard(sock);
                 if (antiedit?.cacheOriginal) antiedit.cacheOriginal(mek.key.id, mek.message);
             } catch (err) {}
 
-            if (getVar('AUTO_READ', false)) {
+            const shouldAutoRead = m.isGroup
+                ? getVar('AUTO_READ_GROUP', false)
+                : getVar('AUTO_READ', false);
+            if (shouldAutoRead) {
                 await sock.readMessages([mek.key]).catch(() => {});
             }
 

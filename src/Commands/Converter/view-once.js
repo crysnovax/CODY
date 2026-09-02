@@ -9,6 +9,8 @@ const AUTOVV_FILE = path.join(__dirname, '../../../database/autovv.json');
 let reactionTriggers = {};
 let autoVVChats = {};
 let listenerAttached = false;
+const processedAutoVV = new Map();
+const AUTO_VV_DEDUPE_TTL_MS = 10 * 60 * 1000;
 
 try {
   if (fs.existsSync(DATA_FILE)) {
@@ -239,6 +241,20 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
       return false;
     };
 
+    const hasViewOnceEnvelope = isViewOnce(rawEnvelope) ||
+      isViewOnce(m?.message) || isViewOnce(m?.msg);
+    if (!hasViewOnceEnvelope) return false;
+
+    const messageId = mek?.key?.id || m?.key?.id;
+    if (messageId) {
+      const now = Date.now();
+      for (const [id, seenAt] of processedAutoVV) {
+        if (now - seenAt > AUTO_VV_DEDUPE_TTL_MS) processedAutoVV.delete(id);
+      }
+      if (processedAutoVV.has(messageId)) return false;
+      processedAutoVV.set(messageId, now);
+    }
+
     // Try unwrapping from the raw envelope first (most reliable for detection)
     let content = unwrapViewOnce(rawEnvelope);
 
@@ -283,6 +299,8 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     return true;
   } catch (error) {
     console.error('[AUTOVV ERROR]', error.message);
+    const messageId = mek?.key?.id || m?.key?.id;
+    if (messageId) processedAutoVV.delete(messageId);
     return false;
   }
 };

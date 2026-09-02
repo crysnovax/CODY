@@ -272,7 +272,7 @@ module.exports.handleAntiTag = async function(sock, m) {
         else if (action === 'tkick') {
             // temp kick — auto re-added after the duration (@crysnovax—FIX06-08-26)
             const { tkick, parseTime } = require('../../Plugin/tkick');
-            const durText = cfg.tkickDuration || '5m';
+            const durText = db[group]?.tkickDuration || '5m';
             const durMs = parseTime(durText) || 5 * 60 * 1000;
 
             await sock.sendMessage(group, {

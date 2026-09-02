@@ -1,20 +1,20 @@
 {
-  "builds": [
-    {
-      "src": "index.js",
-      "use": "@vercel/node"
+  "version": 2,
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 10
     }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/api/health", "destination": "/api/index" }
   ],
-  "routes": [
+  "headers": [
     {
-      "src": "/(.*)",
-      "dest": "index.js"
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
     }
-  ],
-  "env": {
-    "OWNER_NUMBER": "@owner_number",
-    "OWNER_NAME": "@owner_name",
-    "BOT_NAME": "@bot_name",
-    "SESSION_ID": "@session_id"
-  }
+  ]
 }

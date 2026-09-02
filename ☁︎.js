@@ -19,10 +19,10 @@ let ROOT_PATH, PORT;
 try {
     const config = require('./settings/config');
     ROOT_PATH = config.panelRoot || process.env.PANEL_ROOT || process.cwd();
-    PORT = config.panelApiPort || process.env.PANEL_API_PORT || 9000;
+    PORT = process.env.PORT || config.panelApiPort || process.env.PANEL_API_PORT || 9000;
 } catch (e) {
     ROOT_PATH = process.env.PANEL_ROOT || process.cwd();
-    PORT = process.env.PANEL_API_PORT || 9000;
+    PORT = process.env.PORT || process.env.PANEL_API_PORT || 9000;
 }
 
 // ============ AUTH MIDDLEWARE ============
