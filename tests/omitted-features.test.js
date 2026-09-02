@@ -7,11 +7,20 @@ const autoread = require('../src/Commands/Owner/autoread');
 const kickinactive = require('../src/Commands/Admin/kickinactive');
 const tiktok = require('../src/Commands/Downloader/Tikd');
 const tgsticker = require('../src/Commands/Media/⩇⩇:⩇⩇');
+const delay = require('../src/Commands/Owner/delay');
 
 
 test('omitted commands load without undefined prefix errors', () => {
     assert.equal(tiktok.usage, '.tt <TikTok URL>');
     assert.equal(tgsticker.usage, '.tg <Telegram sticker URL>');
+});
+
+test('delay parser is bounded and the command is owner-only', () => {
+    assert.equal(delay.ownerOnly, true);
+    assert.equal(delay.parseDelay('10s'), 10_000);
+    assert.equal(delay.parseDelay('5m'), 300_000);
+    assert.equal(delay.parseDelay('301s'), null);
+    assert.equal(delay.parseDelay('0s'), null);
 });
 
 test('unknown-contact autoblocking aliases are registered', () => {
