@@ -33,6 +33,21 @@ const { handleChatbotCompatibility } = require('./src/Commands/AI/chatbot-compat
 
 const MARKER = '\u200E';
 
+function configuredNumbers(value) {
+    return String(value || '').split(',').map(item => item.replace(/\D/g, '')).filter(Boolean);
+}
+
+function directCallbackAuthorization(message) {
+    const senderCandidates = [message?.sender, message?.key?.participant, message?.key?.participantAlt, message?.key?.remoteJid].filter(Boolean);
+    const senderNumbers = senderCandidates.map(item => String(item).split('@')[0].replace(/\D/g, '')).filter(Boolean);
+    const ownerNumbers = configuredNumbers(process.env.OWNER_NUMBER || getVar('OWNER_NUMBER', ''));
+    const sudoNumbers = configuredNumbers(process.env.SUDO_NUMBERS || getVar('SUDO_NUMBERS', ''));
+    const dualNumbers = configuredNumbers(process.env.DUAL_NUMBERS || getVar('DUAL_NUMBERS', ''));
+    const matches = list => senderNumbers.some(sender => list.some(target => sender === target || sender.endsWith(target) || target.endsWith(sender)));
+    const isOwner = matches(ownerNumbers);
+    return { isOwner, isSudo: isOwner || matches(sudoNumbers), isDual: isOwner || matches(dualNumbers) };
+}
+
 // plogme dedupe set
 const _plogmeHandled = new Set();
 setInterval(() => _plogmeHandled.clear(), 60_000);
@@ -267,6 +282,7 @@ setupPromotionGuard(sock);
             if (mek.key?.remoteJid === 'status@broadcast') return;
 
             if (mek.message.ephemeralMessage) {
+                mek.__rawMessage = mek.message;
                 mek.message = mek.message.ephemeralMessage.message;
             }
 
@@ -306,10 +322,15 @@ setupPromotionGuard(sock);
                     messageKeys: Object.keys(mek.message || {})
                 }));
 
-                // Rich-menu CTA replies can be self-authored conversation
-                // messages and may bypass normal command parsing. Route each
-                // supported native callback to its owning command directly.
+                // Rich-menu CTA replies can bypass normal command parsing, so
+                // route them directly only after applying the same identity
+                // restriction required by the owning command.
                 try {
+                    const callbackAuth = directCallbackAuthorization(m);
+                    if (!callbackAuth.isOwner && !callbackAuth.isSudo && !callbackAuth.isDual) {
+                        await sock.sendMessage(m.chat, { text: 'Owner, sudo, or dual users only.' }, { quoted: m });
+                        return;
+                    }
                     const directArgs = rawGen4Command.replace(/^\.(?:deploy|poolcard)\s*/i, '').trim().split(/\s+/).filter(Boolean);
                     const directReply = text => sock.sendMessage(m.chat, { text: String(text) }, { quoted: m });
                     if (/^\.poolcard\b/i.test(rawGen4Command)) {
@@ -320,9 +341,9 @@ setupPromotionGuard(sock);
                             command: 'poolcard',
                             prefix: '.',
                             reply: directReply,
-                            isOwner: true,
-                            isSudo: true,
-                            isDual: false,
+                            isOwner: callbackAuth.isOwner,
+                            isSudo: callbackAuth.isSudo,
+                            isDual: callbackAuth.isDual,
                             isGroup: m.isGroup,
                             store: customStore
                         });
@@ -335,9 +356,9 @@ setupPromotionGuard(sock);
                             command: 'deploy',
                             prefix: '.',
                             reply: directReply,
-                            isOwner: true,
-                            isSudo: true,
-                            isDual: false,
+                            isOwner: callbackAuth.isOwner,
+                            isSudo: callbackAuth.isSudo,
+                            isDual: callbackAuth.isDual,
                             isGroup: m.isGroup,
                             store: customStore
                         });

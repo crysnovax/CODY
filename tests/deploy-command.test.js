@@ -90,3 +90,22 @@ test('deploy reports a clear message when richMenu is unavailable', async () => 
     assert.match(replies[0], /richMenu is unavailable/);
     assert.match(replies[0], /2\.7\.12/);
 });
+
+test('tutorials sends the requested reels grid instead of a rich table', async () => {
+    const calls = [];
+    const sock = {
+        sendReels: async (...args) => { calls.push(args); return { key: { id: 'tutorial-reels-1' } }; }
+    };
+    const message = { chat: '123@g.us', key: { id: 'request-tutorials' } };
+
+    await deploy.execute(sock, message, { args: ['tutorials'], reply: () => { throw new Error('tutorials must use reels'); } });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], message.chat);
+    assert.equal(calls[0][2], message);
+    assert.match(calls[0][1][0].videoUrl, /tutorial5$/);
+    assert.match(calls[0][1][1].videoUrl, /tutorial3$/);
+    assert.match(calls[0][1][2].videoUrl, /pair\.crysnovax\.link$/);
+    assert.match(calls[0][1][3].videoUrl, /PANEL2$/);
+    assert.equal(calls[0][1][0].is_verified, true);
+});

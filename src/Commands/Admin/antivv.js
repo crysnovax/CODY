@@ -1,18 +1,14 @@
 const { createAntiMessageModeration } = require('../../Plugin/antiMessageModeration');
 
 // ─── DETECTOR: does this message contain a view-once media envelope? ───
-function isViewOnceMessage(message) {
-    if (!message || typeof message !== 'object') return false;
+function isViewOnceMessage(message, seen = new WeakSet()) {
+    if (!message || typeof message !== 'object' || seen.has(message)) return false;
+    seen.add(message);
 
-    // Direct view-once envelopes
     if (message.viewOnceMessage || message.viewOnceMessageV2 || message.viewOnceMessageV2Extension) return true;
-
-    // Also catch view-once wrapped inside ephemeral
-    if (message.ephemeralMessage) {
-        const inner = message.ephemeralMessage?.message;
-        if (inner?.viewOnceMessage || inner?.viewOnceMessageV2 || inner?.viewOnceMessageV2Extension) return true;
+    for (const value of Object.values(message)) {
+        if (value && typeof value === 'object' && isViewOnceMessage(value, seen)) return true;
     }
-
     return false;
 }
 

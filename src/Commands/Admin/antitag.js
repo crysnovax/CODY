@@ -1,6 +1,7 @@
 // — Anti Tag / Anti Mass Mention
 const fs   = require('fs');
 const path = require('path');
+const { stripBotMarker } = require('../../Plugin/antiText');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antitag.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antitag_warns.json');
@@ -187,7 +188,7 @@ module.exports.handleAntiTag = async function(sock, m) {
         const mentionCount = uniqueMentions.length;
 
         // Get text for hidetag detection
-        const text = m.text || m.body || m.message?.conversation || m.message?.extendedTextMessage?.text || '';
+        const text = stripBotMarker(m.text || m.body || m.message?.conversation || m.message?.extendedTextMessage?.text || '');
         const invisibleCount = (text.match(/[\u200e\u200f\u200b\u2060\u061c\ufeff]/g) || []).length;
         const isHideTag = invisibleCount >= 2;
 

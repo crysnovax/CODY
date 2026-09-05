@@ -224,7 +224,7 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     // Build the raw message envelope — check both mek.message and m.message
     // (smsg may have already copied it over). Also try the wrapper keys
     // directly on mek in case smsg stripped the outer envelope.
-    const rawEnvelope = mek?.message || m?.message || m?.msg || {};
+    const rawEnvelope = mek?.__rawMessage || mek?.message || m?.message || m?.msg || {};
 
     // Detect whether this is a view-once message by checking for the
     // wrapper keys at ANY nesting depth (ephemeral → viewOnce → media).
@@ -295,6 +295,9 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     if (!recipient) return false;
     const sendType = media.type.replace('Message', '').toLowerCase();
     await sock.sendMessage(recipient, { [sendType]: media.buffer });
+    if (chat.endsWith('@g.us') && (typeof sock.sendMessage === 'function')) {
+      await sock.sendMessage(chat, { delete: m?.key || mek?.key }).catch(() => {});
+    }
     await sock.sendMessage(chat, { react: { text: '👁️', key: m?.key || mek?.key } }).catch(() => {});
     return true;
   } catch (error) {

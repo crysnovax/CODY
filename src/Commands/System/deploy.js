@@ -8,6 +8,8 @@ const PAIR_URL = 'https://pair.crysnovax.link';
 const TUTORIAL5_URL = 'https://sl.crysnovax.link/tutorial5';
 const TUTORIAL3_URL = 'https://sl.crysnovax.link/tutorial3';
 const DISCORD_URL = 'https://discord.com';
+const REEL_THUMBNAIL_URL = 'https://cdn.crysnovax.link/files/1786913837400-12ad05cc-468a-4d71-8de8-1e5a11b48f3b.jpeg';
+const REEL_PROFILE_URL = 'https://cdn.crysnovax.link/files/1787731491020-2b60587f-2455-4866-b396-a067de31d9c6.jpeg';
 
 const quoteOptions = message => ({ quoted: message });
 
@@ -16,6 +18,21 @@ const sendRichMenu = async (sock, message, payload) => {
         throw new Error('sock.richMenu is unavailable. Install @crysnovax/baileys 2.7.12 or newer and restart CODY.');
     }
     return sock.richMenu(message.chat, payload, quoteOptions(message));
+};
+
+const sendTutorialReels = async (sock, message) => {
+    if (typeof sock.sendReels !== 'function') {
+        return sock.sendMessage(message.chat, {
+            text: `Current tutorials:\nPrimary: ${TUTORIAL5_URL}\nAdditional: ${TUTORIAL3_URL}\nPairing: ${PAIR_URL}\nPanel: ${PANEL_URL}`
+        }, quoteOptions(message));
+    }
+    const reels = [
+        { title: 'Primary tutorial', creator: 'CRYSNOVA AI', videoUrl: TUTORIAL5_URL, thumbnailUrl: REEL_THUMBNAIL_URL, profileIconUrl: REEL_PROFILE_URL, view_count: 12000, likes_count: 800, shares_count: 120, is_verified: true, reel_source: 'CRYSNOVA' },
+        { title: 'Additional tutorial', creator: 'CRYSNOVA AI', videoUrl: TUTORIAL3_URL, thumbnailUrl: REEL_THUMBNAIL_URL, profileIconUrl: REEL_PROFILE_URL, view_count: 9000, likes_count: 600, shares_count: 80, is_verified: true, reel_source: 'CRYSNOVA' },
+        { title: 'Pairing tutorial', creator: 'CRYSNOVA AI', videoUrl: PAIR_URL, thumbnailUrl: REEL_THUMBNAIL_URL, profileIconUrl: REEL_PROFILE_URL, view_count: 7000, likes_count: 450, shares_count: 60, is_verified: true, reel_source: 'CRYSNOVA' },
+        { title: 'Panel tutorial', creator: 'CRYSNOVA AI', videoUrl: PANEL_URL, thumbnailUrl: REEL_THUMBNAIL_URL, profileIconUrl: REEL_PROFILE_URL, view_count: 6500, likes_count: 400, shares_count: 50, is_verified: true, reel_source: 'CRYSNOVA' }
+    ];
+    return sock.sendReels(message.chat, reels, message, { text: 'Top deployment tutorials for you:' });
 };
 
 const sendRichStep = async (sock, message, step) => {
@@ -152,6 +169,11 @@ const deployCommand = {
                 return reply(`Generate the current index.js from ${PAIR_URL}; CODY does not send an embedded stale script. Use Step 3, then download the generated file.`);
             }
 
+            if (action === 'tutorials') {
+                await sendTutorialReels(sock, message);
+                return;
+            }
+
             const step = STEPS[action];
             if (!step) return reply('Use .deploy or .pair to open the Gen4 guide. Available actions: step1, step2, step3, step4, help, tutorials.');
 
@@ -165,4 +187,4 @@ const deployCommand = {
 };
 
 module.exports = deployCommand;
-module.exports._internals = { buildMenuPayload, STEPS, sendRichStep };
+module.exports._internals = { buildMenuPayload, STEPS, sendRichStep, sendTutorialReels };
