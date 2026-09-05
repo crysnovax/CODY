@@ -29,9 +29,9 @@ module.exports = {
 };
 
 // Saved contact check — address book first, SAVED_NUMBERS as fallback.
-function isSavedContact(sock, jid) {
+function isSavedContact(sock, jid, suppliedStore) {
     try {
-        const store = sock.store;
+        const store = suppliedStore || sock.store;
         if (store?.contacts) {
             const contacts = store.contacts instanceof Map
                 ? store.contacts
@@ -50,13 +50,16 @@ function isSavedContact(sock, jid) {
         }
     } catch {}
 
-    // fallback list when the address book isn't synced
+    // Fallback list when the address book is not synced.
+    const phone = jid.split('@')[0].replace(/\D/g, '');
     const saved = String(getVar('SAVED_NUMBERS') || process.env.SAVED_NUMBERS || '')
         .split(',').map(n => n.replace(/\D/g, '')).filter(Boolean);
-    if (saved.length) return saved.includes(jid.split('@')[0].replace(/\D/g, ''));
+    if (saved.length) return saved.includes(phone);
 
-    // can't tell if it's saved → leave it alone
-    return true;
+    // SAVE_MODE is explicitly enabled: an unavailable address book must not
+    // silently disable the feature. Unknown contacts are treated as unsaved;
+    // owners, sudo users, and explicit SAVED_NUMBERS remain protected.
+    return false;
 }
 
 // Returns true when the sender was blocked (caller stops processing).
@@ -68,16 +71,16 @@ module.exports.handleSaveMode = async (sock, m, store) => {
         const jid = m.key?.remoteJid;
         if (!jid || jid.includes('@g.us') || jid === 'status@broadcast') return false;
 
-        const senderNum = (m.sender || '').split('@')[0].replace(/\D/g, '');
+        const senderNum = (m.sender || jid || '').split('@')[0].replace(/\D/g, '');
         const ownerRaw = process.env.OWNER_NUMBER || getVar('OWNER_NUMBER', '');
         const ownerNum = String(ownerRaw).replace(/\D/g, '');
 
         // never block the owner or sudo users
         if (ownerNum && (senderNum === ownerNum || senderNum.endsWith(ownerNum) || ownerNum.endsWith(senderNum))) return false;
         const sudo = String(getVar('SUDO_NUMBERS') || process.env.SUDO_NUMBERS || '').split(',').map(n => n.replace(/\D/g, '')).filter(Boolean);
-        if (sudo.includes(senderNum)) return false;
+        if (sudo.some(number => senderNum === number || senderNum.endsWith(number) || number.endsWith(senderNum))) return false;
 
-        if (isSavedContact(sock, jid)) return false;
+        if (isSavedContact(sock, jid, store)) return false;
 
         if (typeof sock.updateBlockStatus === 'function') {
             await sock.updateBlockStatus(jid, 'block');

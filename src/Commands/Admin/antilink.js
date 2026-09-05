@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { stripBotMarker } = require('../../Plugin/antiText');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antilink.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antilink_warns.json');
@@ -42,7 +43,7 @@ function getMessageText(value, seen = new WeakSet()) {
     seen.add(value);
     const texts = [];
     for (const key of ['conversation', 'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title']) {
-        if (typeof value[key] === 'string' && value[key].trim()) texts.push(value[key].trim());
+        if (typeof value[key] === 'string' && stripBotMarker(value[key]).trim()) texts.push(stripBotMarker(value[key]).trim());
     }
     for (const child of Object.values(value)) {
         if (child && typeof child === 'object') texts.push(...getMessageText(child, seen));
@@ -330,8 +331,8 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         };
 
         const parts = [
-            m.text,
-            m.body,
+            stripBotMarker(m.text),
+            stripBotMarker(m.body),
             ...getMessageText(msg),
             ...getMessageText(mek?.message),
             ...getMessageText(m.message),

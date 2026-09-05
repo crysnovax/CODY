@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalizeJid, resolvePhoneJid } = require('./identityUtils');
+const { stripBotMarkerDeep } = require('./antiText');
 
 function readJson(filePath) {
     if (!fs.existsSync(filePath)) return {};
@@ -81,10 +82,10 @@ function createAntiMessageModeration({
     plugin.handleModeration = async function handleModeration(sock, m, mek) {
         try {
             const detectionPayload = {
-                raw: mek?.message || {},
-                message: m.message || {},
-                msg: m.msg || {},
-                serialized: m
+                raw: stripBotMarkerDeep(mek?.__rawMessage || mek?.message || {}),
+                message: stripBotMarkerDeep(m.message || {}),
+                msg: stripBotMarkerDeep(m.msg || {}),
+                serialized: stripBotMarkerDeep(m)
             };
             if (!m.isGroup || m.key?.fromMe || !detector(detectionPayload)) return false;
             const config = readJson(dbPath)[m.chat];

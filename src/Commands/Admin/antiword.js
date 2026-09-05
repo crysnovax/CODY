@@ -1,5 +1,6 @@
 const fs   = require('fs');
 const path = require('path');
+const { stripBotMarker } = require('../../Plugin/antiText');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antiword.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antiword_warns.json');
@@ -30,16 +31,16 @@ function containsBannedWord(text, bannedWords) {
 }
 
 function extractText(m) {
-    if (m.text) return m.text;
-    if (m.body) return m.body;
+    if (m.text) return stripBotMarker(m.text);
+    if (m.body) return stripBotMarker(m.body);
     const msg = m.message || m.msg || {};
-    if (msg.conversation) return msg.conversation;
-    if (msg.extendedTextMessage?.text) return msg.extendedTextMessage.text;
-    if (msg.imageMessage?.caption) return msg.imageMessage.caption;
-    if (msg.videoMessage?.caption) return msg.videoMessage.caption;
-    if (msg.documentMessage?.caption) return msg.documentMessage.caption;
-    if (msg.audioMessage?.caption) return msg.audioMessage.caption;
-    if (m.quoted?.text) return m.quoted.text;
+    if (msg.conversation) return stripBotMarker(msg.conversation);
+    if (msg.extendedTextMessage?.text) return stripBotMarker(msg.extendedTextMessage.text);
+    if (msg.imageMessage?.caption) return stripBotMarker(msg.imageMessage.caption);
+    if (msg.videoMessage?.caption) return stripBotMarker(msg.videoMessage.caption);
+    if (msg.documentMessage?.caption) return stripBotMarker(msg.documentMessage.caption);
+    if (msg.audioMessage?.caption) return stripBotMarker(msg.audioMessage.caption);
+    if (m.quoted?.text) return stripBotMarker(m.quoted.text);
     return '';
 }
 

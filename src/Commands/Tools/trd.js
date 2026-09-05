@@ -1,4 +1,5 @@
-const { translate, loadDefaults } = require('../Core/✐');
+const { loadDefaults } = require('../Core/✐');
+const { translate } = require('../../Plugin/translationService');
 
 module.exports = {
     name: 'trd',
