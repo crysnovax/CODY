@@ -1,6 +1,6 @@
 {
   "name": "CODY-AI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CODY AI — Powered by CRYSNOVA AI V2 Technology",
   "main": "index.js",
   "type": "commonjs",
