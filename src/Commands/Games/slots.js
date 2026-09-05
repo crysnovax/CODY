@@ -6,7 +6,7 @@ module.exports = {
     usage: '.slots [title] [starting credits]',
     execute: async (sock, m, { args, reply }) => {
         if (typeof sock.sendSlotMachine !== 'function') {
-            return reply('Slot machine is unavailable in this Baileys build. Update @crysnovax/baileys and restart the bot.');
+            return reply('Slot machine is unavailable in this Baileys build. Update plogme and restart the bot.');
         }
 
         const creditsArg = args.find(arg => /^\d+$/.test(arg));

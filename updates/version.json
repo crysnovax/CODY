@@ -1,4 +1,4 @@
 {
   "version": "2.8.9.0",
-  "changelog": "Bump @crysnovax/baileys 2.7.14 -> 2.7.15; fix post-pairing stale offline fallback / 405 / Bad MAC disconnect"
+  "changelog": "Bump plogme 2.7.14 -> 2.7.15; fix post-pairing stale offline fallback / 405 / Bad MAC disconnect"
 }

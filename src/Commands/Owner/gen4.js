@@ -7,7 +7,7 @@ const gen4 = {
     category: 'Owner',
     execute: async (sock, m, { reply }) => {
         if (typeof sock.richMenu !== 'function') {
-            return reply('sock.richMenu is unavailable. Install @crysnovax/baileys 2.7.11 or newer and restart CODY.');
+            return reply('sock.richMenu is unavailable. Install plogme 2.7.11 or newer and restart CODY.');
         }
 
         const payload = {

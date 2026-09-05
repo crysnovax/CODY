@@ -7,7 +7,7 @@ Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'sharp') {
         return () => ({ resize() { return this; }, jpeg() { return this; }, toBuffer: async () => Buffer.from('image') });
     }
-    if (request === '@crysnovax/baileys') {
+    if (request === 'plogme') {
         return {
             prepareWAMessageMedia: async () => ({ imageMessage: {} }),
             generateWAMessageContent: async () => ({ groupStatusMessageV2: {} }),

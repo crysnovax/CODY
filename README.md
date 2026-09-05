@@ -206,7 +206,7 @@
 - **npm** v8+
 - A WhatsApp account (self-bot — runs on your number)
 - Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
-- warning ⚠️; this project was built specifically for forked bailey ```@crysnovax/baileys``` and will totally malfunction without it
+- warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
 
 ---
 

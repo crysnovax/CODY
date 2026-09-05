@@ -3,7 +3,7 @@ const { createAntiMessageModeration } = require('../../Plugin/antiMessageModerat
 // ─── KNOWN BOT-LIBRARY MESSAGE-ID STAMPS ───
 // Some Baileys-lineage forks embed a literal marker string inside every
 // generated message ID (see generics.js's generateMessageIDV2 — itsliaaa's
-// lineage embeds "STARFALL" at a hash-derived position; @crysnovax/baileys
+// lineage embeds "STARFALL" at a hash-derived position; plogme
 // will embed "PLOGME" from v2.7.1 onward at a fixed position). A message ID
 // containing one of these strings was built by that specific library — a
 // real WhatsApp client (iOS, Android, Web, Desktop) has no reason to ever

@@ -1,4 +1,4 @@
-const { downloadContentFromMessage } = require('@crysnovax/baileys')
+const { downloadContentFromMessage } = require('plogme')
 
 module.exports = {
     name: "setpp",

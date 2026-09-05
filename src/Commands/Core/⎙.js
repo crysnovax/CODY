@@ -25,7 +25,7 @@ module.exports = {
             `│ ◈ Version  : CODY V2\n` +
             `│ ◈ Status   : Active\n` +
             `│ ◈ Engine   : Multi-Core AI�\n` +
-            `│ ◈ BAILEYS  : @crysnovax/baileys\n\n` +
+            `│ ◈ BAILEYS  : plogme\n\n` +
             
             `*𓂀  R E P O S I T O R I E S 🜲*\n` +
             `│ ◈ CRYSN⚉VA_AI\n` +

@@ -1,4 +1,4 @@
-const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { downloadContentFromMessage } = require('plogme');
 const { normalizeJid } = require('../../Plugin/identityUtils');
 
 function contactValues(contacts) {

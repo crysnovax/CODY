@@ -153,7 +153,7 @@ module.exports = {
                 stickers: stickerFiles.map(p => ({ data: { url: p } })),
                 name: packName,
                 publisher: 'CRYSNOVA',
-                description: '@crysnovax/baileys ˗ˏˋ ☏ ˎˊ˗'
+                description: 'plogme ˗ˏˋ ☏ ˎˊ˗'
             });
 
             try {

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { downloadContentFromMessage } = require('plogme');
 const { resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
 
 const DATA_FILE = path.join(__dirname, '../../../database/vv-reactions.json');

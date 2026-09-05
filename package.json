@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "postinstall": "node scripts/patch-plogme.cjs"
   },
   "keywords": [
     "whatsapp",
@@ -22,7 +23,6 @@
   "license": "MIT",
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
-    "@crysnovax/baileys": "^2.8.3",
     "@distube/ytdl-core": "^4.16.12",
     "@faker-js/faker": "^10.3.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -64,6 +64,7 @@
     "pdfkit": "^0.17.2",
     "pino": "^8.17.2",
     "play-dl": "^1.9.7",
+    "plogme": "1.0.0",
     "qrcode": "^1.5.4",
     "ruhend-scraper": "^9.0.5",
     "sharp": "^0.35.3",

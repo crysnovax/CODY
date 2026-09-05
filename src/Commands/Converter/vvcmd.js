@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const { downloadContentFromMessage } = require('@crysnovax/baileys')
+const { downloadContentFromMessage } = require('plogme')
 
 const DB_PATH = path.join(process.cwd(), 'database', 'vvcmd.json')
 
