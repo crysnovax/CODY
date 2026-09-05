@@ -64,7 +64,7 @@
     "pdfkit": "^0.17.2",
     "pino": "^8.17.2",
     "play-dl": "^1.9.7",
-    "plogme": "1.0.0",
+    "plogme": "1.0.2",
     "qrcode": "^1.5.4",
     "ruhend-scraper": "^9.0.5",
     "sharp": "^0.35.3",
