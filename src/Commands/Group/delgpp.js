@@ -53,7 +53,7 @@ module.exports = {
             } else if (error?.message?.includes('no profile picture') || error?.message?.includes('not found')) {
                 errorMsg += '\n\nThis group doesn’t have a profile picture set right now.';
             } else if (error?.message?.includes('no-id') || error?.message?.includes('Illegal')) {
-                errorMsg += '\n\nBaileys version issue — make sure you’re using the latest @crysnovax/baileys.';
+                errorMsg += '\n\nBaileys version issue — make sure you’re using the latest plogme.';
             }
 
             await reply(errorMsg);

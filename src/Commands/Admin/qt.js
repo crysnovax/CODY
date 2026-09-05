@@ -44,7 +44,7 @@ module.exports = {
                 return reply('⊘ *That message has no quoted message inside it.*');
             }
 
-            const { getContentType, downloadContentFromMessage } = require('@crysnovax/baileys');
+            const { getContentType, downloadContentFromMessage } = require('plogme');
             const innerQuoted = bContextInfo.quotedMessage;
             const innerType = getContentType(innerQuoted);
             const innerMsg = innerQuoted[innerType] || innerQuoted;

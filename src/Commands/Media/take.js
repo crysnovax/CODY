@@ -1,4 +1,4 @@
-const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { downloadContentFromMessage } = require('plogme');
 // Pure-JS exif writer (node-webpmux). Avoids wa-sticker-formatter -> sharp,
 // which crashes on hosts without a prebuilt sharp binary.
 const { addExif } = require('../../../library/exif');

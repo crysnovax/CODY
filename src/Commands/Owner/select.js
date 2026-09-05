@@ -52,7 +52,7 @@ module.exports = {
 
             await sock.sendMessage(chat, {
                 text: description,
-                footer: '@crysnovax/baileys',
+                footer: 'plogme',
                 buttonText: buttonText,
                 title: title,
                 sections: [{

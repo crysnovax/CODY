@@ -12,7 +12,7 @@ module.exports = {
     execute: async (sock, m, { reply }) => {
         try {
             if (typeof sock.sendRichWebview !== 'function') {
-                throw new Error('sendRichWebview is unavailable; update @crysnovax/baileys first');
+                throw new Error('sendRichWebview is unavailable; update plogme first');
             }
 
             await sock.sendMessage(m.chat, { react: { text: '📡', key: m.key } });

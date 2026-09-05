@@ -29,7 +29,7 @@ module.exports = {
     execute: async (sock, m, context = {}) => {
         const { args = [], reply, prefix = '.' } = context;
         if (typeof sock.sendRichGeneration !== 'function' || typeof sock.updateRichGeneration !== 'function') {
-            return reply('This Baileys version does not expose RichGen. Update to @crysnovax/baileys@2.7.16 or later.');
+            return reply('This Baileys version does not expose RichGen. Update to plogme@2.7.16 or later.');
         }
 
         const state = String(option(args, 'state') || 'both').toLowerCase();

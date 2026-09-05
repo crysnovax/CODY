@@ -1,7 +1,7 @@
 const { randomUUID } = require('crypto');
 const axios = require('axios');
 const FormData = require('form-data');
-const { downloadContentFromMessage, getContentType } = require('@crysnovax/baileys');
+const { downloadContentFromMessage, getContentType } = require('plogme');
 
 const CDN_URL = 'https://cdn.crysnovax.link';
 

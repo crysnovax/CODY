@@ -7,7 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { downloadContentFromMessage } = require('plogme');
 
 const DB = path.join(__dirname, '../../database/antidelete.json');
 if (!fs.existsSync(DB)) fs.writeFileSync(DB, '{}');

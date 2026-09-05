@@ -4,7 +4,7 @@ const test = require('node:test');
 
 const originalLoad = Module._load;
 Module._load = function patchedLoad(request, parent, isMain) {
-    if (request === '@crysnovax/baileys') {
+    if (request === 'plogme') {
         return {
             downloadContentFromMessage: async function* () {
                 yield Buffer.from('unused');

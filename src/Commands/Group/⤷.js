@@ -1,7 +1,7 @@
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const { prepareWAMessageMedia, generateWAMessageContent, generateMessageIDV2, buildLinkPreview } = require('@crysnovax/baileys');
+const { prepareWAMessageMedia, generateWAMessageContent, generateMessageIDV2, buildLinkPreview } = require('plogme');
 
 // ── Admin-gated groups ────────────────────────────────────────
 // gstatus in these groups is ADMINS-ONLY. A non-admin is rejected outright,

@@ -1,4 +1,4 @@
-const { prepareWAMessageMedia, generateMessageIDV2 } = require('@crysnovax/baileys')
+const { prepareWAMessageMedia, generateMessageIDV2 } = require('plogme')
 
 module.exports = {
     name: 'invite',

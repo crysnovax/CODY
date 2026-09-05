@@ -8,7 +8,7 @@ const {
     fetchLatestBaileysVersion,
     Browsers,
     DisconnectReason
-} = require('@crysnovax/baileys');
+} = require('plogme');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const fs = require('fs-extra');
@@ -24,7 +24,7 @@ async function getAuthState() {
     // Baileys 2.7.5 keeps the auth helper in its Utils entrypoint. Import it
     // directly so startup works even when a CommonJS require namespace omits
     // star-re-exported ESM utilities.
-    const { useMultiFileAuthState } = await import('@crysnovax/baileys/lib/Utils/use-multi-file-auth-state.js');
+    const { useMultiFileAuthState } = await import('plogme/lib/Utils/use-multi-file-auth-state.js');
     return await useMultiFileAuthState(SESSION_PATH);
 }
 
@@ -158,7 +158,7 @@ async function createSocket(sessionId) {
     const { state, saveCreds } = await getAuthState();
     const { version, isLatest } = await fetchLatestBaileysVersion();
 
-    const installedPkg = require('@crysnovax/baileys/package.json');
+    const installedPkg = require('plogme/package.json');
     console.log(`📦 Baileys v${installedPkg.version} — server negotiated: ${version.join('.')} (latest: ${isLatest})`);
     if (!isLatest) {
         console.log('⚠️  Baileys server version differs from installed — update may be available');

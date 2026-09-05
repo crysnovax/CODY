@@ -95,7 +95,7 @@ module.exports = {
             }
 
             const updateFn = sock.updateBusinessProfile || sock.updateBussinesProfile;
-            if (!updateFn) throw new Error('updateBusinessProfile not available — update your @crysnovax/baileys');
+            if (!updateFn) throw new Error('updateBusinessProfile not available — update your plogme');
             await updateFn.call(sock, updates);
 
             const icon = FIELD_ICON[field] || '📝';

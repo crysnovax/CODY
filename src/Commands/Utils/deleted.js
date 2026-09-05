@@ -11,7 +11,7 @@ module.exports = {
 
         try {
             const { getLastDeleted } = require('../../../library/quoted.js');
-            const { getContentType, downloadContentFromMessage } = require('@crysnovax/baileys');
+            const { getContentType, downloadContentFromMessage } = require('plogme');
 
             const data = getLastDeleted(m.chat);
 

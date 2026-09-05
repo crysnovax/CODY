@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const FormData = require('form-data');
-const { downloadMediaMessage } = require('@crysnovax/baileys');
+const { downloadMediaMessage } = require('plogme');
 const config = require('../../../settings/config');
 
 // Use Apex gateway from config with token

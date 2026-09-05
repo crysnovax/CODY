@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
-const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { downloadContentFromMessage } = require('plogme');
 // Pure-JS exif writer (node-webpmux) instead of wa-sticker-formatter -> sharp.
 const { addExif } = require('../../../library/exif');
 const { getStickerBranding } = require('../../Plugin/packname');

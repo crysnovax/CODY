@@ -15,7 +15,7 @@ const quoteOptions = message => ({ quoted: message });
 
 const sendRichMenu = async (sock, message, payload) => {
     if (typeof sock.richMenu !== 'function') {
-        throw new Error('sock.richMenu is unavailable. Install @crysnovax/baileys 2.7.12 or newer and restart CODY.');
+        throw new Error('sock.richMenu is unavailable. Install plogme 2.7.12 or newer and restart CODY.');
     }
     return sock.richMenu(message.chat, payload, quoteOptions(message));
 };

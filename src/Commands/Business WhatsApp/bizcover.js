@@ -53,7 +53,7 @@ module.exports = {
                     return reply('✘ Send or quote an image with *.bizcover set*');
                 }
 
-                const { downloadMediaMessage } = await import('@crysnovax/baileys');
+                const { downloadMediaMessage } = await import('plogme');
                 const buffer = await downloadMediaMessage(
                     { message: msg.message, key: msg.key },
                     'buffer',

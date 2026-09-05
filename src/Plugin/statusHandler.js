@@ -5,7 +5,7 @@
 const chalk      = require('chalk');
 const fs         = require('fs');
 const path       = require('path');
-const { downloadContentFromMessage } = require('@crysnovax/baileys');
+const { downloadContentFromMessage } = require('plogme');
 const { getVar }  = require('./configManager');
 
 const seen = new Set();
