@@ -26,14 +26,25 @@ function saveWarns(data) {
 }
 
 function isStatusMention(mek) {
-    const raw = mek?.message || {};
-    return !!raw.groupStatusMentionMessage;
+    // WhatsApp can wrap the status mention in ephemeral/view-once or device
+    // sent containers. Check the normalized message and the common wrappers so
+    // the guard also works for messages received by CODY's current Baileys.
+    let raw = mek?.message || {};
+    for (let depth = 0; depth < 4 && raw; depth++) {
+        if (raw.groupStatusMentionMessage || raw.statusMentionMessage) return true;
+        raw = raw.ephemeralMessage?.message
+            || raw.viewOnceMessage?.message
+            || raw.viewOnceMessageV2?.message
+            || raw.deviceSentMessage?.message
+            || null;
+    }
+    return false;
 }
 
 // ── Command ────────────────────────────────────────────────────
 module.exports = {
     name: 'antigm',
-    alias: ['antigroupmention', 'antigroupmsg', 'antieveryone'],
+    alias: ['antigroupmention', 'antigroupmsg', 'antigroupstatus', 'antieveryone'],
     desc: 'Prevent status mentions in group',
     category: 'Tools',
     groupOnly: true,
@@ -221,3 +232,5 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
         console.error('[ANTIGM ERROR]', err.message);
     }
 };
+
+module.exports.isStatusMention = isStatusMention;
