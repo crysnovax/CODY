@@ -201,12 +201,12 @@ const konek = async ({ sock, update, clientstart, DisconnectReason, Boom }) => {
         console.log(`🔴 Disconnected — reason: ${reason} (${errorMsg})`);
 
         if (reason === DisconnectReason.loggedOut) {
-            console.log('🚫 Logged out. Delete sessions folder and restart.');
-            process.exit(1);
+            console.log('🚫 WhatsApp reported logged out. Keeping the panel alive; re-pair is required before reconnecting.');
+            return;
         }
         if (reason === DisconnectReason.connectionReplaced) {
-            console.log('⚠️ Connection replaced. Exiting...');
-            process.exit(1);
+            console.log('⚠️ Connection replaced by another linked session. Keeping the panel alive.');
+            return;
         }
         if (reason === DisconnectReason.badSession) {
             console.log('❌ Bad session. Cleaning stale session keys…');
@@ -222,12 +222,14 @@ const konek = async ({ sock, update, clientstart, DisconnectReason, Boom }) => {
             return;
         }
 
-        // Handle post-pairing stale offline fallback (HTTP 405, Bad MAC, stale keys)
+        // Bad MAC/405 can indicate stale app-state keys, but 408 is a
+        // transport timeout (often reported as "QR refs attempts ended").
+        // Never delete auth state for a timeout: doing so makes the next
+        // reconnect look like a fresh pairing and causes rapid session logout.
         if (
             reason === DisconnectReason.badMAC ||
             errorMsg.includes('Bad MAC') ||
-            errorMsg.includes('405') ||
-            reason === 408
+            errorMsg.includes('405')
         ) {
             console.log('⚠️  Stale offline fallback / Bad MAC detected — cleaning…');
             try {
