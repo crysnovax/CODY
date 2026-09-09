@@ -743,7 +743,7 @@ async function runCommandAction(sock, m, opts, target) {
     if (raw.startsWith(prefix)) raw = raw.slice(prefix.length).trim();
     const [cmdName, ...rest] = raw.split(/\s+/);
     if (SELF_NAMES.has(cmdName.toLowerCase())) {
-        return '_PLOGME is always running — just talk to me._\n_Try: "plogme status", "plogme run menu", "plogme on / off"._';
+        return '_PLOGME auto-replies are off by default._\n_Enable this chat with: "plogme on" (or "plogme on all" for DMs)._';
     }
     let cmd = getCommand(cmdName);
     // AI-triggered send_file must use the same registered command callback as
