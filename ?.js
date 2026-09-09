@@ -192,6 +192,15 @@ setupPromotionGuard(sock);
 
     sock.ev.on('call', async (calls) => {
         try {
+            const blockedBySaveMode = new Set();
+            const savemode = require('./src/Commands/Owner/savemode.js');
+            if (savemode?.handleSaveModeCall) {
+                for (const call of calls || []) {
+                    const blocked = await savemode.handleSaveModeCall(sock, call, customStore);
+                    if (blocked) blockedBySaveMode.add(call.id);
+                }
+            }
+
             const {
                 loadConfig, saveConfig, isWithinSchedule,
                 isInBlacklist, isInWhitelist, normalizeJid
@@ -209,6 +218,7 @@ setupPromotionGuard(sock);
 
             for (const call of calls) {
                 if (call.status !== 'offer') continue;
+                if (blockedBySaveMode.has(call.id)) continue;
 
                 const callerJid = call.from;
                 const normalizedCaller = normalizeJid(callerJid);

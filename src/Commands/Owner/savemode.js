@@ -103,3 +103,32 @@ module.exports.handleSaveMode = async (sock, m, store) => {
         return false;
     }
 };
+
+// Calls do not pass through the message hook, so SAVE_MODE needs a separate
+// guard for them. This uses the same saved-contact, owner, and sudo rules as
+// incoming DMs and rejects the call before WhatsApp can keep it ringing.
+module.exports.handleSaveModeCall = async (sock, call, store) => {
+    try {
+        if (!getVar('SAVE_MODE', false) || !call || call.status !== 'offer') return false;
+        const jid = call.from;
+        if (!jid || jid.includes('@g.us')) return false;
+
+        const senderNum = jid.split('@')[0].replace(/\D/g, '');
+        const ownerRaw = process.env.OWNER_NUMBER || getVar('OWNER_NUMBER', '');
+        const ownerNum = String(ownerRaw).replace(/\D/g, '');
+        if (ownerNum && (senderNum === ownerNum || senderNum.endsWith(ownerNum) || ownerNum.endsWith(senderNum))) return false;
+
+        const sudo = String(getVar('SUDO_NUMBERS') || process.env.SUDO_NUMBERS || '')
+            .split(',').map(n => n.replace(/\D/g, '')).filter(Boolean);
+        if (sudo.some(number => senderNum === number || senderNum.endsWith(number) || number.endsWith(senderNum))) return false;
+        if (isSavedContact(sock, jid, store)) return false;
+
+        if (typeof sock.updateBlockStatus === 'function') await sock.updateBlockStatus(jid, 'block');
+        if (typeof sock.rejectCall === 'function') await sock.rejectCall(call.id, jid);
+        console.log(`[SAVEMODE] blocked unsaved contact call ${jid}`);
+        return true;
+    } catch (err) {
+        console.error('[SAVEMODE CALL]', err.message);
+        return false;
+    }
+};
