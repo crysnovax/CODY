@@ -249,6 +249,156 @@ The command resolves the audio through its configured scraper/fallback chain and
 
 Use runtime variables for supported operational settings rather than editing generated database files while the bot is running.
 
+### 8. Rich links and preview cards
+
+The `plogme` socket supports native WhatsApp rich-link payloads. The built-in `.addme` command sends a group invite with a title, description, canonical URL, and optional thumbnail:
+
+```text
+.addme
+```
+
+The equivalent low-level payload is:
+
+```js
+const inviteUrl = 'https://chat.whatsapp.com/INVITE_CODE?mode=gi_t';
+
+await sock.sendMessage(chatId, {
+  extendedTextMessage: {
+    text: inviteUrl,
+    matchedText: inviteUrl,
+    canonicalUrl: inviteUrl,
+    title: 'CODY Community',
+    description: 'WhatsApp Group Invite',
+    previewType: 1,
+    jpegThumbnail: thumbnailBuffer
+  },
+  raw: true
+}, { quoted: message });
+```
+
+For a native multi-card menu, use `sendRichButtonGrid`:
+
+```js
+await sock.sendRichButtonGrid(chatId, {
+  text: 'CODY MENU',
+  footer: 'Choose an action',
+  cards: [{
+    title: 'Quick actions',
+    buttons: [
+      { id: 'ping', text: 'Ping' },
+      { id: 'menu', text: 'Menu' }
+    ]
+  }]
+});
+```
+
+The owner-only `.testcard` command exercises the complete card-grid path:
+
+```text
+.testcard
+```
+
+### 9. Copy-code buttons
+
+Rich button payloads can expose a copy action for generated code while keeping a text fallback for clients that do not render native buttons:
+
+```js
+const code = 'const answer = 42;';
+
+await sock.sendRichButtonGrid(chatId, {
+  text: 'Generated JavaScript',
+  footer: 'Tap Copy Code to copy the snippet',
+  cards: [{
+    title: 'Code result',
+    buttons: [
+      { id: 'copy_code', text: 'Copy Code', copy: code },
+      { id: 'close', text: 'Close' }
+    ]
+  }]
+});
+```
+
+The text fallback can be sent in a fenced code block:
+
+~~~text
+```js
+const answer = 42;
+```
+~~~
+
+### 10. HTML messages and interactive games
+
+`sendHtmlMessage` renders an HTML game surface when the installed runtime supports it. Commands fall back to readable plain text when HTML delivery is unavailable:
+
+```js
+const html = '<div style="padding:16px;border-radius:12px;background:#111827;color:#fff">'
+  + '<h2>CODY Mini App</h2><p>Interactive content powered by plogme.</p></div>';
+
+if (typeof sock.sendHtmlMessage === 'function') {
+  await sock.sendHtmlMessage(chatId, { html }, { quoted: message });
+} else {
+  await reply('HTML messages are unavailable in this runtime.');
+}
+```
+
+Available HTML game commands include:
+
+```text
+.blackjack
+.blackjack hit
+.blackjack stand
+.blackjack stop
+
+.zombie
+.zombie scavenge
+.zombie stop
+
+.penalty
+.penalty left
+.penalty center
+.penalty right
+.penalty stop
+```
+
+The owner-only WebView test uses `sendRichWebview` to launch a configured mini-app:
+
+```text
+.webviewtest
+```
+
+```js
+await sock.sendRichWebview(chatId, {
+  title: 'CODY Signal Arcade',
+  text: 'Open the interactive mini-app.',
+  buttonText: 'Open app',
+  url: 'https://example.com/cody-app',
+  useWebview: true,
+  toast: 'Opening…',
+  footer: 'Powered by CODY and plogme'
+}, { quoted: message });
+```
+
+### 11. Native slot machine
+
+The `slots` command calls the native `plogme` slot-machine sender. The title is optional and the numeric argument sets starting credits:
+
+```text
+.slots
+.slots CODY Jackpot
+.slots CODY Jackpot 500
+```
+
+The equivalent socket call is:
+
+```js
+await sock.sendSlotMachine(chatId, {
+  title: 'CODY Jackpot',
+  startingCredits: 500
+});
+```
+
+If `sendSlotMachine` is not present, update the installed `plogme` package and restart CODY.
+
 ## Reliability and deployment
 
 ### Render
