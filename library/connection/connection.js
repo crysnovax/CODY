@@ -5,7 +5,6 @@
 
 const {
     default: makeWASocket,
-    fetchLatestBaileysVersion,
     Browsers,
     DisconnectReason
 } = require('plogme');
@@ -156,16 +155,8 @@ async function createSocket(sessionId) {
     }
 
     const { state, saveCreds } = await getAuthState();
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-
-    const installedPkg = require('plogme/package.json');
-    console.log(`📦 Baileys v${installedPkg.version} — server negotiated: ${version.join('.')} (latest: ${isLatest})`);
-    if (!isLatest) {
-        console.log('⚠️  Baileys server version differs from installed — update may be available');
-    }
 
     const sock = makeWASocket({
-        version,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: !hasLocalSession(),
         auth: state,

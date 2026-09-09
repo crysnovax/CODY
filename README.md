@@ -1,652 +1,518 @@
-<!-- Cody AI V2 Powered by CRYSNOVA AI | Premium WhatsApp Bot -->
+# CODY AI
 
-<p align="center">
-  <img src="https://cdn.crysnovax.link/files/1778715435891-e17143f2-a3fa-4d16-b1b7-740d8e4fb7fa.jpeg" alt="Cody AI V2 Banner" width="100%">
-  <img src="https://i.imgur.com/dBaSKWF.gif" height="20" width="100%">
-  <img src="https://i.imgur.com/dBaSKWF.gif" height="20" width="100%">
-  
-</div>
+CODY AI is a Node.js WhatsApp automation bot for personal accounts, powered by the [`plogme`](https://www.npmjs.com/package/plogme) runtime. It combines AI, media tools, group administration, status utilities, owner controls, and persistent session handling in a plugin-based application.
 
+> **Runtime requirement:** CODY is built and tested against `plogme`. The dependency is declared as `plogme` in `package.json` and `package-lock.json`.
 
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen?logo=node.js)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Runtime](https://img.shields.io/badge/runtime-plogme-5b21b6)](https://www.npmjs.com/package/plogme)
 
-<!--<div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=00ff66&height=90&section=footer" style="margin-top:-30px;" />
-</p>-->
-<img src="https://i.imgur.com/dBaSKWF.gif" height="20" width="100%">
+## Contents
 
-<p align="center">
-  <a href="https://github.com/crysnovax">
-    <img
-    <p align="center">
-  <img src="🔖.svg" alt="XXX" width="100%">
-</p>
-      
-      
-  </a>
-</p>
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Pairing and sessions](#pairing-and-sessions)
+- [Command examples](#command-examples)
+- [Reliability and deployment](#reliability-and-deployment)
+- [Plugin development](#plugin-development)
+- [Security and responsible use](#security-and-responsible-use)
+- [Troubleshooting](#troubleshooting)
 
-<h1 align="center">Cody AI V2</h1>
-<p align="center"><em>Powered by CRYSNOVA AI — The Most Advanced WhatsApp Self-Bot Ever Built</em></p>
+## Features
 
-<div align="center">
-  <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.demolab.com?font=Ribeye&size=40&pause=1000&color=00FFF0&center=true&width=910&height=80&lines=Cody+AI+V2;Premium+WhatsApp+Bot;400%2B+Commands;AI+Powered+%E2%80%A2+Always+Online;Don't+Forget+to+Star+%E2%AD%90;By+crysnovax" alt="Typing SVG" />
-  </a>
-</div>
+### Core automation
 
-<br>
+- Plugin-based command discovery with owner, sudo, group, downloader, AI, media, and utility commands.
+- Persistent multi-file authentication through `plogme`.
+- Pairing-code startup flow and optional `SESSION_ID` restoration.
+- Runtime configuration through `.setvar`, `.getvar`, and `.delvar`.
+- Render-friendly HTTP health endpoints and keep-alive support.
 
-<div align="center">
-  <img src="https://img.shields.io/github/stars/crysnovax/CODY?style=for-the-badge&color=FFD700&logo=github" alt="Stars"/>
-  <img src="https://img.shields.io/github/forks/crysnovax/CODY?style=for-the-badge&color=00BFFF&logo=github" alt="Forks"/>
-  <img src="https://img.shields.io/github/issues/crysnovax/CODY?style=for-the-badge&color=FF6B6B&logo=github" alt="Issues"/>
-  <img src="https://img.shields.io/github/license/crysnovax/CODY?style=for-the-badge&color=2ECC71" alt="License"/>
-  <img src="https://img.shields.io/badge/version-2.8.8.1-00FFF0?style=for-the-badge" alt="Version"/>
-  <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=for-the-badge&logo=node.js" alt="Node"/>
-</div>
+### New reliability and protection features
 
----
+- **Stable reconnects:** transient 408 transport timeouts reconnect without deleting valid authentication files.
+- **Panel-safe disconnect handling:** logged-out and connection-replaced events no longer terminate the web process automatically.
+- **SAVE_MODE:** optionally blocks unsaved contacts that message or call the account.
+- **Anti-call controls:** whitelist and blacklist management, unknown-caller handling, schedules, and caller rejection.
+- **Anti-group-status:** detects supported group-status mention envelopes, including wrapped messages and the `antigroupstatus` alias.
+- **Opt-in PLOGME:** automatic PLOGME responses are disabled unless explicitly enabled.
+- **MP3-only `.play`:** returns one `audio/mpeg` message without an extra preview or success reaction.
 
-<div align="center">
+### Media, AI, and administration
 
-### ✦ Quick Links
+- YouTube audio downloads with scraper and RapidAPI fallback paths.
+- Audio effects, stickers, image tools, converters, OCR, translation, and text-to-speech.
+- AI chat, image generation integrations, coding assistance, and media analysis commands.
+- Group welcome/goodbye, moderation, anti-link, mute, warning, tag, and status tools.
+- Owner-only operational controls, statistics, status posting, and runtime settings.
 
-[![Channel](https://img.shields.io/badge/WhatsApp%20Channel-Follow-25D366?style=for-the-badge&logo=whatsapp)](https://whatsapp.com/channel/0029Vb6pe77K0IBn48HLKb38)
-[![Support Group](https://img.shields.io/badge/Support%20Group-Join-25D366?style=for-the-badge&logo=whatsapp)](https://chat.whatsapp.com/Besbj8VIle1GwxKKZv1lax)
-[![GitHub](https://img.shields.io/badge/GitHub-crysnovax-181717?style=for-the-badge&logo=github)](https://github.com/crysnovax)
+## Requirements
 
-</div>
+- Node.js **20 or newer**.
+- npm 8 or newer.
+- A WhatsApp account for the bot session.
+- A Linux VPS, Render service, or another always-on Node.js host for reliable uptime.
+- At least 512 MB RAM for a minimal installation; media and AI workloads may require more.
 
----
-
-<div align="center">
-
-### 🚀 One-Click Deploy
-
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/crysnovax/CODY)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/crysnovax/CODY)
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/crysnovax/CODY)
-
-</div>
-
-<div align="center">
-
-### 🔗 Pair & Get Session ID
-
-[![Pair Session](https://img.shields.io/badge/Pair%20Session-Click%20Here-00FFF0?style=for-the-badge&logo=whatsapp)](https://cody-pair.onrender.com/)
-
-</div>
-
-
----
-
-## ⚉ What is Cody AI?
-
-**Cody AI V2** is a premium-grade WhatsApp self-bot powered by CRYSNOVA AI built on Node.js and Baileys. It runs directly on your personal WhatsApp account and delivers enterprise-level automation, AI integration, and group management — all for free.
-
-> Built and maintained by **crysnovax** · Nigeria 🔥
-
----
-
-## 🚀 Why Cody AI Stands Apart
-
-<div align="center">
-
-| ✦ | Feature | Description |
-|---|---------|-------------|
-| ⚡ | **Dynamic Plugin System** | Drop `.js` files to add commands — zero restarts, zero config |
-| 🧠 | **Multi-Model AI Suite** | GPT-4.5, DeepSeek, Gemini, image gen, voice AI, custom agents |
-| 🌐 | **250+ Language Support** | Auto-translation + localised responses in any language |
-| ✍️ | **100+ Font Styles** | Monospace, cursive, gothic, runes, manga and more |
-| 🎨 | **Advanced Media Editing** | Upscale, remove BG, cartoonify, watermark, glow, pixelate |
-| 🛡️ | **24/7 Stable Connection** | Auto-reconnect, keep-alive, session persistence |
-| 👥 | **Full Group Management** | Warn system, anti-spam, anti-link, welcome/goodbye, mute, kick |
-| 🔒 | **Safe & Battle-Tested** | Zero ban reports — months of active production use |
-| 💎 | **250+ Commands** | AI · Media · Admin · Economy · Fun · Downloader · Tools |
-
-</div>
-
----
-
-## 🔥 Full Feature Breakdown
-
-<details>
-<summary><b>🤖 AI Suite</b></summary>
-
-- GPT-4.5, DeepSeek, Gemini integration
-- AI image generation & editing
-- Story writing, horror mode, code assistant
-- Smart chatbot with per-chat memory & training
-- Voice transcription (Whisper)
-- Image description & OCR
-- AI background changer & remini enhance
-
-</details>
-
-<details>
-<summary><b>🖼️ Media & Editing</b></summary>
-
-- Remove background, cartoonify, sketch
-- Upscale, pixelate, glow, invert, blur
-- Color filters: gold, cyan, red, purple, green, gray
-- Image collage & merge
-- Sticker maker, GIF converter
-- View-once revealer (VV)
-- Wanted poster, jail overlay, burial card
-
-</details>
-
-<details>
-<summary><b>👥 Group Management</b></summary>
-
-- Anti-link, anti-word, anti-spam, anti-tag
-- Anti group mention (status mention detection)
-- Welcome & goodbye messages with profile photo
-- Warn system with appeal flow (3-strike auto-kick)
-- Mute user, mute sticker, group lock/unlock
-- Poll creator, hidetag, tagall
-- Promote / demote / kick / add members
-
-</details>
-
-<details>
-<summary><b>⬇️ Downloaders</b></summary>
-
-- YouTube (audio + video), Spotify, TikTok
-- Facebook, Instagram, Pinterest
-- APK downloader, Mediafire, direct links
-- Shazam song recognition + download
-
-</details>
-
-<details>
-<summary><b>🔧 Owner & Bot Controls</b></summary>
-
-- AFK system with auto-disable & timer
-- Auto-read, anti-call, auto-react
-- Fake typing (all messages or commands only)
-- Status view, status like, save status, post status
-- Sudo system (3-layer permission)
-- Bot font (per-chat + global)
-- Auto-translation (per-chat + global)
-- Runtime variable control (setvar/getvar/delvar)
-- Live reload — no restart needed
-
-</details>
-
-<details>
-<summary><b>🛠️ Tools & Utilities</b></summary>
-
-- Scientific calculator, QR code, URL shortener
-- Temporary email, virtual number
-- Anti-delete (DM or in-chat, global private mode)
-- Reminder system, font converter (100+ fonts)
-- Translate, reverse translate
-- Document converter: Word, PDF, HTML, ZIP, TXT
-- Weather, dictionary, wiki, news, esports
-
-</details>
-
-<details>
-<summary><b>🎵 Audio Effects</b></summary>
-
-- 8D audio, bass boost, nightcore, reverb
-- Robot, chipmunk, drunk, deep, slow
-- Echo, distort, tremolo, reverse
-- Voice changer (TTS with multiple voices)
-- Audio merge
-
-</details>
-
----
-
-## ⚙️ Requirements
-
-- **Node.js** v23 or higher
-- **npm** v8+
-- A WhatsApp account (self-bot — runs on your number)
-- Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
-- warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
-
----
-
-## 📦 Installation
+## Installation
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/crysnovax/CODY.git
 cd CODY
-
-# 2. Install dependencies
 npm install
-
-# 3. Configure your settings
-cp settings/config.example.js settings/config.js
-# Edit config.js with your number, prefix, etc.
-
-# 4. Start the bot
-node index.js
+npm start
 ```
 
-> On first run you will be prompted for a pairing code. Enter your WhatsApp number and link via **Settings → Linked Devices → Link a Device**.
+The installation uses the `plogme` dependency declared in the repository.
 
----
-
-## ⚡ Quick Setup (VPS)
+For development:
 
 ```bash
-# If RAM is limited, add swap first
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Then install and start
-npm install && node index.js
+npm run dev
 ```
-## ❔AUTO DEPLOY PANEL SCRIPT 
 
+Run the focused regression tests:
 
-`paste in panel and save as` ```
-index.js```
-
-
-
-
+```bash
+node --test tests/antigm.test.js \
+  tests/gstatus-grammar-and-mention.test.js \
+  tests/poststory-status-api.test.js
 ```
-const { execSync, spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
 
-// Colors (ANSI codes)
-const colors = {
-    reset: '\x1b[0m',
-    bright: '\x1b[1m',
-    dim: '\x1b[2m',
-    black: '\x1b[30m', red: '\x1b[31m', green: '\x1b[32m',
-    yellow: '\x1b[33m', blue: '\x1b[34m', magenta: '\x1b[35m',
-    cyan: '\x1b[36m', white: '\x1b[37m',
-    bgBlack: '\x1b[40m', bgGreen: '\x1b[42m'
-};
+Run the complete suite:
 
-function c(text, color = 'white') {
-    return `${colors[color]}${text}${colors.reset}`;
-}
+```bash
+npm test
+```
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+## Configuration
 
-function ask(question) {
-    return new Promise((resolve) => {
-        rl.question(question, (answer) => resolve(answer.trim()));
-    });
-}
+CODY reads environment values and runtime settings from the repository configuration files. Start by reviewing `settings/config.js` and the deployment environment. Never commit private session files, API keys, or owner numbers.
 
-function run(command, cwd = '.') {
-    console.log(c(`[RUN] ${command}`, 'dim'));
-    try {
-        return execSync(command, { cwd, encoding: 'utf8', stdio: 'inherit' });
-    } catch (error) {
-        console.error(c(`[ERROR] Command failed: ${command}`, 'red'));
-        throw error;
-    }
-}
+Typical values include:
 
-// .env helpers
-function readEnv(envPath) {
-    if (!fs.existsSync(envPath)) return {};
-    const map = {};
-    for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const idx = trimmed.indexOf('=');
-        if (idx === -1) continue;
-        map[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
-    }
-    return map;
-}
+```dotenv
+OWNER_NUMBER=2348000000000
+OWNER_NAME=Your Name
+BOT_NAME=CODY
+PREFIX=.
+SESSION_ID=
+CODY_API_KEY=
+SAVED_NUMBERS=2348000000000,2348111111111
+SUDO_NUMBERS=2348222222222
+```
 
-function writeEnv(envPath, updates) {
-    if (!fs.existsSync(envPath)) {
-        const lines = Object.entries(updates).map(([k, v]) => `${k}=${v}`).join('\n');
-        fs.writeFileSync(envPath, lines + '\n');
-        return;
-    }
-    const raw = fs.readFileSync(envPath, 'utf8').split('\n');
-    const seen = new Set();
-    const out = [];
-    for (const line of raw) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) { out.push(line); continue; }
-        const idx = trimmed.indexOf('=');
-        if (idx === -1) { out.push(line); continue; }
-        const k = trimmed.slice(0, idx).trim();
-        seen.add(k);
-        out.push(k in updates ? `${k}=${updates[k]}` : line);
-    }
-    for (const [k, v] of Object.entries(updates)) {
-        if (!seen.has(k)) out.push(`${k}=${v}`);
-    }
-    fs.writeFileSync(envPath, out.join('\n'));
-}
+The exact environment variables used by a command may vary. Use `.getvar` to inspect a runtime value and `.setvar KEY=value` to change a supported setting without editing source files.
 
-// Check if config is complete
-function isConfigComplete(env) {
-    return env.OWNER_NUMBER && env.OWNER_NAME && env.BOT_NAME &&
-           env.OWNER_NUMBER.length >= 10;
-}
+## Pairing and sessions
 
-// Display banner
-function showBanner() {
-    console.clear();
-    console.log(c('\n╔══════════════════════════════════════════════════════════════╗', 'cyan'));
-    console.log(c('║                                                              ║', 'cyan'));
-    console.log(c('║             ', 'cyan') + c('🚀 Cody AI V2 — DEPLOY SCRIPT 🚀', 'bright') + c('            ║', 'cyan'));
-    console.log(c('║                                                              ║', 'cyan'));
-    console.log(c('║         ', 'cyan') + c('Automated Setup & Configuration System', 'yellow') + c('              ║', 'cyan'));
-    console.log(c('║                                                              ║', 'cyan'));
-    console.log(c('╚══════════════════════════════════════════════════════════════╝', 'cyan'));
-    console.log('');
-}
+On a first start, CODY requests the WhatsApp number and displays a pairing code. On the phone, open **WhatsApp → Settings → Linked Devices → Link a Device**, then enter the code.
 
-// Display existing config
-function showExistingConfig(env) {
-    console.log(c('┌─────────────────────────────────────────────────────────────┐', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('│  ', 'green') + c('✅ CONFIGURATION FOUND!', 'bright') + c('                                 │', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('├─────────────────────────────────────────────────────────────┤', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('│  ', 'green') + c(`👤 Owner: ${env.OWNER_NAME}`, 'white') + ' '.repeat(Math.max(0, 50 - env.OWNER_NAME.length)) + c('│', 'green'));
-    console.log(c('│  ', 'green') + c(`📞 Number: ${env.OWNER_NUMBER}`, 'white') + ' '.repeat(Math.max(0, 49 - env.OWNER_NUMBER.length)) + c('│', 'green'));
-    console.log(c('│  ', 'green') + c(`🤖 Bot: ${env.BOT_NAME}`, 'white') + ' '.repeat(Math.max(0, 52 - env.BOT_NAME.length)) + c('│', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('└─────────────────────────────────────────────────────────────┘', 'green'));
-    console.log('');
-    console.log(c('🔄 Using existing configuration...\n', 'cyan'));
-}
+For hosted deployment, a session can be restored with `SESSION_ID`. CODY supports its encoded session format and the Cloudflare KV short-ID format:
 
-// Ask for new configuration
-async function askForConfig(envPath) {
-    console.log(c('┌─────────────────────────────────────────────────────────────┐', 'magenta'));
-    console.log(c('│                                                             │', 'magenta'));
-    console.log(c('│  ', 'magenta') + c('📋 FIRST TIME SETUP', 'bright') + c('                                     │', 'magenta'));
-    console.log(c('│                                                             │', 'magenta'));
-    console.log(c('│  ', 'magenta') + c('Please provide the following information:', 'yellow') + c('                │', 'magenta'));
-    console.log(c('│                                                             │', 'magenta'));
-    console.log(c('└─────────────────────────────────────────────────────────────┘', 'magenta'));
-    console.log('');
+```dotenv
+SESSION_ID=CODY_AI!KV:your-short-id
+```
 
-    // Owner Number
-    console.log(c('┌─────────────────────────────────────────────────────────────┐', 'blue'));
-    console.log(c('│ 1. OWNER NUMBER                                             │', 'blue'));
-    console.log(c('└─────────────────────────────────────────────────────────────┘', 'blue'));
-    console.log(c('   💡 Your WhatsApp number without + (e.g., 2348077528901)', 'dim'));
-    
-    let ownerNumber = await ask(c('   Enter: ', 'yellow'));
-    while (!ownerNumber || !/^\d{10,15}$/.test(ownerNumber)) {
-        console.log(c('   ❌ Invalid! Must be 10-15 digits only', 'red'));
-        ownerNumber = await ask(c('   Enter: ', 'yellow'));
-    }
-    console.log(c(`   ✓ Number: ${ownerNumber}\n`, 'green'));
+Authentication is stored under `sessions/`. Keep this directory persistent on the host. Do not delete it during a transient 408, network timeout, or reconnect attempt; deleting valid credentials forces a new pairing and can make a healthy session appear to log out.
 
-    // Owner Name
-    console.log(c('┌─────────────────────────────────────────────────────────────┐', 'blue'));
-    console.log(c('│ 2. OWNER NAME                                               │', 'blue'));
-    console.log(c('└─────────────────────────────────────────────────────────────┘', 'blue'));
-    console.log(c('   💡 Your name or nickname', 'dim'));
-    
-    let ownerName = await ask(c('   Enter: ', 'yellow'));
-    if (!ownerName) ownerName = 'Cody AI';
-    console.log(c(`   ✓ Name: ${ownerName}\n`, 'green'));
+## Command examples
 
-    // Bot Name
-    console.log(c('┌─────────────────────────────────────────────────────────────┐', 'blue'));
-    console.log(c('│ 3. BOT NAME                                                 │', 'blue'));
-    console.log(c('└─────────────────────────────────────────────────────────────┘', 'blue'));
-    console.log(c('   💡 Display name for your bot', 'dim'));
-    
-    let botName = await ask(c('   Enter: ', 'yellow'));
-    if (!botName) botName = 'Cody AI V2';
-    console.log(c(`   ✓ Bot: ${botName}\n`, 'green'));
+All examples use the default `.` prefix. Replace it if your configuration uses another prefix.
 
-    // Save to .env
-    writeEnv(envPath, {
-        BOT_NAME: botName,
-        OWNER_NUMBER: ownerNumber,
-        OWNER_NUMBERS: ownerNumber,
-        OWNER_NAME: ownerName,
-    });
+### 1. SAVE_MODE: block unsaved messages and calls
 
-    // Show success
-    console.log(c('┌─────────────────────────────────────────────────────────────┐', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('│  ', 'green') + c('✅ CONFIGURATION SAVED!', 'bright') + c('                                 │', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('│  ', 'green') + c(`👤 Owner: ${ownerName}`, 'white') + ' '.repeat(Math.max(0, 50 - ownerName.length)) + c('│', 'green'));
-    console.log(c('│  ', 'green') + c(`📞 Number: ${ownerNumber}`, 'white') + ' '.repeat(Math.max(0, 49 - ownerNumber.length)) + c('│', 'green'));
-    console.log(c('│  ', 'green') + c(`🤖 Bot: ${botName}`, 'white') + ' '.repeat(Math.max(0, 52 - botName.length)) + c('│', 'green'));
-    console.log(c('│                                                             │', 'green'));
-    console.log(c('└─────────────────────────────────────────────────────────────┘', 'green'));
-    console.log('');
-}
+SAVE_MODE is opt-in. When enabled, an incoming DM or call from a contact that is not in the synced address book or `SAVED_NUMBERS` is blocked. The owner and sudo numbers are always protected.
 
-// Main setup function
-async function setupConfiguration() {
-    const envPath = path.join(PROJECT_DIR, '.env');
-    const envExamplePath = path.join(PROJECT_DIR, '.env.example');
+```text
+.savemode on
+.savemode
+.savemode off
+```
 
-    // Create .env from example if doesn't exist
-    if (!fs.existsSync(envPath) && fs.existsSync(envExamplePath)) {
-        fs.copyFileSync(envExamplePath, envPath);
-        console.log(c('✓ Created .env from template\n', 'green'));
-    }
+Example output:
 
-    // Read existing config
-    const env = readEnv(envPath);
+```text
+SAVE_MODE is currently ON ✓
 
-    // Check if config is complete
-    if (isConfigComplete(env)) {
-        // Auto-use existing config, no questions!
-        showExistingConfig(env);
-        return;
-    }
+Usage:
+.savemode on|off
 
-    // First time or incomplete - ask for config
-    await askForConfig(envPath);
-}
+Saved list fallback: .setvar SAVED_NUMBERS=2348xxx,2349xxx
+```
 
-const PROJECT_DIR = 'CODY';
-const REPO_URL = 'https://github.com/crysnovax/CODY.git';
-const ENTRY_FILE = 'index.js';
+When the address book is unavailable, use an explicit fallback list:
 
-async function main() {
-    showBanner();
-    
-    console.log(c('═══ STARTING DEPLOYMENT ═══\n', 'bright'));
+```text
+.setvar SAVED_NUMBERS=2348000000000,2348111111111
+.savemode on
+```
 
-    // Step 1: Clone
-    if (!fs.existsSync(PROJECT_DIR)) {
-        console.log(c('[1/4] 📥 Cloning repository...', 'cyan'));
-        run(`git clone ${REPO_URL} ${PROJECT_DIR}`);
-        console.log(c('✓ Cloned!\n', 'green'));
-    } else {
-        console.log(c('[1/4] ✓ Repository exists\n', 'green'));
-    }
+SAVE_MODE is separate from anti-call’s global unknown-caller switch. It blocks unsaved contacts for both message and call events when enabled.
 
-    // Step 2: Install
-    console.log(c('[2/4] 📦 Installing dependencies...', 'cyan'));
-    run('npm install', PROJECT_DIR);
-    console.log(c('✓ Dependencies ready!\n', 'green'));
+### 2. Anti-call manager
 
-    // Step 3: Configure (SMART - asks only once!)
-    console.log(c('[3/4] ⚙️  Checking configuration...', 'cyan'));
-    await setupConfiguration();
-    rl.close();
+The anti-call manager supports a global unknown-caller policy plus always-active whitelist and blacklist entries.
 
-    // Step 4: Start
-    console.log(c('[4/4] 🚀 Starting bot...', 'cyan'));
-    console.log('');
+```text
+.anticall on
+.anticall status
+.anticall reason Calls are not accepted right now.
+.anticall unknownreason Unknown callers are blocked. Please message first.
+```
 
-    const mainJsPath = path.join(PROJECT_DIR, ENTRY_FILE);
-    const packageJsonPath = path.join(PROJECT_DIR, 'package.json');
-    
-    let startCommand, startArgs;
+Manage lists:
 
-    if (fs.existsSync(mainJsPath)) {
-        startCommand = 'node';
-        startArgs = [ENTRY_FILE];
-    } else if (fs.existsSync(packageJsonPath)) {
-        const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-        if (pkg.scripts?.start) {
-            startCommand = 'npm';
-            startArgs = ['start'];
-        } else {
-            throw new Error(`No ${ENTRY_FILE} or start script found`);
-        }
-    } else {
-        throw new Error(`No ${ENTRY_FILE} found`);
-    }
+```text
+.anticall whitelist add 2348111111111
+.anticall whitelist list
+.anticall whitelist remove 2348111111111
 
-    console.log(c('╔══════════════════════════════════════════════════════════════╗', 'green'));
-    console.log(c('║                                                              ║', 'green'));
-    console.log(c('║             ', 'green') + c('🎉 BOT IS STARTING! 🎉', 'bright') + c('                          ║', 'green'));
-    console.log(c('║                                                              ║', 'green'));
-    console.log(c('╚══════════════════════════════════════════════════════════════╝', 'green'));
-    console.log('');
+.anticall reject add 2348222222222
+.anticall reject list
+.anticall reject remove 2348222222222
+```
 
-    const child = spawn(startCommand, startArgs, {
-        cwd: PROJECT_DIR,
-        stdio: 'inherit',
-        shell: true
-    });
+Schedule blocking:
 
-    child.on('close', (code) => process.exit(code));
-    child.on('error', (err) => {
-        console.error(c('Failed to start:', 'red'), err);
-        process.exit(1);
-    });
-}
+```text
+.anticall schedule always 22:00 06:00
+.anticall schedule off
+```
 
-main().catch(err => {
-    console.error(c('\n❌ FAILED:', 'red'), err.message);
-    rl.close();
-    process.exit(1);
+A phone number can initially be stored as a pending number and upgraded to the correct WhatsApp LID when the first call event provides it.
+
+### 3. Anti-group-status
+
+The anti-group-status command detects supported status-mention message envelopes and can be enabled or disabled by the owner. The command accepts both the original short name and the explicit alias.
+
+```text
+.antigm on
+.antigm status
+.antigroupstatus on
+.antigroupstatus off
+```
+
+The detector handles messages wrapped in supported WhatsApp envelope types instead of relying only on a top-level message object. This is useful when a status mention is delivered through a nested or forwarded structure.
+
+### 4. Gstatus utilities
+
+Create and broadcast group-status content with named backgrounds, captions, and routing options:
+
+```text
+.gstatus hello from CODY
+.gstatusbg neon hello from CODY
+.gstatusall
+.gstatusall blue Team update
+```
+
+When replying to media, the command can preserve the replied media and apply an explicit caption/background according to the command options.
+
+### 5. PLOGME auto-replies
+
+PLOGME responses are **disabled by default**. Enable them only when you want the automated response workflow active:
+
+```text
+.plogme on
+.plogme status
+.plogme off
+```
+
+An empty or missing toggle does not activate automatic replies. This prevents an unexpected busy or “text me later” response on a fresh deployment.
+
+### 6. `.play`: one MP3 response
+
+Search by title:
+
+```text
+.play Assurance by Davido
+```
+
+Or use a YouTube URL:
+
+```text
+.play https://youtu.be/VIDEO_ID
+```
+
+The command resolves the audio through its configured scraper/fallback chain and sends one playable `audio/mpeg` message with an `.mp3` filename. It does not send a second rich preview, image card, or success reaction.
+
+### 7. Runtime variables
+
+```text
+.setvar SAVE_MODE=true
+.getvar SAVE_MODE
+.delvar SAVE_MODE
+```
+
+Use runtime variables for supported operational settings rather than editing generated database files while the bot is running.
+
+### 8. Rich links and preview cards
+
+The `plogme` socket supports native WhatsApp rich-link payloads. The built-in `.addme` command sends a group invite with a title, description, canonical URL, and optional thumbnail:
+
+```text
+.addme
+```
+
+The equivalent low-level payload is:
+
+```js
+const inviteUrl = 'https://chat.whatsapp.com/INVITE_CODE?mode=gi_t';
+
+await sock.sendMessage(chatId, {
+  extendedTextMessage: {
+    text: inviteUrl,
+    matchedText: inviteUrl,
+    canonicalUrl: inviteUrl,
+    title: 'CODY Community',
+    description: 'WhatsApp Group Invite',
+    previewType: 1,
+    jpegThumbnail: thumbnailBuffer
+  },
+  raw: true
+}, { quoted: message });
+```
+
+For a native multi-card menu, use `sendRichButtonGrid`:
+
+```js
+await sock.sendRichButtonGrid(chatId, {
+  text: 'CODY MENU',
+  footer: 'Choose an action',
+  cards: [{
+    title: 'Quick actions',
+    buttons: [
+      { id: 'ping', text: 'Ping' },
+      { id: 'menu', text: 'Menu' }
+    ]
+  }]
 });
 ```
-‎
----
 
-## 🗂️ Project Structure
+The owner-only `.testcard` command exercises the complete card-grid path:
 
-```
-CODY/
-├── index.js               ← Entry point
-├── ?.js                   ← Message routing engine
-├── settings/
-│   └── config.js          ← Bot configuration
-├── src/
-│   ├── Commands/          ← All command files (by category)
-│   ├── Plugin/            ← Core handlers & plugins
-│   └── core/              ← Command registry
-├── library/
-│   └── serialize.js       ← Message serializer
-└── database/              ← Runtime data (JSON)
+```text
+.testcard
 ```
 
----
+### 9. Copy-code buttons
 
-## ✦ Configuration Reference
+Rich button payloads can expose a copy action for generated code while keeping a text fallback for clients that do not render native buttons:
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `PREFIX` | `.` | Command prefix |
-| `OWNER_NUMBER` | — | Your WhatsApp number |
-| `PUBLIC_MODE` | `false` | Allow all users to use commands |
-| `AUTO_READ` | `true` | Auto-read messages |
-| `AUTO_REACT` | `true` | React to commands |
-| `ANTI_CALL` | `true` | Auto-reject calls |
-| `MENU_STYLE` | `0` | Menu design (0–6) |
-| `TIMEZONE` | `Africa/Lagos` | Your timezone |
-| `BOT_LANG` | `en` | Bot language |
+```js
+const code = 'const answer = 42;';
 
-> All values can be changed live with `.setvar KEY VALUE` — no restart needed.
+await sock.sendRichButtonGrid(chatId, {
+  text: 'Generated JavaScript',
+  footer: 'Tap Copy Code to copy the snippet',
+  cards: [{
+    title: 'Code result',
+    buttons: [
+      { id: 'copy_code', text: 'Copy Code', copy: code },
+      { id: 'close', text: 'Close' }
+    ]
+  }]
+});
+```
 
----
+The text fallback can be sent in a fenced code block:
 
-## ✦ Command Format
+~~~text
+```js
+const answer = 42;
+```
+~~~
 
-```javascript
+### 10. HTML messages and interactive games
+
+`sendHtmlMessage` renders an HTML game surface when the installed runtime supports it. Commands fall back to readable plain text when HTML delivery is unavailable:
+
+```js
+const html = '<div style="padding:16px;border-radius:12px;background:#111827;color:#fff">'
+  + '<h2>CODY Mini App</h2><p>Interactive content powered by plogme.</p></div>';
+
+if (typeof sock.sendHtmlMessage === 'function') {
+  await sock.sendHtmlMessage(chatId, { html }, { quoted: message });
+} else {
+  await reply('HTML messages are unavailable in this runtime.');
+}
+```
+
+Available HTML game commands include:
+
+```text
+.blackjack
+.blackjack hit
+.blackjack stand
+.blackjack stop
+
+.zombie
+.zombie scavenge
+.zombie stop
+
+.penalty
+.penalty left
+.penalty center
+.penalty right
+.penalty stop
+```
+
+The owner-only WebView test uses `sendRichWebview` to launch a configured mini-app:
+
+```text
+.webviewtest
+```
+
+```js
+await sock.sendRichWebview(chatId, {
+  title: 'CODY Signal Arcade',
+  text: 'Open the interactive mini-app.',
+  buttonText: 'Open app',
+  url: 'https://example.com/cody-app',
+  useWebview: true,
+  toast: 'Opening…',
+  footer: 'Powered by CODY and plogme'
+}, { quoted: message });
+```
+
+### 11. Native slot machine
+
+The `slots` command calls the native `plogme` slot-machine sender. The title is optional and the numeric argument sets starting credits:
+
+```text
+.slots
+.slots CODY Jackpot
+.slots CODY Jackpot 500
+```
+
+The equivalent socket call is:
+
+```js
+await sock.sendSlotMachine(chatId, {
+  title: 'CODY Jackpot',
+  startingCredits: 500
+});
+```
+
+If `sendSlotMachine` is not present, update the installed `plogme` package and restart CODY.
+
+## Reliability and deployment
+
+### Render
+
+The repository includes Render configuration. Use the repository’s Node build process and preserve the lockfile:
+
+```bash
+npm ci --omit=dev --ignore-scripts
+npm start
+```
+
+Before deploying, verify locally:
+
+```bash
+npm ci --omit=dev --ignore-scripts
+node --check index.js
+npm test
+```
+
+Keep the session storage persistent where the host supports disks or volumes. A stateless restart without the `sessions/` directory requires pairing again.
+
+### Reconnect behavior
+
+CODY distinguishes transient transport problems from invalid credentials:
+
+- **408 / QR reference timeout:** reconnects while preserving authentication state.
+- **Bad MAC / stale app-state keys:** performs targeted stale-key cleanup before reconnecting.
+- **Logged out:** keeps the panel process alive and reports that re-pairing is required.
+- **Connection replaced:** keeps the panel process alive and reports that another linked session took over.
+
+A repeated 440 conflict generally means another WhatsApp Web session is active. Remove duplicate linked devices before deleting CODY’s session files.
+
+## Plugin development
+
+Commands are CommonJS modules loaded from `src/Commands`. A minimal command looks like this:
+
+```js
 module.exports = {
-    name:      'example',
-    alias:     ['ex'],
-    desc:      'An example command',
-    category:  'Tools',
-    sudoOnly:  false,
-    reactions: { start: '⚙️', success: '✅' },
+  name: 'hello',
+  alias: ['hi'],
+  desc: 'Send a greeting',
+  category: 'Tools',
 
-    execute: async (sock, m, { args, reply }) => {
-        await reply('Hello World!');
-    }
+  async execute(sock, message, { reply, args }) {
+    const name = args.join(' ') || 'there';
+    await reply(`Hello, ${name}!`);
+  }
 };
 ```
 
-Drop the file into the correct `src/Commands/<Category>/` folder and run `.reload` — no restart needed.
+A media command can use the active `plogme` socket:
 
----
+```js
+module.exports = {
+  name: 'sendmp3',
+  category: 'Tools',
 
-## 🛡️ Security & Safety
+  async execute(sock, message, { reply }) {
+    if (!message.quoted?.download) return reply('Reply to an audio message.');
+    const audio = await message.quoted.download();
+    await sock.sendMessage(message.chat, {
+      audio,
+      mimetype: 'audio/mpeg',
+      ptt: false,
+      fileName: 'audio.mp3'
+    }, { quoted: message });
+  }
+};
+```
 
-- Runs as a **self-bot** — WhatsApp does not flag personal automation the same way as business API abuse
-- No data is sent to third parties without your explicit commands
-- Session credentials are stored **locally only**
-- Zero ban reports in months of active production use across multiple accounts
+Use existing command modules as the compatibility reference for `plogme` methods, message serialization, LID handling, media downloads, and status APIs.
 
----
+## Security and responsible use
 
-## 📊 Stats
+This project automates a personal WhatsApp account. Follow WhatsApp’s terms and applicable laws. Use moderation and blocking features transparently, protect your session directory, and never publish pairing codes or session IDs. The maintainers are not responsible for account restrictions caused by misuse, spam, abusive automation, or unsafe third-party services.
 
-<div align="center">
+## Troubleshooting
 
-![GitHub Activity](https://github-readme-activity-graph.vercel.app/graph?username=crysnovax&theme=react-dark&hide_border=true)
+### The bot keeps requesting a new pairing
 
-</div>
+1. Confirm that `sessions/` is persistent and writable.
+2. Confirm that the host is not deleting the session directory during deploys.
+3. Do not remove credentials after a normal 408 timeout.
+4. Check WhatsApp Linked Devices for duplicate or unwanted sessions.
+5. Re-pair only after WhatsApp reports that the existing session is actually logged out.
 
----
+### SAVE_MODE does not block someone
 
-## 🤝 Contributing
+Confirm that it is enabled and that the sender is not saved, the owner, or a sudo number:
 
-Pull requests are welcome. For major changes, open an issue first to discuss.
+```text
+.savemode
+.getvar SAVED_NUMBERS
+```
 
-1. Fork the repository
-2. Create your feature branch: `git checkout -b feature/my-feature`
-3. Commit your changes: `git commit -m 'Add my feature'`
-4. Push to the branch: `git push origin feature/my-feature`
-5. Open a Pull Request
+For calls, ensure the incoming event reaches the running process and that the socket exposes `updateBlockStatus` and `rejectCall`.
 
----
+### `.play` fails to return audio
 
-## 📄 License
+Check the Render logs for scraper or fallback errors, verify outbound network access, and confirm that the required API environment variables are configured. The command expects a reachable audio provider; YouTube metadata alone is not an audio file.
 
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
+### The panel stops responding
 
----
+Check the health endpoint and process logs. The connection manager is designed to keep the HTTP panel alive across logged-out and connection-replaced events, but the WhatsApp session must be re-paired after a genuine logout.
 
-<div align="center">
+## License
 
-**Built with 🔥 by [crysnovax](https://github.com/crysnovax)**
+CODY AI is released under the MIT License. See [`LICENSE`](LICENSE) for details.
 
-*If this project helped you, please consider giving it a ⭐*
+## Links
 
-[![Star History Chart](https://api.star-history.com/svg?repos=crysnovax/CODY&type=Date)](https://star-history.com/#crysnovax/CODY&Date)
+- [CODY repository](https://github.com/crysnovax/CODY)
+- [plogme on npm](https://www.npmjs.com/package/plogme)
+- [CODY issues](https://github.com/crysnovax/CODY/issues)
+- [CODY pull requests](https://github.com/crysnovax/CODY/pulls)
 
-</div>
-
----
-
-<div align="center">
-  <sub>© 2026 Cody AI Powered by CRYSNOVA AI · by crysnovax · All Rights Reserved</sub>
-</div>
+Maintained by **crysnovax**.

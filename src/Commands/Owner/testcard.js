@@ -13,7 +13,7 @@ const testcard = {
     category: 'Owner',
     execute: async (sock, m, { reply }) => {
         if (typeof sock.sendRichButtonGrid !== 'function') {
-            return reply('sendRichButtonGrid is unavailable. Install the upgraded @crysnovax/plug runtime and restart CODY.');
+            return reply('sendRichButtonGrid is unavailable. Install or update plogme and restart CODY.');
         }
 
         const payload = {
