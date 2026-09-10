@@ -14,15 +14,18 @@ const app = express();
 app.use(express.json());
 
 // ============ CONFIG ============
+// The main bot dashboard owns Heroku/Render's PORT. The panel connector is
+// an internal companion server and must use its own port, otherwise both
+// servers attempt to bind the platform's single public listener.
 let ROOT_PATH, PORT;
 
 try {
     const config = require('./settings/config');
     ROOT_PATH = config.panelRoot || process.env.PANEL_ROOT || process.cwd();
-    PORT = process.env.PORT || config.panelApiPort || process.env.PANEL_API_PORT || 9000;
+    PORT = process.env.PANEL_API_PORT || config.panelApiPort || 9000;
 } catch (e) {
     ROOT_PATH = process.env.PANEL_ROOT || process.cwd();
-    PORT = process.env.PORT || process.env.PANEL_API_PORT || 9000;
+    PORT = process.env.PANEL_API_PORT || 9000;
 }
 
 // ============ AUTH MIDDLEWARE ============
