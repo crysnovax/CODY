@@ -8,8 +8,13 @@ const { allVars, setVar, resetAll } = require('../src/Plugin/configManager');
 const path = require('node:path');
 const fsSync = require('node:fs');
 
-test('antigm exposes the antigroupstatus alias', () => {
-    assert.ok(command.alias.includes('antigroupstatus'));
+test('antigm keeps its own aliases but does not steal antigroupstatus', () => {
+    assert.ok(command.alias.includes('antigroupmention'));
+    assert.ok(command.alias.includes('antigroupmsg'));
+    // addCommand() is first-come-first-served, so claiming the name of the
+    // dedicated Admin/antigroupstatus.js command stopped it from ever
+    // registering and made ".antigroupstatus on" enable antigm instead.
+    assert.equal(command.alias.includes('antigroupstatus'), false);
 });
 
 test('anti-group-status detects wrapped status mentions', () => {

@@ -53,5 +53,6 @@ test('richgen replaces the GENERATING card in place with READY', async () => {
 test('richgen reports a helpful message when RichGen is unavailable', async () => {
     const replies = [];
     await richgen.execute({}, { chat: '12345@s.whatsapp.net' }, { args: [], reply: async value => replies.push(value) });
-    assert.match(replies[0], /@crysnovax\/baileys@2\.7\.16/);
+    assert.match(replies[0], /does not expose RichGen/i);
+    assert.match(replies[0], /plogme/i);
 });

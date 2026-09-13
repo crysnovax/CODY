@@ -3,30 +3,11 @@ const Module = require('node:module');
 const test = require('node:test');
 
 const originalLoad = Module._load;
-let lastBanOptions;
 Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'plogme') {
         return {
             downloadContentFromMessage: async function* () {
                 yield Buffer.from('unused');
-            },
-            checkStatusWA: async (number, options = {}) => {
-                lastBanOptions = options;
-                return {
-                    number: `+${number}`,
-                    status: 'active',
-                    isBanned: false,
-                    isNeedOfficialWa: false,
-                    banInfo: null,
-                    diagnostics: options.diagnostic ? {
-                        httpStatus: 400,
-                        ok: false,
-                        contentType: 'application/json',
-                        bodyKeys: ['unexpected'],
-                        dataKeys: [],
-                        signals: { hasReason: false, hasError: false, hasStatus: false, hasAppealToken: false, hasBanFields: false }
-                    } : undefined
-                };
             }
         };
     }
@@ -89,30 +70,77 @@ test('groupstatus sends audio through sendGroupStatus with selectable background
     assert.match(replies[0], /Group status posted/i);
 });
 
-test('bancheck reports Baileys ban status using the number directly', async () => {
+const realFetch = global.fetch;
+
+function stubFetch(payload, { ok = true, status = 200 } = {}) {
+    global.fetch = async () => ({ ok, status, json: async () => payload });
+}
+
+test('bancheck queries the keyless kyuux ban-status endpoint', async () => {
     const replies = [];
+    let requestedUrl = '';
+    global.fetch = async url => {
+        requestedUrl = String(url);
+        return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+                success: true,
+                data: { number: '15*****111', status: 'Safe', banned: false, info: { device: 'Unknown', email: 'Unknown' } }
+            })
+        };
+    };
 
-    await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
-        args: ['+1 (555) 000-1111'],
-        reply: async value => replies.push(value)
-    });
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['+1 (555) 000-1111'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        global.fetch = realFetch;
+    }
 
-    assert.match(replies[0], /Status: active/i);
+    assert.match(requestedUrl, /kyuux-r\.indevs\.in\/api\/check-whatsapp\?phone=15550001111/);
+    assert.match(replies[0], /Status: Safe/i);
     assert.match(replies[0], /Ban detected: NO/i);
     assert.match(replies[0], /ban-status endpoint/i);
 });
 
-test('bancheck debug mode returns safe diagnostics without raw response values', async () => {
-    const replies = [];
-
-    await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
-        args: ['2348077528901', '--debug'],
-        reply: async value => replies.push(value)
+test('bancheck reports a banned number as banned', async () => {
+    stubFetch({
+        success: true,
+        data: { number: '23*****901', status: 'Unsafe', banned: true, info: { device: 'Android', email: 'Unknown' } }
     });
+    const replies = [];
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['2348077528901'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        global.fetch = realFetch;
+    }
 
-    assert.equal(lastBanOptions.diagnostic, true);
+    assert.match(replies[0], /Status: Unsafe/i);
+    assert.match(replies[0], /Ban detected: YES/i);
+});
+
+test('bancheck debug mode returns safe diagnostics without raw response values', async () => {
+    stubFetch({
+        success: true,
+        data: { number: '23*****901', status: 'Safe', banned: false, info: { device: 'Unknown', email: 'Unknown' } }
+    });
+    const replies = [];
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['2348077528901', '--debug'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        global.fetch = realFetch;
+    }
+
     assert.match(replies[0], /Diagnostics \(safe metadata only\)/i);
-    assert.match(replies[0], /HTTP status: 400/i);
-    assert.match(replies[0], /Body keys: unexpected/i);
-    assert.doesNotMatch(replies[0], /raw-response-value|appeal_token/i);
+    assert.match(replies[0], /Ban detected: NO/i);
+    assert.match(replies[0], /Data keys: number/i);
 });

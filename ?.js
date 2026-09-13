@@ -529,6 +529,23 @@ try {
                 }
             }
 
+            // ── PASSIVE MODERATION HOOKS ────────────────────────────────
+            // Runs exactly ONCE per message, and early enough that no
+            // reply-driven consumer (greet button, shazam, tic-tac-toe,
+            // plogme toggle) or the command router can short-circuit the
+            // event before it. Previously these ran last, so a user could
+            // bypass anti-link / anti-forward / anti-viewonce /
+            // anti-groupstatus just by replying to a game or a shazam result.
+            // src/Plugin/crysMsg.js must NOT re-run these: doing so made every
+            // violation delete + notify twice.
+            try { await require('./src/Commands/Admin/antigm.js').handleAntiGM?.(sock, m, mek); } catch (err) { console.error('[ANTIGM ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antigroupstatus.js').handleAntiGroupStatus?.(sock, m, mek); } catch (err) { console.error('[ANTIGROUPSTATUS ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antibot.js').handleAntiBot?.(sock, m, mek); } catch (err) { console.error('[ANTIBOT ERROR]', err?.stack || err?.message || String(err)); }
+            try { await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek); } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, m, mek); } catch (err) { console.error('[ANTIFORWARD ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, m, mek); } catch (err) { console.error('[ANTILINK ERROR]', err.message); }
+            try { await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(sock, m, mek); } catch (err) { console.error('[AUTOVV ERROR]', err.message); }
+
             try {
                 const antitag = require('./src/Commands/Admin/antitag.js');
                 if (antitag?.handleAntiTag) await antitag.handleAntiTag(sock, m);
@@ -645,16 +662,6 @@ try {
                 }
             } catch {}
 
-            // Run passive moderation and view-once hooks before command/chatbot
-            // handlers can short-circuit the event. These hooks inspect ordinary
-            // messages; command messages remain handled by handleMessage below.
-            try { await require('./src/Commands/Admin/antigm.js').handleAntiGM?.(sock, m, mek); } catch (err) { console.error('[ANTIGM ERROR]', err.message); }
-            try { await require('./src/Commands/Admin/antigroupstatus.js').handleAntiGroupStatus?.(sock, m, mek); } catch (err) { console.error('[ANTIGROUPSTATUS ERROR]', err.message); }
-            try { await require('./src/Commands/Admin/antibot.js').handleAntiBot?.(sock, m, mek); } catch (err) { console.error('[ANTIBOT ERROR]', err?.stack || err?.message || String(err)); }
-            try { await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek); } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
-            try { await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, m, mek); } catch (err) { console.error('[ANTIFORWARD ERROR]', err.message); }
-            try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, m, mek); } catch (err) { console.error('[ANTILINK ERROR]', err.message); }
-            try { await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(sock, m, mek); } catch (err) { console.error('[AUTOVV ERROR]', err.message); }
             try { await require('./src/Commands/Converter/vvcmd.js').handleVVReply?.(sock, m); } catch (err) { console.error('[VV ERROR]', err.message); }
 
             await handleMessage(sock, m, customStore);
