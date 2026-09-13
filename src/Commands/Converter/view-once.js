@@ -44,6 +44,19 @@ function unwrapViewOnce(message) {
   }
   return content;
 }
+const VIEW_ONCE_KEYS = ['viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'];
+
+// Deep scan for the view-once envelope. WhatsApp nests it inside ephemeral,
+// documentWithCaption and editedMessage wrappers; the previous check only
+// walked the top level plus ephemeralMessage, so AutoVV silently ignored
+// real captioned view-once media.
+function isViewOnceEnvelope(message, seen = new WeakSet()) {
+  if (!message || typeof message !== 'object' || seen.has(message)) return false;
+  seen.add(message);
+  if (VIEW_ONCE_KEYS.some(key => Boolean(message[key]))) return true;
+  return Object.values(message).some(value => isViewOnceEnvelope(value, seen));
+}
+
 async function downloadMedia(content) {
   const type = Object.keys(content || {})[0];
   if (!['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'].includes(type)) return null;
@@ -228,21 +241,8 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
 
     // Detect whether this is a view-once message by checking for the
     // wrapper keys at ANY nesting depth (ephemeral → viewOnce → media).
-    const VIEW_ONCE_KEYS = [
-      'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'
-    ];
-    const isViewOnce = (obj) => {
-      if (!obj || typeof obj !== 'object') return false;
-      for (const k of VIEW_ONCE_KEYS) {
-        if (obj[k]) return true;
-      }
-      // Also check if the message has viewOnce flag inside an ephemeral wrapper
-      if (obj.ephemeralMessage?.message) return isViewOnce(obj.ephemeralMessage.message);
-      return false;
-    };
-
-    const hasViewOnceEnvelope = isViewOnce(rawEnvelope) ||
-      isViewOnce(m?.message) || isViewOnce(m?.msg);
+    const hasViewOnceEnvelope = isViewOnceEnvelope(rawEnvelope) ||
+      isViewOnceEnvelope(m?.message) || isViewOnceEnvelope(m?.msg);
     if (!hasViewOnceEnvelope) return false;
 
     const messageId = mek?.key?.id || m?.key?.id;
@@ -307,3 +307,5 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     return false;
   }
 };
+
+module.exports.isViewOnceEnvelope = isViewOnceEnvelope;

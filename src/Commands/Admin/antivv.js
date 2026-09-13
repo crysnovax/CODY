@@ -1,6 +1,8 @@
 const { createAntiMessageModeration } = require('../../Plugin/antiMessageModeration');
 
 // ─── DETECTOR: does this message contain a view-once media envelope? ───
+// Deep scan: handleModeration passes { raw, message, msg, serialized } and
+// WhatsApp nests view-once inside ephemeral/documentWithCaption wrappers.
 function isViewOnceMessage(message, seen = new WeakSet()) {
     if (!message || typeof message !== 'object' || seen.has(message)) return false;
     seen.add(message);

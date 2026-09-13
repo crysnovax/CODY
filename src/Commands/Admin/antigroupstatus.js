@@ -1,23 +1,21 @@
 const { createAntiMessageModeration } = require('../../Plugin/antiMessageModeration');
 const { normalizeJid } = require('../../Plugin/identityUtils');
 
-const NESTED_MESSAGE_KEYS = [
-    'ephemeralMessage',
-    'viewOnceMessage',
-    'viewOnceMessageV2',
-    'viewOnceMessageV2Extension',
-    'documentWithCaptionMessage'
-];
+// Deep scan. handleModeration hands this detector a payload shaped like
+// { raw, message, msg, serialized }, and WhatsApp nests the group-status
+// envelope inside ephemeral / view-once / documentWithCaption wrappers.
+// A fixed key list only followed those wrappers one level down from the
+// message itself, so the payload never matched and this hook could not fire.
+function isGroupStatusMessage(message, seen = new WeakSet()) {
+    if (!message || typeof message !== 'object' || seen.has(message)) return false;
+    seen.add(message);
 
-function isGroupStatusMessage(message) {
-    if (!message || typeof message !== 'object') return false;
+    // The envelope WhatsApp wraps around a group story.
     if (message.groupStatusMessage || message.groupStatusMessageV2) return true;
+    // Marker plogme adds with the `groupStatus: true` send flag.
+    if (message.contextInfo?.isGroupStatus === true) return true;
 
-    for (const value of Object.values(message)) {
-        if (value?.contextInfo?.isGroupStatus === true) return true;
-    }
-
-    return NESTED_MESSAGE_KEYS.some(key => isGroupStatusMessage(message[key]?.message));
+    return Object.values(message).some(value => isGroupStatusMessage(value, seen));
 }
 
 function isUserJid(jid = '') {

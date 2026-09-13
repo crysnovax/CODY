@@ -1,1 +1,132 @@
-const a0_0x15bee1=a0_0x5339;function a0_0x5339(_0x5a025c,_0x274279){_0x5a025c=_0x5a025c-0x18a;const _0x565380=a0_0x5653();let _0x53392f=_0x565380[_0x5a025c];return _0x53392f;}(function(_0x9662c7,_0x1fdca5){const _0x438cf5=a0_0x5339,_0x19fcb2=_0x9662c7();while(!![]){try{const _0x116939=-parseInt(_0x438cf5(0x198))/0x1+parseInt(_0x438cf5(0x196))/0x2+parseInt(_0x438cf5(0x1a3))/0x3*(-parseInt(_0x438cf5(0x1a5))/0x4)+-parseInt(_0x438cf5(0x1ac))/0x5+parseInt(_0x438cf5(0x19f))/0x6+-parseInt(_0x438cf5(0x1a0))/0x7*(-parseInt(_0x438cf5(0x191))/0x8)+parseInt(_0x438cf5(0x1b4))/0x9*(-parseInt(_0x438cf5(0x1a8))/0xa);if(_0x116939===_0x1fdca5)break;else _0x19fcb2['push'](_0x19fcb2['shift']());}catch(_0x57407d){_0x19fcb2['push'](_0x19fcb2['shift']());}}}(a0_0x5653,0x8f876));function a0_0x5653(){const _0x85f168=['9tacEOo','axios','No\x20media\x20found\x20for:\x20','platform','sendMessage','find','\x20·\x20','downloadall','3040144PimZFr','.unidownload\x20<url>','unid','length','quality','1405888JxCKqS','udl','235397HWtTOj','.unidownload\x20https://vt.tiktok.com/ZSCBFL8DM/','message','is_no_watermark','audio','error','video/mp4','2976582ZYPSqf','21ADKvjh','❤️‍🩹','video','15pgSeGy','type','690028sJKGAz','medias','chat','1903720jBterh','trim','Unknown','status','2314485QrClKK','media_count','unidownload','key','https://docs.prexzyapis.com/download/aio?url=','url','Download\x20from\x20all\x20social\x20media\x20platforms','audio/mpeg'];a0_0x5653=function(){return _0x85f168;};return a0_0x5653();}const axios=require(a0_0x15bee1(0x18a));module['exports']={'name':a0_0x15bee1(0x1ae),'alias':[a0_0x15bee1(0x193),a0_0x15bee1(0x197),a0_0x15bee1(0x190)],'desc':a0_0x15bee1(0x1b2),'category':'Search','usage':a0_0x15bee1(0x192),'examples':[a0_0x15bee1(0x199)],'reactions':{'start':'📥','success':a0_0x15bee1(0x1a1),'error':'❔'},'execute':async(_0xa947aa,_0x42dad0,{args:_0x3c5ca6,reply:_0x542ad1})=>{const _0x5a5234=a0_0x15bee1,_0x29e0a9=_0x3c5ca6[0x0]?.[_0x5a5234(0x1a9)]();if(!_0x29e0a9)return _0x542ad1('Usage:\x20.unidownload\x20<url>');await _0xa947aa['sendMessage'](_0x42dad0['chat'],{'react':{'text':'📥','key':_0x42dad0[_0x5a5234(0x1af)]}});try{const {data:_0x195be4}=await axios['get'](_0x5a5234(0x1b0)+encodeURIComponent(_0x29e0a9),{'timeout':0x7530});if(!_0x195be4[_0x5a5234(0x1ab)]||!_0x195be4['medias']?.[_0x5a5234(0x194)])return await _0xa947aa[_0x5a5234(0x18d)](_0x42dad0[_0x5a5234(0x1a7)],{'react':{'text':'❔','key':_0x42dad0[_0x5a5234(0x1af)]}}),_0x542ad1(_0x5a5234(0x18b)+_0x29e0a9);const _0x56bf22=_0x195be4['medias']['find'](_0x1c64dc=>_0x1c64dc['type']===_0x5a5234(0x1a2)&&_0x1c64dc[_0x5a5234(0x19b)])||_0x195be4['medias'][_0x5a5234(0x18e)](_0x56bd0d=>_0x56bd0d[_0x5a5234(0x1a4)]===_0x5a5234(0x1a2)),_0x173f26=_0x195be4[_0x5a5234(0x1a6)][_0x5a5234(0x18e)](_0x4662c7=>_0x4662c7[_0x5a5234(0x1a4)]===_0x5a5234(0x19c));if(_0x56bf22){const _0x690a4=((_0x195be4[_0x5a5234(0x18c)]||_0x5a5234(0x1aa))+_0x5a5234(0x18f)+(_0x56bf22[_0x5a5234(0x195)]||''))[_0x5a5234(0x1a9)]();await _0xa947aa[_0x5a5234(0x18d)](_0x42dad0[_0x5a5234(0x1a7)],{'video':{'url':_0x56bf22[_0x5a5234(0x1b1)]},'caption':_0x690a4||'','mimetype':_0x5a5234(0x19e)},{'quoted':_0x42dad0});}_0x173f26&&_0x195be4[_0x5a5234(0x1ad)]>0x1&&await _0xa947aa['sendMessage'](_0x42dad0['chat'],{'audio':{'url':_0x173f26['url']},'mimetype':_0x5a5234(0x1b3)},{'quoted':_0x42dad0}),await _0xa947aa[_0x5a5234(0x18d)](_0x42dad0[_0x5a5234(0x1a7)],{'react':{'text':_0x5a5234(0x1a1),'key':_0x42dad0['key']}});}catch(_0x2a6543){console[_0x5a5234(0x19d)]('[UNIDOWNLOAD\x20ERROR]',_0x2a6543[_0x5a5234(0x19a)]),await _0xa947aa[_0x5a5234(0x18d)](_0x42dad0['chat'],{'react':{'text':'❔','key':_0x42dad0[_0x5a5234(0x1af)]}}),_0x542ad1('Error\x20downloading\x20media.');}}};
+// unid (universal downloader) — powered by the prexzy aio v2 endpoint.
+//
+// GET https://prexzyapis.com/download/aiov2?url=<encoded>
+//   { status, platform, result: { without_water_mark_mp4, water_mark_mp4, mp3,
+//     desc, author, thumb, cover, pics: [...] } }
+//
+// The old docs.prexzyapis.com/download/aio endpoint is retired.
+const axios = require('axios');
+
+const API_URL = 'https://prexzyapis.com/download/aiov2?url=';
+const MAX_IMAGES = 10;
+
+function pickUrl(...values) {
+    return values.find(value => typeof value === 'string' && /^https?:\/\//i.test(value)) || null;
+}
+
+function normalizeResult(data) {
+    const result = data?.result || data?.data || {};
+
+    const video = pickUrl(
+        result.without_water_mark_mp4,
+        result.without_water_mark_video,
+        result.water_mark_mp4,
+        result.water_mark_video,
+        result.no_watermark,
+        result.video,
+        result.hd,
+        result.sd,
+        result.url
+    );
+    const audio = pickUrl(result.mp3, result.music, result.audio, result.audio_url);
+
+    const images = [];
+    const rawPics = result.pics || result.images || result.photos || [];
+    if (Array.isArray(rawPics)) {
+        for (const item of rawPics) {
+            const url = typeof item === 'string' ? item : pickUrl(item?.url, item?.image, item?.download, item?.src);
+            if (url) images.push(url);
+        }
+    }
+
+    return {
+        video,
+        audio,
+        images,
+        platform: data?.platform || result.platform || 'Media',
+        author: result.author || result.username || result.uploader || '',
+        title: (result.desc || result.description || result.title || '').trim(),
+        duration: Number(result.duration) || 0,
+        thumbnail: pickUrl(result.thumb, result.cover, result.thumbnail)
+    };
+}
+
+function buildCaption(media) {
+    const parts = [`🌐 ${media.platform}`];
+    if (media.author) parts.push(`👤 ${media.author}`);
+    if (media.duration) parts.push(`⏱️ ${media.duration}s`);
+    let caption = parts.join(' · ');
+    if (media.title) {
+        const title = media.title.length > 220 ? `${media.title.slice(0, 220)}...` : media.title;
+        caption += `\n\n${title}`;
+    }
+    return caption;
+}
+
+module.exports = {
+    name: 'unidownload',
+    alias: ['unid', 'udl', 'downloadall'],
+    desc: 'Download from all social media platforms',
+    category: 'Search',
+    usage: '.unidownload <url>',
+    examples: ['.unidownload https://vt.tiktok.com/ZSCBFL8DM/'],
+    reactions: { start: '📥', success: '❤️‍🩹', error: '❔' },
+
+    execute: async (sock, m, { args, reply }) => {
+        const url = args[0]?.trim();
+        if (!url) return reply('Usage: .unidownload <url>');
+
+        await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
+
+        try {
+            const { data } = await axios.get(API_URL + encodeURIComponent(url), { timeout: 30000 });
+
+            if (data?.status === false || data?.success === false || !data?.result) {
+                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
+                return reply(`No media found for: ${url}`);
+            }
+
+            const media = normalizeResult(data);
+            const caption = buildCaption(media);
+            let delivered = 0;
+
+            if (media.video) {
+                await sock.sendMessage(m.chat, {
+                    video: { url: media.video },
+                    mimetype: 'video/mp4',
+                    caption
+                }, { quoted: m });
+                delivered++;
+            }
+
+            for (const image of media.images.slice(0, MAX_IMAGES)) {
+                await sock.sendMessage(m.chat, {
+                    image: { url: image },
+                    caption: delivered === 0 ? caption : ''
+                }, { quoted: m });
+                delivered++;
+            }
+
+            if (!media.video && media.audio) {
+                await sock.sendMessage(m.chat, {
+                    audio: { url: media.audio },
+                    mimetype: 'audio/mpeg'
+                }, { quoted: m });
+                delivered++;
+            }
+
+            if (!delivered) {
+                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
+                return reply(`No downloadable media found for: ${url}`);
+            }
+
+            await sock.sendMessage(m.chat, { react: { text: '❤️‍🩹', key: m.key } });
+        } catch (error) {
+            console.error('[UNIDOWNLOAD ERROR]', error.message);
+            await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } }).catch(() => {});
+            reply('Error downloading media.');
+        }
+    }
+};
+
+module.exports.normalizeResult = normalizeResult;

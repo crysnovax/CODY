@@ -1,5 +1,19 @@
 const registry = new Map();
 
+/* First-come-first-served fallback key: "story" -> "story2" -> "story3" ...
+ * Two commands (or a name and another command's alias) must never silently
+ * cancel each other out. Previously a colliding NAME dropped the whole command
+ * (it stayed unreachable forever) and a colliding ALIAS was silently ignored.
+ * Now the newcomer is registered under a suffixed name/alias instead, so both
+ * commands keep working. The winner is untouched, so nothing that already
+ * worked can regress. */
+const resolveFreeKey = (base) => {
+    if (!registry.has(base)) return base;
+    let suffix = 2;
+    while (registry.has(`${base}${suffix}`)) suffix++;
+    return `${base}${suffix}`;
+};
+
 /* Add command (Singleton Safe) */
 const addCommand = (cmd) => {
     if (!cmd?.name || typeof cmd.execute !== 'function') return false;
@@ -7,11 +21,12 @@ const addCommand = (cmd) => {
     const name = cmd.name.toLowerCase();
 
     if (registry.has(name)) {
-    //    console.warn(`[CMD COLLISION] "${name}" is already registered; skipping duplicate`);
-        return false;
+        const fallback = resolveFreeKey(name);
+        console.warn(`[CMD COLLISION] name "${name}" already registered; loading ${cmd.name} as "${fallback}"`);
+        registry.set(fallback, cmd);
+    } else {
+        registry.set(name, cmd);
     }
-
-    registry.set(name, cmd);
 
     // Register aliases safely
     if (Array.isArray(cmd.alias)) {
@@ -22,7 +37,9 @@ const addCommand = (cmd) => {
             if (!registry.has(alias)) {
                 registry.set(alias, cmd);
             } else if (registry.get(alias) !== cmd) {
-              //  console.warn(`[CMD COLLISION] alias "${alias}" for "${name}" is already registered`);
+                const fallback = resolveFreeKey(alias);
+                console.warn(`[CMD COLLISION] alias "${alias}" for "${name}" already registered; adding "${fallback}"`);
+                registry.set(fallback, cmd);
             }
         }
     }

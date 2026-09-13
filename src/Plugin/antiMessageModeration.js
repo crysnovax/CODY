@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { normalizeJid, resolvePhoneJid } = require('./identityUtils');
+const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('./identityUtils');
 const { stripBotMarkerDeep } = require('./antiText');
 
 function readJson(filePath) {
@@ -95,13 +95,19 @@ function createAntiMessageModeration({
             if (!metadata?.participants) return false;
 
             const senderCandidates = [m.key?.participantAlt, mek?.key?.participantAlt, m.sender, m.key?.participant];
-            const senderJid = await resolvePhoneJid(sock, senderCandidates);
-            const senderIdentity = normalizeJid(m.sender || m.key?.participant || senderJid || '');
-            if (!senderJid || !senderIdentity) return false;
-
             const senderRecord = metadata.participants.find(participant =>
                 participantJids(participant).some(jid => senderCandidates.some(candidate => sameUser(jid, candidate)))
             );
+            // LID-first groups can arrive before the LID→PN mapping exists, and
+            // resolvePhoneJid then returns null — which silently disabled every
+            // anti hook. Fall back to the phone number carried by the group
+            // metadata participant we already matched.
+            const senderJid = await resolvePhoneJid(sock, senderCandidates)
+                || participantJids(senderRecord || {}).find(isPhoneJid)
+                || null;
+            const senderIdentity = normalizeJid(m.sender || m.key?.participant || senderJid || '');
+            if (!senderJid || !senderIdentity) return false;
+
             if (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin') return false;
 
             const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);

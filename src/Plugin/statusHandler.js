@@ -157,7 +157,9 @@ const setupStatusHandler = (sock) => {
         }
     });
 
-    setInterval(() => seen.clear(), 30 * 60 * 1000);
+    // unref: a cache-clear timer must never be the handle that keeps the
+    // process (or a test runner) alive once everything else is done.
+    setInterval(() => seen.clear(), 30 * 60 * 1000).unref?.();
 };
 
 module.exports = { setupStatusHandler };

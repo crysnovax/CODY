@@ -1,8 +1,6 @@
 // crysMsg.js
 const { getCommand, getAll } = require('./crysCmd');
 const { getVar }     = require('./configManager');
-const { handleAntiLink } = require('../Commands/Admin/antilink');
-const { handleAutoVV } = require('../Commands/Converter/view-once');
 const { normalizeDeployButton, normalizeDeployButtonMessage } = require('./deployButtonRouter');
 const chalk = require('chalk');
 const fs    = require('fs');
@@ -150,24 +148,12 @@ const handleMessage = async (sock, m, store) => {
         if (!m || !m.message) return;
         if (m.key?.remoteJid === 'status@broadcast') return;
 
-        // Auto-VV must run on the raw message before command parsing because a
-        // view-once media message normally has no command text. The handler is
-        // opt-in per chat and returns true only after successful delivery.
-        if (await handleAutoVV(sock, m, m)) return;
-
-        // Run content moderation before command parsing. The antilink command
-        // has a legacy handler; newer protections expose handleModeration.
-        // Pass the full normalized message so moderation plugins can access
-        // both the decoded content and the original key/participant metadata.
-        await handleAntiLink(sock, m, m);
-        for (const command of new Set(getAll().values())) {
-            if (command === getCommand('antilink') || typeof command.handleModeration !== 'function') continue;
-            try {
-                await command.handleModeration(sock, m, m);
-            } catch (moderationError) {
-                console.error('[MODERATION ERROR]', moderationError.message);
-            }
-        }
+        // NOTE: passive moderation (antilink / anti-vv / anti-forward /
+        // anti-groupstatus / auto-vv / antigm) is intentionally NOT run here.
+        // It is invoked exactly once per message by the message handler in
+        // ?.js, before this router. Running it in both places made every
+        // violation delete the message and post its notice twice (and the
+        // second delete always failed because the message was already gone).
 
         // Reply-driven games get first chance to consume their move.
         for (const command of new Set(getAll().values())) {

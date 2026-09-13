@@ -1,125 +1,118 @@
-// movieintel_v2.js
+// movieintel (Mvi.js) — powered by the prexzy search endpoint.
+//
+// GET https://prexzyapis.com/search?q=<query>
+//   { status, query, total, results: { pager, items: [ { title, releaseDate,
+//     genre, imdbRatingValue, countryName, description, cover: { url },
+//     detailPath, season } ] } }
+//
+// The old docs.prexzyapis.com/moviesearch endpoint is retired.
 const axios = require('axios');
 const config = require('../../../settings/config');
 
 const BOT_NAME = config.botname || process.env.BOTNAME || 'CRYSNOVA';
+const API_URL = 'https://prexzyapis.com/search?q=';
+const MAX_RESULTS = 10;
+
+function itemYear(item) {
+    const date = item?.releaseDate || '';
+    return String(date).slice(0, 4) || 'N/A';
+}
+
+function itemTitle(item) {
+    const season = item?.season ? ` S${item.season}` : '';
+    return `${item?.title || 'Untitled'}${season}`;
+}
+
+function buildCaption(item) {
+    let caption = `🎬 *${itemTitle(item)}*\n\n`;
+    caption += `⭐ *Rating:* ${item.imdbRatingValue || 'N/A'}\n`;
+    caption += `📅 *Year:* ${itemYear(item)}\n`;
+    caption += `🎭 *Genres:* ${item.genre || 'N/A'}\n`;
+    caption += `🌍 *Country:* ${item.countryName || 'N/A'}\n`;
+
+    const plot = (item.description || '').trim();
+    if (plot) {
+        caption += `\n📝 *Plot:* ${plot.length > 300 ? `${plot.slice(0, 300)}...` : plot}\n`;
+    }
+    return caption;
+}
+
+function getResults(data) {
+    const items = data?.results?.items;
+    return Array.isArray(items) ? items : [];
+}
 
 module.exports = {
     name: 'movieintel',
     alias: ['moviei', 'filmintel', 'movies'],
     desc: 'Search movies with interactive carousel',
     category: 'Search',
-    usage: '.movieintel <movie name>',
+    usage: `${prefix}movieintel <movie name>`,
     examples: ['.movieintel The boys', '.moviei Avengers'],
     reactions: { start: '🎬', success: '✨', error: '❕' },
 
     execute: async (sock, m, { args, reply }) => {
         const query = args.join(' ').trim();
-        if (!query) return reply(`彡 *Usage:* .movieintel <movie name>\n\nExample: .movieintel The boys`);
+        if (!query) return reply(`${prefix}彡 *Usage:* movieintel <movie name>\n\nExample: .movieintel The boys`);
 
         await sock.sendMessage(m.chat, { react: { text: '🎬', key: m.key } });
 
         try {
-            const { data } = await axios.get(`https://docs.prexzyapis.com/moviesearch?query=${encodeURIComponent(query)}`);
-            
-            if (!data.status || !data.results?.length) {
+            const { data } = await axios.get(API_URL + encodeURIComponent(query));
+            const results = getResults(data).slice(0, MAX_RESULTS);
+
+            if (!results.length) {
                 await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
                 return reply(`✘ *No results found for:* ${query}`);
             }
 
-            const results = data.results.slice(0, 10);
-
-            // ── BUILD CAROUSEL CARDS ──────────────────────────────────────
-            const cards = results.map((movie) => {
-                // ── BUILD RICH CAPTION WITH ALL INFO ──────────────────
-                let caption = `🎬 *${movie.title}*\n\n`;
-                caption += `⭐ *Rating:* ${movie.rating || 'N/A'}\n`;
-                caption += `⏱️ *Duration:* ${movie.duration || 'N/A'}\n`;
-                caption += `📺 *Quality:* ${movie.quality || 'N/A'}\n`;
-                caption += `📅 *Year:* ${movie.year || 'N/A'}\n`;
-                caption += `🎭 *Genres:* ${movie.categories?.join(', ') || 'N/A'}\n`;
-                caption += `🌍 *Countries:* ${movie.countries?.join(', ') || 'N/A'}\n`;
-                
-                // ── PLOT ──
-                if (movie.plot || movie.synopsis || movie.description) {
-                    const plot = (movie.plot || movie.synopsis || movie.description || '').substring(0, 300);
-                    caption += `\n📝 *Plot:* ${plot}${plot.length >= 300 ? '...' : ''}\n`;
-                }
-                
-                // ── CAST ──
-                if (movie.cast && movie.cast.length) {
-                    const castList = movie.cast.slice(0, 5).join(', ');
-                    caption += `🎭 *Cast:* ${castList}${movie.cast.length > 5 ? ` +${movie.cast.length - 5} more` : ''}\n`;
-                }
-                
-                // ── DIRECTOR ──
-                if (movie.director) {
-                    caption += `🎬 *Director:* ${movie.director}\n`;
-                }
-
-                // ── ADD WATCH BUTTONS ──
-                const buttons = [
+            const cards = results.map((item) => ({
+                image: { url: item?.cover?.url },
+                caption: buildCaption(item),
+                footer: `☁︎ ${BOT_NAME} Movie Vault`,
+                nativeFlow: [
                     {
-                        text: '🎬 Watch Now',
-                        url: movie.url
+                        text: '📋 Copy title',
+                        copy: itemTitle(item)
                     }
-                ];
+                ]
+            }));
 
-                // Add trailer if available
-                if (movie.trailerUrl) {
-                    buttons.push({
-                        text: '▶️ Trailer',
-                        url: movie.trailerUrl
-                    });
-                }
-
-                // Add copy link button
-                buttons.push({
-                    text: '📋 Copy Link',
-                    copy: movie.url
-                });
-
-                return {
-                    image: { url: movie.thumbnail },
-                    caption: caption,
-                    footer: `☁︎ ${BOT_NAME} Movie Vault`,
-                    nativeFlow: buttons
-                };
-            });
-
-            // ── SEND AS CAROUSEL ──────────────────────────────────────────
             await sock.sendMessage(m.chat, {
                 text: `🎬 *MOVIE SEARCH: ${query}*`,
-                footer: `Found ${data.total_results || results.length} results · ${BOT_NAME}`,
-                cards: cards
+                footer: `Found ${data?.results?.pager?.totalCount || results.length} results · ${BOT_NAME}`,
+                cards
             }, { quoted: m });
 
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
 
         } catch (error) {
             console.error('[MOVIEINTEL ERROR]', error.message);
-            await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-            
-            // ── FALLBACK: Send as text list ──────────────────────────────
+            await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } }).catch(() => {});
+
+            // ── FALLBACK: Send as a plain text list ──────────────────────
             try {
-                const { data } = await axios.get(`https://docs.prexzyapis.com/moviesearch?query=${encodeURIComponent(query)}`);
-                const results = data.results || [];
+                const { data } = await axios.get(API_URL + encodeURIComponent(query));
+                const results = getResults(data);
                 if (results.length) {
                     let text = `🎬 *MOVIE RESULTS: ${query}*\n\n`;
                     for (let i = 0; i < Math.min(results.length, 8); i++) {
-                        const m = results[i];
-                        text += `${i+1}. *${m.title}* (${m.year || 'N/A'})\n`;
-                        text += `   ⭐ ${m.rating || 'N/A'} | ⏱ ${m.duration || 'N/A'}\n`;
-                        if (m.plot) text += `   📝 ${m.plot.substring(0, 100)}...\n`;
-                        text += `   🏷️ ${m.url}\n\n`;
+                        const item = results[i];
+                        text += `${i + 1}. *${itemTitle(item)}* (${itemYear(item)})\n`;
+                        text += `   ⭐ ${item.imdbRatingValue || 'N/A'}\n`;
+                        text += `   🎭 ${item.genre || 'N/A'}\n\n`;
                     }
                     return reply(text);
                 }
             } catch (fallbackErr) {
                 // Silent fallback
             }
-            
+
             reply(`ⓘ *Error fetching movies.*\n\nTry again later or use a different search term.`);
         }
     }
 };
+
+module.exports.buildCaption = buildCaption;
+module.exports.itemTitle = itemTitle;
+module.exports.getResults = getResults;

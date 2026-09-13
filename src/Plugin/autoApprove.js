@@ -127,7 +127,7 @@ function setupAutoApprove(sock) {
         // refresh the group list every 10th tick (~5 minutes)
         if (tickCount % 10 === 0) refreshApprovalGroups(sock);
         tick(sock);
-    }, 30000);
+    }, 30000).unref?.();
 
     // refresh immediately when group metadata changes (new group / approval
     // toggled on) so we never wait up to 5 minutes

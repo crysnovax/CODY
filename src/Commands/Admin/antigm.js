@@ -44,7 +44,11 @@ function isStatusMention(mek) {
 // ── Command ────────────────────────────────────────────────────
 module.exports = {
     name: 'antigm',
-    alias: ['antigroupmention', 'antigroupmsg', 'antigroupstatus', 'antieveryone'],
+    // NOTE: 'antigroupstatus' must never be claimed here. addCommand() is
+    // first-come-first-served, so this alias made the dedicated
+    // Admin/antigroupstatus.js command fail to register and ".antigroupstatus
+    // on" silently enabled anti-group-MENTION instead of anti-group-status.
+    alias: ['antigroupmention', 'antigroupmsg', 'antieveryone'],
     desc: 'Prevent status mentions in group',
     category: 'Tools',
     groupOnly: true,

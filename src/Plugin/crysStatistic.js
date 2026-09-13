@@ -17,7 +17,7 @@ const crysStatistic = (app, io) => {
             global.crysStats.uptime = Math.floor((Date.now() - global.crysStats.startTime) / 1000);
             io.emit('stats-update', global.crysStats);
         }
-    }, 5000);
+    }, 5000).unref?.();
 };
 
 module.exports = { crysStatistic };
