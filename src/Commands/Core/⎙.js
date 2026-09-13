@@ -5,6 +5,8 @@
  * ╚══════════════════════════════════════╝
  */
 
+const { _internals: { buildSponsorPayload } } = require('./sponsor');
+
 module.exports = {
     name: 'repo',
     alias: ['source', 'cody'],
@@ -56,6 +58,10 @@ module.exports = {
                 image: { url: REPO_IMG },
                 caption
             }, { quoted: m });
+
+            if (typeof sock.sendRichButtonGrid === 'function') {
+                await sock.sendRichButtonGrid(m.key.remoteJid, buildSponsorPayload(), { quoted: m });
+            }
         } catch (e) {
             console.log('[Repo command error]', e.message);
             await reply(caption);
