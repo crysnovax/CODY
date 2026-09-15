@@ -210,7 +210,7 @@ module.exports = {
     desc: 'Post a status to the group',
     category: 'Admin',
     groupOnly: true,
-    adminOnly: true,
+    adminOnly: false,
 
     execute: async (sock, m, { text, args, reply, command }) => {
         try {
