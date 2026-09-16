@@ -22,7 +22,7 @@ const addCommand = (cmd) => {
 
     if (registry.has(name)) {
         const fallback = resolveFreeKey(name);
-        console.warn(`[CMD COLLISION] name "${name}" already registered; loading ${cmd.name} as "${fallback}"`);
+  //      console.warn(`[CMD COLLISION] name "${name}" already registered; loading ${cmd.name} as "${fallback}"`);
         registry.set(fallback, cmd);
     } else {
         registry.set(name, cmd);
@@ -38,7 +38,7 @@ const addCommand = (cmd) => {
                 registry.set(alias, cmd);
             } else if (registry.get(alias) !== cmd) {
                 const fallback = resolveFreeKey(alias);
-                console.warn(`[CMD COLLISION] alias "${alias}" for "${name}" already registered; adding "${fallback}"`);
+     //           console.warn(`[CMD COLLISION] alias "${alias}" for "${name}" already registered; adding "${fallback}"`);
                 registry.set(fallback, cmd);
             }
         }
