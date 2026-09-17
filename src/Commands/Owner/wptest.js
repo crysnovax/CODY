@@ -40,7 +40,7 @@ function themeList() {
 
 module.exports = {
     name: 'teststicker',
-    alias: ['wptest', 'wallpaperids', 'testwallpaper'],
+    alias: ['wptest'],
     desc: 'Test sticker audio and WhatsApp chat themes',
     category: 'Owner',
     ownerOnly: true,
