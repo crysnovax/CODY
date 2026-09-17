@@ -64,7 +64,7 @@
     "pdfkit": "^0.17.2",
     "pino": "^8.17.2",
     "play-dl": "^1.9.7",
-    "plogme": "github:crysnovax/baileys#feat/protocol-3000-album-updates",
+    "plogme": "github:crysnovax/baileys#fix/chat-theme-quoted-message",
     "qrcode": "^1.5.4",
     "ruhend-scraper": "^9.0.5",
     "sharp": "^0.35.3",
