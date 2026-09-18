@@ -145,10 +145,13 @@ module.exports = {
             const isSendResponse = !wantsRaw && isWhatsAppSendResponse(result);
             
             if (isSendResponse) {
-                // Filter out WhatsApp send responses - just react silently
-            //    await sock.sendMessage(m.chat, { react: { text: '🍁', key: m.key } }).catch(() => {});
-                // Don't show any output
-                if (!consoleOutput) return;
+                // Do not hide successful protocol-only sends (for example
+                // chatTheme/colorSchemeId).  They return a normal WA message
+                // key but have no visible message body, so report the key.
+                if (!consoleOutput) {
+                    const messageId = result.key?.id || 'unknown';
+                    output = `Sent successfully (message id: ${messageId})`;
+                }
             } else if (result !== undefined) {
                 // Show result normally (including m.quoted, m.isGroup, etc.)
                 let resultStr;
