@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { generateWAMessageFromContent } = require('@crysnovax/baileys');
+const { generateWAMessageFromContent } = require('plogme');
 
 /**
  * Sends an HTML payload through the FOAHtmlPrimitiveDemoDONOTUSE rich-response
