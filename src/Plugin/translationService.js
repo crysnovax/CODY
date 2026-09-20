@@ -14,6 +14,12 @@ function extractGoogle(data) {
     return translated || null;
 }
 
+function extractMyMemory(data) {
+    const translated = data?.responseData?.translatedText?.trim();
+    if (String(data?.responseStatus) !== '200' || !translated) return null;
+    return translated;
+}
+
 async function translate(text, targetLanguage) {
     const source = String(text || '').trim();
     const target = normalizeLanguage(targetLanguage);
@@ -38,13 +44,13 @@ async function translate(text, targetLanguage) {
     const memoryUrl = process.env.TRANSLATION_MEMORY_URL || 'https://api.mymemory.translated.net/get';
     try {
         const response = await axios.get(memoryUrl, {
-            params: { q: source, langpair: `auto|${target}` },
+            params: { q: source, langpair: `autodetect|${target}` },
             timeout: 12_000,
             validateStatus: status => status >= 200 && status < 300
         });
-        const translated = response.data?.responseData?.translatedText?.trim();
-        if (response.data?.responseStatus === 200 && translated) {
-            return { translated, from: 'auto' };
+        const translated = extractMyMemory(response.data);
+        if (translated) {
+            return { translated, from: response.data?.responseData?.detectedLanguage || 'auto' };
         }
         failures.push('MyMemory returned no translation');
     } catch (error) {
@@ -55,4 +61,4 @@ async function translate(text, targetLanguage) {
     throw new Error(`Translation service unavailable${detail}`);
 }
 
-module.exports = { normalizeLanguage, translate };
+module.exports = { normalizeLanguage, extractGoogle, extractMyMemory, translate };
