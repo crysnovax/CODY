@@ -33,7 +33,7 @@ function createAntiMessageModeration({
     function ensureConfig(db, group) {
         if (!db[group]) db[group] = { enabled: false, action: 'delete' };
         if (typeof db[group].enabled !== 'boolean') db[group].enabled = false;
-        if (!['delete', 'warn', 'kick'].includes(db[group].action)) db[group].action = 'delete';
+        if (!['delete', 'warn', 'kick', 'tkick'].includes(db[group].action)) db[group].action = 'delete';
         return db[group];
     }
 
@@ -52,17 +52,22 @@ function createAntiMessageModeration({
 
             if (!subcommand || subcommand === 'status') {
                 const action = config.action === 'warn' ? 'WARN (3x → KICK)' : config.action.toUpperCase();
-                return reply(`*${label} Settings*\n\n• Status : ${config.enabled ? 'ON' : 'OFF'}\n• Action : ${action}\n\nCommands:\n• .${command} on / off\n• .${command} delete / warn / kick\n• .${command} resetwarn @user`);
+                return reply(`*${label} Settings*\n\n• Status : ${config.enabled ? 'ON' : 'OFF'}\n• Action : ${action}\n\nCommands:\n• .${command} on / off\n• .${command} delete / warn / kick / tkick [5m]\n• .${command} resetwarn @user`);
             }
             if (subcommand === 'on' || subcommand === 'off') {
                 config.enabled = subcommand === 'on';
                 writeJson(dbPath, db);
                 return reply(`*${label}* ${config.enabled ? 'enabled' : 'disabled'}.`);
             }
-            if (['delete', 'warn', 'kick'].includes(subcommand)) {
+            if (['delete', 'warn', 'kick', 'tkick'].includes(subcommand)) {
                 config.action = subcommand;
+                if (subcommand === 'tkick' && args[1]) config.tkickDuration = String(args[1]);
                 writeJson(dbPath, db);
-                const detail = subcommand === 'warn' ? '3 warnings = automatic kick' : `${subcommand} violating messages`;
+                const detail = subcommand === 'warn'
+                    ? '3 warnings = automatic kick'
+                    : subcommand === 'tkick'
+                        ? `temporary kick${config.tkickDuration ? ` (${config.tkickDuration})` : ''}`
+                        : `${subcommand} violating messages`;
                 return reply(`*${label} action:* ${subcommand.toUpperCase()} (${detail}).`);
             }
             if (subcommand === 'resetwarn') {
@@ -75,7 +80,7 @@ function createAntiMessageModeration({
                 writeJson(warningDbPath, warnings);
                 return reply(`Warnings reset for @${target.split('@')[0]}`, { mentions: [target] });
             }
-            return reply(`Usage: .${command} on | off | delete | warn | kick | resetwarn @user`);
+            return reply(`Usage: .${command} on | off | delete | warn | kick | tkick [5m] | resetwarn @user`);
         }
     };
 
@@ -130,25 +135,37 @@ function createAntiMessageModeration({
             const removeMessage = deleteMessage
                 ? () => deleteMessage(sock, m, mek, removalContext)
                 : () => sock.sendMessage(m.chat, { delete: mek?.key || m.key });
+            const action = ['delete', 'warn', 'kick', 'tkick'].includes(config.action) ? config.action : 'delete';
+            let removalError;
             try {
                 await removeMessage();
             } catch (error) {
-                await sock.sendMessage(m.chat, { text: `${label} detected prohibited content, but WhatsApp rejected the delete request. The bot is already recognized as an admin; check the server log for the protocol error.` }, { quoted: mek }).catch(() => {});
+                removalError = error;
                 console.error(`[${command.toUpperCase()} DELETE ERROR]`, error?.stack || error?.message || error);
-                return false;
+                if (action === 'delete') {
+                    await sock.sendMessage(m.chat, { text: `${label} detected prohibited content, but WhatsApp rejected the delete request. The bot is already recognized as an admin; check the server log for the protocol error.` }, { quoted: mek }).catch(() => {});
+                    return false;
+                }
             }
 
-            const action = ['delete', 'warn', 'kick'].includes(config.action) ? config.action : 'delete';
             const mention = `@${senderJid.split('@')[0]}`;
             const sendNotice = text => sock.sendMessage(m.chat, { text, mentions: [senderJid] }, { quoted: mek }).catch(() => {});
+            const deletionNote = removalError ? ' WhatsApp rejected content deletion, but the moderation action was still applied.' : '';
 
             if (action === 'delete') {
-                await sendNotice(`${mention} ${violationLabel} are not allowed here. The content was deleted.`);
+                await sendNotice(`${mention} ${violationLabel} are not allowed here. The content was deleted.${deletionNote}`);
                 return true;
             }
             if (action === 'kick') {
-                await sendNotice(`${mention} was removed for ${violationLabel}.`);
+                await sendNotice(`${mention} was removed for ${violationLabel}.${deletionNote}`);
                 await sock.groupParticipantsUpdate(m.chat, [senderJid], 'remove');
+                return true;
+            }
+            if (action === 'tkick') {
+                const { parseTime, tkick } = require('./tkick');
+                const duration = parseTime(config.tkickDuration || '5m') || 5 * 60 * 1000;
+                await sendNotice(`${mention} was temporarily removed for ${violationLabel}.${deletionNote}`);
+                await tkick(sock, m.chat, senderJid, duration, `Anti ${label}`);
                 return true;
             }
 
@@ -158,12 +175,12 @@ function createAntiMessageModeration({
             if (count >= 3) {
                 delete warnings[warningKey];
                 writeJson(warningDbPath, warnings);
-                await sendNotice(`${mention} was removed after 3/3 warnings for ${violationLabel}.`);
+                await sendNotice(`${mention} was removed after 3/3 warnings for ${violationLabel}.${deletionNote}`);
                 await sock.groupParticipantsUpdate(m.chat, [senderJid], 'remove');
             } else {
                 warnings[warningKey] = { count, user: normalizeJid(senderJid) };
                 writeJson(warningDbPath, warnings);
-                await sendNotice(`${mention} warning ${count}/3: ${violationLabel} are not allowed.`);
+                await sendNotice(`${mention} warning ${count}/3: ${violationLabel} are not allowed.${deletionNote}`);
             }
             return true;
         } catch (error) {
