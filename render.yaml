@@ -2,6 +2,8 @@ services:
   - type: web
     name: cody-whatsapp-bot
     runtime: node
+    repo: https://github.com/crysnovax/CODY
+    branch: main
     plan: free
     region: frankfurt
     buildCommand: npm ci --omit=dev
