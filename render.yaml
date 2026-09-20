@@ -1,15 +1,10 @@
 services:
   - type: web
     name: cody-whatsapp-bot
-    repo: https://github.com/crysnovax/CODY
-    branch: main
     runtime: node
     plan: free
-    rootDir: .
-    buildCommand: npm ci --omit=dev
+    buildCommand: npm install
     startCommand: node index.js
-    autoDeploy: true
-    healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: 22
