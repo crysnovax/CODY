@@ -3,8 +3,10 @@ services:
     name: cody-whatsapp-bot
     runtime: node
     plan: free
-    buildCommand: npm install
-    startCommand: node index.js
+    region: frankfurt
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: 22
