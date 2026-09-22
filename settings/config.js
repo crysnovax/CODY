@@ -25,6 +25,19 @@ const getBoolean = (key, userValue, fallback) => {
     return parseBoolean(userValue, fallback);
 };
 
+// The deploy starter writes MODE=public|private (not PUBLIC_MODE), so the
+// value chosen at deploy time was silently ignored and the bot always ran with
+// the default. Both spellings are honoured here; PUBLIC_MODE still wins when
+// both are present. Env vars are read once, at startup, before runtime
+// overrides — later `.setvar` changes are never clobbered by the environment.
+// (@crysnovax—FIX22-09-26)
+const MODE_ENV = String(process.env.MODE || '').trim().toLowerCase();
+const modeToPublic = () => {
+    if (['public', 'group', 'all', 'everyone'].includes(MODE_ENV)) return true;
+    if (['private', 'self', 'selfbot', 'owner'].includes(MODE_ENV)) return false;
+    return undefined;
+};
+
 /*
 ──────────────────────────────────────────
 Load User Config (optional JSON override)
@@ -125,7 +138,12 @@ const config = {
     // BOT STATUS / MODE (ZEE BOT .env style)
     // ════════════════════════════════════════════
     status: {
-        public:   getBoolean('PUBLIC_MODE', userConfig?.bot?.public, true),
+        public: (() => {
+            if (process.env.PUBLIC_MODE !== undefined) return parseBoolean(process.env.PUBLIC_MODE, true);
+            const mapped = modeToPublic();
+            if (mapped !== undefined) return mapped;
+            return getBoolean('PUBLIC_MODE', userConfig?.bot?.public, true);
+        })(),
         terminal: getBoolean('TERMINAL_MODE', userConfig?.bot?.terminal, true),
         reactsw:  getBoolean('REACT_STATUS', userConfig?.bot?.reactsw, true)
     },
@@ -138,7 +156,7 @@ const config = {
         autoTyping:    getBoolean('AUTO_TYPING', userConfig?.bot?.autoTyping, false),
         autoRecording: getBoolean('AUTO_RECORDING', userConfig?.bot?.autoRecording, false),
         alwaysOnline:  getBoolean('ALWAYS_ONLINE', userConfig?.bot?.alwaysOnline, true),
-        selfBot:       getBoolean('SELF_BOT', userConfig?.bot?.selfBot, false)
+        selfBot:       getBoolean('SELF_BOT', userConfig?.bot?.selfBot, ['self', 'selfbot'].includes(MODE_ENV))
     },
 
     // ════════════════════════════════════════════
@@ -158,14 +176,17 @@ const config = {
             'CRYSNOVA AI',
 
         prefix: (() => {
-            const envPrefix = process.env.PREFIX;
-            if (envPrefix !== undefined) {
-                return (envPrefix === 'null' || envPrefix === '') ? '' : envPrefix;
-            }
-
+            // Runtime (`.setvar PREFIX`) wins so an in-bot change is never
+            // re-overridden by the environment; then `.env`/deploy value, then
+            // the stored user config. (@crysnovax—FIX22-09-26)
             const runtimePrefix = getVar('PREFIX');
             if (runtimePrefix !== undefined && runtimePrefix !== null) {
                 return (runtimePrefix === 'null' || runtimePrefix === '') ? '' : runtimePrefix;
+            }
+
+            const envPrefix = process.env.PREFIX;
+            if (envPrefix !== undefined) {
+                return (envPrefix === 'null' || envPrefix === '') ? '' : envPrefix;
             }
 
             const userPrefix = userConfig?.bot?.prefix;

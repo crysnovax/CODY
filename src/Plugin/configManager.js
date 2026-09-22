@@ -56,9 +56,40 @@ const setVar = (key, value) => {
 const getVar = (key, fallback = null) => {
     if (!runtime) load();
 
-    return Object.prototype.hasOwnProperty.call(runtime, key)
-        ? runtime[key]
-        : fallback;
+    // Runtime (`.setvar`) always wins — it is the user's in-bot change and must
+    // never be re-overridden by the environment.
+    if (Object.prototype.hasOwnProperty.call(runtime, key)) return runtime[key];
+
+    // PREFIX special case: PREFIX is read as `getVar('PREFIX', '.')` all over
+    // the bot, so a PREFIX provided by `.env`/the deploy script used to be
+    // replaced by '.' in those call sites and appeared to be ignored. Returning
+    // the env value here fixes every caller at once. A PREFIX='' or 'null' in
+    // .env still means "no prefix mode". (@crysnovax—FIX22-09-26)
+    if (key === 'PREFIX') {
+        const envPrefix = process.env.PREFIX;
+        if (envPrefix !== undefined && envPrefix !== null) {
+            return (envPrefix === 'null' || envPrefix === '') ? '' : String(envPrefix);
+        }
+    }
+
+    return fallback;
+};
+
+/*
+ * Resolve the command prefix everywhere the same way.
+ *
+ * Precedence is runtime (`.setvar PREFIX`) → `.env`/process env → '.'. The
+ * deploy value therefore applies from the first start, while any later change
+ * made inside the bot keeps winning — the environment never re-overrides it.
+ * (The router previously read ONLY the runtime value with a hard '.' default,
+ * so a PREFIX set in .env was ignored for command dispatch entirely.)
+ * Returned value is '' for no-prefix mode (PREFIX empty or "null").
+ * (@crysnovax—FIX22-09-26)
+ */
+const resolvePrefix = () => {
+    const raw = getVar('PREFIX', '.');
+    if (raw === undefined || raw === null) return '.';
+    return (raw === 'null' || raw === '') ? '' : String(raw);
 };
 
 /* Delete variable */
@@ -90,5 +121,6 @@ module.exports = {
     getVar,
     delVar,
     allVars,
-    resetAll
+    resetAll,
+    resolvePrefix
 };

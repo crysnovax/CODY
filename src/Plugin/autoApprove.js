@@ -20,17 +20,30 @@ let interval = null;
 let approvalGroups = []; // group metadata of groups with join-approval mode on
 let tickCount = 0;
 let sockRef = null;
+// The socket is closed during a disconnect/reconnect. Polling it then threw on
+// every tick and flooded the console with "[AUTO-APPROVE] refresh failed:
+// Connection Closed" until the server was restarted. We now track the live
+// connection state and stay quiet while it is down. (@crysnovax—FIX22-09-26)
+let connected = false;
+let consecutiveFailures = 0;
 
 const isApprovalGroup = (g) =>
     !!g && (g.joiningApprovalMode === true || g.joinApprovalMode === true);
 
 async function refreshApprovalGroups(sock) {
     try {
+        if (!sock || !connected) return;
         if (typeof sock.groupFetchAllParticipating !== 'function') return;
         const groups = await sock.groupFetchAllParticipating();
         approvalGroups = Object.values(groups || {}).filter(isApprovalGroup);
+        consecutiveFailures = 0;
     } catch (err) {
-        console.error('[AUTO-APPROVE] refresh failed:', err.message);
+        consecutiveFailures++;
+        // Report the first failure, then only every 10th one so a flapping
+        // connection cannot fill the console. (@crysnovax—FIX22-09-26)
+        if (consecutiveFailures === 1 || consecutiveFailures % 10 === 0) {
+            console.error('[AUTO-APPROVE] refresh failed:', err.message);
+        }
     }
 }
 
@@ -116,23 +129,38 @@ async function tick(sock) {
 }
 
 function setupAutoApprove(sock) {
+    // Always adopt the NEW socket: after a reconnect the old one is dead, and
+    // the previous early-return left every interval bound to it.
+    // (@crysnovax—FIX22-09-26)
     sockRef = sock;
+
+    try {
+        sock.ev?.on?.('connection.update', ({ connection } = {}) => {
+            connected = connection === 'open';
+            if (connected) { consecutiveFailures = 0; refreshApprovalGroups(sockRef); }
+        });
+    } catch {}
+    // Best-effort initial state: an already-open socket reports 'open' again on
+    // its next update, so also allow a refresh when the socket looks usable.
+    if (sock?.user) connected = true;
+
     if (interval) return;
 
-    refreshApprovalGroups(sock);
+    refreshApprovalGroups(sockRef);
     console.log('[AUTO-APPROVE] started — polling join requests every 30s');
 
     interval = setInterval(() => {
+        if (!connected) return;
         tickCount++;
         // refresh the group list every 10th tick (~5 minutes)
-        if (tickCount % 10 === 0) refreshApprovalGroups(sock);
-        tick(sock);
+        if (tickCount % 10 === 0) refreshApprovalGroups(sockRef);
+        tick(sockRef);
     }, 30000).unref?.();
 
     // refresh immediately when group metadata changes (new group / approval
     // toggled on) so we never wait up to 5 minutes
     try {
-        sock.ev?.on?.('groups.upsert', () => refreshApprovalGroups(sock).catch(() => {}));
+        sock.ev?.on?.('groups.upsert', () => refreshApprovalGroups(sockRef).catch(() => {}));
         sock.ev?.on?.('group-participants.update', () => {
             // a leave can remove a member from pending; just re-poll next tick
         });

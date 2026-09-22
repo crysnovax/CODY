@@ -105,8 +105,13 @@ module.exports = {
                     plogme.setGlobalPrivateEnabled(false);
                     return reply('`✘ DISABLED` — no auto-replies in DMs (send ' + (prefix || '.') + 'plogme on all to re-enable)');
                 }
+                // OFF must mean OFF. Previously `.plogme off` only cleared this
+                // chat's toggle, so a DM kept auto-replying through the global
+                // "on all" flag and the setting looked impossible to disable.
+                // (@crysnovax—FIX22-09-26)
                 plogme.setEnabled(m.chat, false);
-                return reply('`✘ DISABLED` — no auto-replies in this chat (send ' + (prefix || '.') + 'plogme on to re-enable)');
+                plogme.setGlobalPrivateEnabled(false);
+                return reply('`✘ DISABLED` — no auto-replies in this chat or DMs (send ' + (prefix || '.') + 'plogme on to re-enable)');
             }
             case 'mode': {
                 const mode = (args[1] || '').toLowerCase();
@@ -146,6 +151,7 @@ module.exports = {
                     `│ 🛠️ Dev mode     : ${plogme.isDev() ? '✓ ON' : 'OFF'}\n` +
                     `│ 📎 Facts        : ${plogme.getFacts().length}\n` +
                     `│ 🧠 This chat    : ${plogme.isEnabled(m.chat) ? '✓ ON' : 'OFF'} (mode: ${plogme.getMode(m.chat)})\n` +
+                    `│ 📥 DMs (all)    : ${plogme.isGlobalPrivateEnabled() ? '✓ ON' : 'OFF'}\n` +
                     `╰──────────────────`
                 );
             }

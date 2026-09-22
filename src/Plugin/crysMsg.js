@@ -1,6 +1,6 @@
 // crysMsg.js
 const { getCommand, getAll } = require('./crysCmd');
-const { getVar }     = require('./configManager');
+const { getVar, resolvePrefix } = require('./configManager');
 const { normalizeDeployButton, normalizeDeployButtonMessage } = require('./deployButtonRouter');
 const chalk = require('chalk');
 const fs    = require('fs');
@@ -166,8 +166,9 @@ const handleMessage = async (sock, m, store) => {
         }
 
         // ── PREFIX — supports null/empty for no-prefix mode ──
-        let prefix = getVar('PREFIX', '.');
-        if (prefix === 'null' || prefix === '') prefix = '';
+        // Uses the shared resolver so `.env`/deploy PREFIX is honoured while a
+        // runtime `.setvar PREFIX` still wins. (@crysnovax—FIX22-09-26)
+        let prefix = resolvePrefix();
 
         // CMD_REACT — command reactions (was AUTO_REACT). @crysnovax—FIX06-08-26
         const cmdReact     = getVar('CMD_REACT', getVar('AUTO_REACT', true));
@@ -381,11 +382,25 @@ const handleMessage = async (sock, m, store) => {
         }
 
     } catch (err) {
-        console.log(chalk.red('[MSG ERROR]'), err.message);
-        if (cmdReact) {
-            sock.sendMessage(m.chat, { react: { text: cmd?.reactions?.error || '🚧', key: m.key } }).catch(() => {});
+        console.log(chalk.red('[MSG ERROR]'), err?.message || err);
+        // cmdReact / cmdName / ownerNum / prefix / senderNum are declared INSIDE
+        // the try block above, so they are not in scope here. Touching them
+        // directly threw a second ReferenceError from the error handler itself,
+        // which surfaced as an unhandled rejection and lost the owner report.
+        // `typeof` is safe for names that are out of scope.
+        // (@crysnovax—FIX22-09-26)
+        if (typeof cmdReact !== 'undefined' && cmdReact) {
+            sock.sendMessage(m.chat, { react: { text: '🚧', key: m.key } }).catch(() => {});
         }
-        await reportErrorToOwner(sock, m, ownerNum, prefix, cmdName, senderNum, err);
+        if (typeof ownerNum !== 'undefined' && ownerNum) {
+            await reportErrorToOwner(
+                sock, m, ownerNum,
+                typeof prefix === 'undefined' ? '.' : prefix,
+                typeof cmdName === 'undefined' ? '?' : cmdName,
+                typeof senderNum === 'undefined' ? '' : senderNum,
+                err
+            );
+        }
     }
 };
 
