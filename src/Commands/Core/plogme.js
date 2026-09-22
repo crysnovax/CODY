@@ -54,7 +54,7 @@ const axios = {
     post: (url, body, options = {}) => httpRequest('POST', url, body, options)
 };
 const { execSync } = require('child_process');
-const { getVar } = require('../../Plugin/configManager');
+const { getVar, resolvePrefix } = require('../../Plugin/configManager');
 const missions = require('./plogme-missions');
 const dependencies = require('./plogme-dependencies');
 const { runHealthChecks } = require('./plogme-health');
@@ -738,7 +738,7 @@ async function writeFileWithAgentFix(absPath, content, opts, maxTries = 3) {
 /* ───────────────────────── control actions (privileged only) ───────────────────────── */
 async function runCommandAction(sock, m, opts, target) {
     const { getCommand } = require('../../Plugin/crysCmd');
-    const prefix = getVar('PREFIX', '.');
+    const prefix = resolvePrefix();
     let raw = String(target || '').trim();
     if (raw.startsWith(prefix)) raw = raw.slice(prefix.length).trim();
     const [cmdName, ...rest] = raw.split(/\s+/);
@@ -897,9 +897,13 @@ async function handleControlIntent(sock, m, opts, text) {
             next = state ? state.toLowerCase() === 'on' : verb === 'enable';
         }
         setEnabled(m.chat, next);
+        // Turning PLOGME off must also clear the global DM auto-reply, otherwise
+        // a DM keeps answering through the "on all" flag and OFF appears broken.
+        // (@crysnovax—FIX22-09-26)
+        if (!next) setGlobalPrivateEnabled(false);
         await opts.reply(next
             ? '`✓ ENABLED` — auto-replies ON in this chat (send .plogme off to disable)'
-            : '`✘ DISABLED` — no auto-replies in this chat (send .plogme on to re-enable)');
+            : '`✘ DISABLED` — no auto-replies in this chat or DMs (send .plogme on to re-enable)');
         return true;
     }
 

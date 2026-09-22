@@ -40,7 +40,9 @@ function extractText(m) {
     if (msg.videoMessage?.caption) return stripBotMarker(msg.videoMessage.caption);
     if (msg.documentMessage?.caption) return stripBotMarker(msg.documentMessage.caption);
     if (msg.audioMessage?.caption) return stripBotMarker(msg.audioMessage.caption);
-    if (m.quoted?.text) return stripBotMarker(m.quoted.text);
+    // NOTE: never fall back to `m.quoted.text` — doing so flagged a member who
+    // merely replied to a message containing a banned word.
+    // (@crysnovax—FIX22-09-26)
     return '';
 }
 

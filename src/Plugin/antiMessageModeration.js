@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('./identityUtils');
-const { stripBotMarkerDeep } = require('./antiText');
+const { stripBotMarkerDeep, stripQuotedDeep } = require('./antiText');
 
 function readJson(filePath) {
     if (!fs.existsSync(filePath)) return {};
@@ -86,11 +86,17 @@ function createAntiMessageModeration({
 
     plugin.handleModeration = async function handleModeration(sock, m, mek) {
         try {
+            // Only the message the member actually sent is inspected. The
+            // quoted message (contextInfo.quotedMessage / serialized `.quoted`)
+            // is removed so replying to a forwarded / view-once / flagged
+            // message can never be treated as sending one.
+            // (@crysnovax—FIX22-09-26)
+            const sanitize = value => stripQuotedDeep(stripBotMarkerDeep(value));
             const detectionPayload = {
-                raw: stripBotMarkerDeep(mek?.__rawMessage || mek?.message || {}),
-                message: stripBotMarkerDeep(m.message || {}),
-                msg: stripBotMarkerDeep(m.msg || {}),
-                serialized: stripBotMarkerDeep(m)
+                raw: sanitize(mek?.__rawMessage || mek?.message || {}),
+                message: sanitize(m.message || {}),
+                msg: sanitize(m.msg || {}),
+                serialized: sanitize(m)
             };
             if (!m.isGroup || m.key?.fromMe || !detector(detectionPayload)) return false;
             const config = readJson(dbPath)[m.chat];

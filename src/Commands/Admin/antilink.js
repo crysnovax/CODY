@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { stripBotMarker } = require('../../Plugin/antiText');
+const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antilink.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antilink_warns.json');
@@ -45,7 +45,10 @@ function getMessageText(value, seen = new WeakSet()) {
     for (const key of ['conversation', 'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title']) {
         if (typeof value[key] === 'string' && stripBotMarker(value[key]).trim()) texts.push(stripBotMarker(value[key]).trim());
     }
-    for (const child of Object.values(value)) {
+    for (const [key, child] of Object.entries(value)) {
+        // Never follow the quoted message — a reply that quotes a link is not
+        // itself sending a link. (@crysnovax—FIX22-09-26)
+        if (key === 'quotedMessage' || key === 'quoted') continue;
         if (child && typeof child === 'object') texts.push(...getMessageText(child, seen));
     }
     return texts;
@@ -324,19 +327,18 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         if (!cfg.enabled) return;
 
         // ── Extract text from ALL message types + extendedTextMessage fix ──
-        const msg = {
+        // Quoted content is stripped first: replying to a link must not be
+        // treated as sending one. (@crysnovax—FIX22-09-26)
+        const msg = stripQuotedDeep({
             ...(mek?.message || {}),
             ...(m.message || {}),
             ...(m.msg || {})
-        };
+        });
 
         const parts = [
             stripBotMarker(m.text),
             stripBotMarker(m.body),
             ...getMessageText(msg),
-            ...getMessageText(mek?.message),
-            ...getMessageText(m.message),
-            ...getMessageText(m.msg),
         ].filter(Boolean);
         const text = [...new Set(parts)].join(' ');
 

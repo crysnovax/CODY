@@ -395,9 +395,13 @@ setupPromotionGuard(sock);
                 if (antiedit?.cacheOriginal) antiedit.cacheOriginal(mek.key.id, mek.message);
             } catch (err) {}
 
+            // AUTO_READ from .env must actually take effect: the runtime var
+            // wins, but the deploy/env value is the fallback instead of a hard
+            // `false`. (@crysnovax—FIX22-09-26)
+            const envAutoRead = config?.mode?.autoRead ?? false;
             const shouldAutoRead = m.isGroup
-                ? getVar('AUTO_READ_GROUP', false)
-                : getVar('AUTO_READ', false);
+                ? getVar('AUTO_READ_GROUP', envAutoRead)
+                : getVar('AUTO_READ', envAutoRead);
             if (shouldAutoRead) {
                 await sock.readMessages([mek.key]).catch(() => {});
             }
