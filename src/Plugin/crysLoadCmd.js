@@ -4,6 +4,25 @@ const chalk = require('chalk');
 
 const { addCommand, clearRegistry } = require('./crysCmd');
 
+/* Folder name is the single source of truth for a command's category.
+ * Many command files carry stale metadata (e.g. Admin/antigm.js declaring
+ * "Tools"), which scattered commands across unrelated menu sections. The
+ * loader now overrides cmd.category with the folder it was loaded from.
+ * Folders whose names aren't display-worthy are remapped here — keys are
+ * folder names stripped to [a-z0-9] so unicode filenames match reliably. */
+const normalizeFolderKey = (name) =>
+    String(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+const CATEGORY_OVERRIDES = {
+    // "B×͜×☠︎︎" normalizes to "b" — exploit/bug commands, group them under Bug
+    'b': 'Bug',
+    // "Business WhatsApp" folder -> Business
+    'businesswhatsapp': 'Business',
+};
+
+const resolveFolderCategory = (folder) =>
+    CATEGORY_OVERRIDES[normalizeFolderKey(folder)] || folder;
+
 const loadCommands = () => {
 
     // Initialize global prefix before loading commands so ${prefix} in usage fields works
@@ -59,7 +78,8 @@ const loadCommands = () => {
                //     if (typeof cmd.execute !== 'function') {
                  //       throw new TypeError(`command "${cmd.name}" is missing execute()`);
           //          }
-                    if (!cmd.category) cmd.category = cat;
+                    // Folder wins: stale in-file categories must not scatter the menu
+                    cmd.category = resolveFolderCategory(cat);
                     if (addCommand(cmd)) total++;
                 }
 
