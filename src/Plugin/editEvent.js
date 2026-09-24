@@ -40,7 +40,7 @@ function normalizeEditUpdate(entry) {
     // Keep the target message key from the event. In plogme 2.0.5 this is
     // already entry.key; raw protocol events may carry it beside the edit.
     const protocol = update?.protocolMessage || update?.message?.protocolMessage || entry?.message?.protocolMessage;
-    const targetKey = protocol?.key || entry?.key || {};
+    const targetKey = protocol?.key || update?.key || entry?.key || {};
     return {
         ...entry,
         key: targetKey,

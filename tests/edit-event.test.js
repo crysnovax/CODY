@@ -35,6 +35,19 @@ test('normalizes human edit to the target key and direct updated message', () =>
     assert.equal(result.update.id, key.id);
 });
 
+test('normalizes edits when plogme nests the target key inside update.key', () => {
+    const key = { remoteJid: 'group@g.us', id: 'nested-target', participant: 'user@s.whatsapp.net' };
+    const edited = { conversation: 'human group edit' };
+    const result = normalizeEditUpdate({
+        update: { key, message: { editedMessage: { message: edited } } }
+    });
+    assert.equal(result.key, key);
+    assert.equal(result.update.remoteJid, key.remoteJid);
+    assert.equal(result.update.id, key.id);
+    assert.equal(result.update.participant, key.participant);
+    assert.deepEqual(result.message.editedMessage, edited);
+});
+
 test('normalizes protocol edit batches without changing unrelated updates', () => {
     const unchanged = { key: { id: 'other' }, update: { status: 2 } };
     const edited = { conversation: 'edited' };
