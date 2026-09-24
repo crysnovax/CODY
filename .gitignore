@@ -1,2 +1,10 @@
 node_modules/
 .env
+
+# yt-dlp standalone binary — provisioned per host by scripts/fetch-ytdlp.cjs
+vendor/yt-dlp
+vendor/yt-dlp.exe
+vendor/yt-dlp.tmp
+
+# working directory for local yt-dlp downloads (files are deleted after sending)
+downloads/ytdlp/
