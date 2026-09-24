@@ -15,7 +15,7 @@ const quoteOptions = message => ({ quoted: message });
 
 const sendRichMenu = async (sock, message, payload) => {
     if (typeof sock.richMenu !== 'function') {
-        throw new Error('sock.richMenu is unavailable. Install plogme 2.7.12 or newer and restart CODY.');
+        throw new Error('sock.richMenu is unavailable. Install plogme 2.0.5 or newer and restart CODY.');
     }
     return sock.richMenu(message.chat, payload, quoteOptions(message));
 };
@@ -36,8 +36,21 @@ const sendTutorialReels = async (sock, message) => {
 };
 
 const sendRichStep = async (sock, message, step) => {
+    // plogme 2.x owns the AIRich envelope. Sending `richResponse` through
+    // sendMessage is only an ordinary-message payload on current releases.
+    if (typeof sock.sendPlogmeMessage === 'function') {
+        return sock.sendPlogmeMessage(message.chat, {
+            headerText: step.title,
+            contentText: step.title,
+            richResponse: [
+                { text: step.title },
+                { title: step.title, table: step.rows },
+                ...(step.code ? [{ code: [{ codeContent: step.code, highlightType: 0 }], language: 'javascript' }] : [])
+            ]
+        }, message, { renderRichResponse: true, noDonation: true });
+    }
     if (typeof sock.sendMessage !== 'function') {
-        throw new Error('sock.sendMessage is unavailable.');
+        throw new Error('sock.sendPlogmeMessage is unavailable.');
     }
     return sock.sendMessage(message.chat, {
         richResponse: [
@@ -62,7 +75,9 @@ const buildMenuPayload = (menuNonce = randomBytes(6).toString('hex')) => ({
         image: { url: MENU_IMAGE, mime_type: 'image/jpeg' }
     },
     body: {
-        row: true,
+        // plogme 2.0.5 uses `carousel` to select its horizontal rich layout;
+        // the old `row` flag is ignored and produces a broken/empty menu.
+        carousel: true,
         cards: [
             {
                 title: 'Deployment Steps',

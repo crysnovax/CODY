@@ -726,6 +726,39 @@ try {
         }
     });
 
+    const normalizeEditUpdates = updates => (Array.isArray(updates) ? updates : []).map(entry => {
+        const update = entry?.update || {};
+        const protocol = update?.protocolMessage || update?.message?.protocolMessage;
+        const editedMessage = update?.editedMessage || protocol?.editedMessage;
+        if (!editedMessage) return entry;
+        return {
+            ...entry,
+            key: protocol?.key || entry.key,
+            update: { ...update, editedMessage }
+        };
+    });
+
+    const handleDeleteUpdates = async updates => {
+        try {
+            const antidelete = require('./src/Commands/Tools/antidelete.js');
+            if (antidelete?.onDelete) await antidelete.onDelete(sock, updates, customStore);
+        } catch {}
+        try {
+            const quoted = require('./library/quoted.js');
+            if (quoted?.onDelete) await quoted.onDelete(sock, updates, customStore);
+        } catch {}
+    };
+
+    // plogme 2.0.5 emits revocations from other users as messages.delete.
+    // Older/self-generated revocations may still arrive as messages.update.
+    sock.ev.on('messages.delete', async payload => {
+        const keys = Array.isArray(payload) ? payload : (payload?.keys || []);
+        await handleDeleteUpdates(keys.filter(Boolean).map(key => ({
+            key,
+            update: { message: null }
+        })));
+    });
+
     sock.ev.on('messages.update', async (updates) => {
         try {
             const antidelete = require('./src/Commands/Tools/antidelete.js');
@@ -733,7 +766,7 @@ try {
         } catch {}
         try {
             const antiedit = require('./src/Commands/Tools/antiedit.js');
-            if (antiedit?.onEdit) await antiedit.onEdit(sock, updates, customStore);
+            if (antiedit?.onEdit) await antiedit.onEdit(sock, normalizeEditUpdates(updates), customStore);
         } catch {}
         try {
             const quoted = require('./library/quoted.js');

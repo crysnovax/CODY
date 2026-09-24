@@ -88,7 +88,7 @@ test('deploy reports a clear message when richMenu is unavailable', async () => 
     await deploy.execute({}, message, { args: [], reply: text => replies.push(text) });
 
     assert.match(replies[0], /richMenu is unavailable/);
-    assert.match(replies[0], /2\.7\.12/);
+    assert.match(replies[0], /2\.0\.5/);
 });
 
 test('tutorials sends the requested reels grid instead of a rich table', async () => {
