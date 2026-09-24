@@ -13,11 +13,11 @@ const REEL_PROFILE_URL = 'https://cdn.crysnovax.link/files/1787731491020-2b60587
 
 const quoteOptions = message => ({ quoted: message });
 
-const sendRichMenu = async (sock, message, payload) => {
-    if (typeof sock.richMenu !== 'function') {
-        throw new Error('sock.richMenu is unavailable. Install plogme 2.0.5 or newer and restart CODY.');
+const sendDeployMenu = async (sock, message, grid) => {
+    if (typeof sock.sendRichButtonGrid !== 'function') {
+        throw new Error('sock.sendRichButtonGrid is unavailable. Install plogme 2.0.5 or newer and restart CODY.');
     }
-    return sock.richMenu(message.chat, payload, quoteOptions(message));
+    return sock.sendRichButtonGrid(message.chat, grid, quoteOptions(message));
 };
 
 const sendTutorialReels = async (sock, message) => {
@@ -36,28 +36,25 @@ const sendTutorialReels = async (sock, message) => {
 };
 
 const sendRichStep = async (sock, message, step) => {
-    // plogme 2.x owns the AIRich envelope. Sending `richResponse` through
-    // sendMessage is only an ordinary-message payload on current releases.
+    const table = (step.rows || []).map(row => row.items || row);
     if (typeof sock.sendPlogmeMessage === 'function') {
         return sock.sendPlogmeMessage(message.chat, {
             headerText: step.title,
             contentText: step.title,
-            richResponse: [
-                { text: step.title },
-                { title: step.title, table: step.rows },
-                ...(step.code ? [{ code: [{ codeContent: step.code, highlightType: 0 }], language: 'javascript' }] : [])
-            ]
+            title: step.title,
+            table,
+            ...(step.code ? { code: step.code, language: 'javascript' } : {})
         }, message, { renderRichResponse: true, noDonation: true });
     }
     if (typeof sock.sendMessage !== 'function') {
         throw new Error('sock.sendPlogmeMessage is unavailable.');
     }
     return sock.sendMessage(message.chat, {
-        richResponse: [
-            { text: step.title },
-            { title: step.title, table: step.rows },
-            ...(step.code ? [{ code: [{ codeContent: step.code, highlightType: 0 }], language: 'javascript' }] : [])
-        ]
+        headerText: step.title,
+        contentText: step.title,
+        title: step.title,
+        table,
+        ...(step.code ? { code: step.code, language: 'javascript' } : {})
     }, quoteOptions(message));
 };
 
@@ -70,17 +67,12 @@ const button = (id, text, menuNonce) => ({
 });
 
 const buildMenuPayload = (menuNonce = randomBytes(6).toString('hex')) => ({
-    header: {
-        title: 'CODY AI Deployment Guide',
-        image: { url: MENU_IMAGE, mime_type: 'image/jpeg' }
-    },
-    body: {
-        // plogme 2.0.5 uses `carousel` to select its horizontal rich layout;
-        // the old `row` flag is ignored and produces a broken/empty menu.
-        carousel: true,
-        cards: [
+    text: 'CODY AI Deployment Guide\nChoose a deployment step:',
+    footer: 'Select a button to continue',
+    cards: [
             {
                 title: 'Deployment Steps',
+                image: { url: MENU_IMAGE },
                 buttons: [
                     button('step1', 'Step 1 · Discord', menuNonce),
                     button('step2', 'Step 2 · Panel', menuNonce),
@@ -89,6 +81,7 @@ const buildMenuPayload = (menuNonce = randomBytes(6).toString('hex')) => ({
             },
             {
                 title: 'Finish & Help',
+                image: { url: MENU_IMAGE },
                 buttons: [
                     button('step4', 'Step 4 · Upload', menuNonce),
                     button('help', 'Help', menuNonce),
@@ -96,11 +89,6 @@ const buildMenuPayload = (menuNonce = randomBytes(6).toString('hex')) => ({
                 ]
             }
         ]
-    },
-    footer: {
-        text: 'Open a step for the current instructions',
-        url: TUTORIAL5_URL
-    }
 });
 
 const tableRows = (...rows) => [
@@ -167,7 +155,7 @@ const STEPS = {
 const deployCommand = {
     name: 'deploy',
     alias: ['pair'],
-    desc: 'Open the interactive Gen4 CODY deployment guide',
+    desc: 'Open the plogme rich CODY deployment guide',
     category: 'System',
     ownerOnly: true,
     reactions: { start: '📚', success: '✅', error: '❌' },
@@ -176,7 +164,7 @@ const deployCommand = {
 
         try {
             if (action === 'menu' || action === 'start') {
-                await sendRichMenu(sock, message, buildMenuPayload());
+                await sendDeployMenu(sock, message, buildMenuPayload());
                 return;
             }
 
@@ -192,8 +180,7 @@ const deployCommand = {
             const step = STEPS[action];
             if (!step) return reply('Use .deploy or .pair to open the Gen4 guide. Available actions: step1, step2, step3, step4, help, tutorials.');
 
-            // Button clicks deliberately leave Gen4 mode. Each click produces
-            // exactly one quoted richResponse containing the requested content.
+            // Each click produces exactly one quoted plogme rich response.
             await sendRichStep(sock, message, step);
         } catch (error) {
             return reply(`Deployment guide failed: ${error?.message || error}`);
@@ -202,4 +189,4 @@ const deployCommand = {
 };
 
 module.exports = deployCommand;
-module.exports._internals = { buildMenuPayload, STEPS, sendRichStep, sendTutorialReels };
+module.exports._internals = { buildMenuPayload, STEPS, sendDeployMenu, sendRichStep, sendTutorialReels };
