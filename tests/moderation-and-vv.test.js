@@ -80,6 +80,35 @@ test('antigroupstatus registers as its own command and alias', () => {
   assert.equal(getCommand('antigm').name, 'antigm');
 });
 
+// Regression: WhatsApp orders the keys inside a view-once envelope freely, so
+// the media is often not the first one. Taking Object.keys(content)[0] made
+// .vv and AutoVV reject real view-once media as "unsupported".
+test('view-once media is found next to bookkeeping keys in any order', () => {
+  const content = { messageContextInfo: { deviceListMetadataVersion: 2 }, imageMessage: { mimetype: 'image/jpeg' } };
+  assert.deepEqual(vv.findMedia(content), { type: 'imageMessage', media: content.imageMessage });
+  assert.equal(vv.findMedia({ conversation: 'hello' }), null);
+});
+
+// Regression: AutoVV scanned the whole envelope, quoted message included, so
+// replying to a view-once message re-sent media the replier never posted.
+test('AutoVV ignores a reply that merely quotes a view-once message', async () => {
+  const chat = '120363000000000000@g.us';
+  vv.setAutoVV(chat, true);
+  const sent = [];
+  const sock = { sendMessage: async (...args) => sent.push(args), groupMetadata: async () => null };
+  const reply = {
+    extendedTextMessage: {
+      text: 'nice one',
+      contextInfo: { quotedMessage: { viewOnceMessageV2: { message: { imageMessage: {} } } } }
+    }
+  };
+  const m = { chat, key: { id: 'REPLY1', remoteJid: chat, participant: '111@s.whatsapp.net' }, message: reply, msg: reply.extendedTextMessage };
+  const handled = await vv.handleAutoVV(sock, m, { key: m.key, message: reply });
+  assert.equal(handled, false);
+  assert.deepEqual(sent, []);
+  vv.setAutoVV(chat, false);
+});
+
 test('wallpaper command loads without an undefined prefix reference', () => {
   const wallpaper = require('../src/Commands/Search/WP');
   assert.equal(wallpaper.usage, '.wallpaper <query>');
