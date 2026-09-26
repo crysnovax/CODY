@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { downloadContentFromMessage } = require('plogme');
 const { resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
+const { stripBotMarkerDeep, stripQuotedDeep } = require('../../Plugin/antiText');
 
 const DATA_FILE = path.join(__dirname, '../../../database/vv-reactions.json');
 const AUTOVV_FILE = path.join(__dirname, '../../../database/autovv.json');
@@ -45,6 +46,31 @@ function unwrapViewOnce(message) {
   return content;
 }
 const VIEW_ONCE_KEYS = ['viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'];
+const MEDIA_KEYS = ['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'];
+
+// WhatsApp puts `messageContextInfo`, `deviceSentMessage` and other bookkeeping
+// keys alongside the media inside a view-once envelope, and their order is not
+// stable. Picking `Object.keys(content)[0]` therefore resolved to a non-media
+// key and the media was reported as unsupported.
+function findMedia(content, seen = new WeakSet()) {
+  if (!content || typeof content !== 'object' || seen.has(content)) return null;
+  seen.add(content);
+  for (const key of MEDIA_KEYS) {
+    if (content[key]) return { type: key, media: content[key] };
+  }
+  for (const value of Object.values(content)) {
+    const found = findMedia(value, seen);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Only the message the member actually sent may drive AutoVV. A reply carries
+// the quoted message inside contextInfo.quotedMessage, so without this the hook
+// fired on every reply to a view-once message and forwarded unrelated media.
+function sanitizeEnvelope(value) {
+  return stripQuotedDeep(stripBotMarkerDeep(value || {}));
+}
 
 // Deep scan for the view-once envelope. WhatsApp nests it inside ephemeral,
 // documentWithCaption and editedMessage wrappers; the previous check only
@@ -58,9 +84,10 @@ function isViewOnceEnvelope(message, seen = new WeakSet()) {
 }
 
 async function downloadMedia(content) {
-  const type = Object.keys(content || {})[0];
-  if (!['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'].includes(type)) return null;
-  const stream = await downloadContentFromMessage(content[type], type.replace('Message', '').toLowerCase());
+  const found = findMedia(content);
+  if (!found) return null;
+  const { type, media } = found;
+  const stream = await downloadContentFromMessage(media, type.replace('Message', '').toLowerCase());
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
   return { type, buffer: Buffer.concat(chunks) };
@@ -120,16 +147,17 @@ module.exports = {
         }
       }
 
-      const type = Object.keys(quoted)[0];
+      const found = findMedia(quoted);
 
       // ───── SUPPORTED TYPES ─────
-      if (!['imageMessage','videoMessage','stickerMessage','audioMessage'].includes(type)) {
+      if (!found) {
         return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ Only view-once media/audio supported.\n╰──────────────────');
       }
+      const type = found.type;
 
       // ───── DOWNLOAD BUFFER ─────
       const stream = await downloadContentFromMessage(
-        quoted[type],
+        found.media,
         type.replace('Message','').toLowerCase()
       );
 
@@ -181,15 +209,13 @@ module.exports = {
             const msg = await sock.loadMessage(update.key.remoteJid, update.key.id);
             if (!msg?.message) return;
 
-            let content = msg.message;
-            if (content.ephemeralMessage) content = content.ephemeralMessage.message;
-            if (content.viewOnceMessage) content = content.viewOnceMessage.message;
-
-            const t = Object.keys(content)[0];
-            if (!['imageMessage','videoMessage','stickerMessage','audioMessage'].includes(t)) return;
+            const content = unwrapViewOnce(msg.message);
+            const reacted = findMedia(content);
+            if (!reacted) return;
+            const t = reacted.type;
 
             const s = await downloadContentFromMessage(
-              content[t],
+              reacted.media,
               t.replace('Message','').toLowerCase()
             );
 
@@ -237,12 +263,14 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     // Build the raw message envelope — check both mek.message and m.message
     // (smsg may have already copied it over). Also try the wrapper keys
     // directly on mek in case smsg stripped the outer envelope.
-    const rawEnvelope = mek?.__rawMessage || mek?.message || m?.message || m?.msg || {};
+    const rawEnvelope = sanitizeEnvelope(mek?.__rawMessage || mek?.message || m?.message || m?.msg);
+    const ownMessage = sanitizeEnvelope(m?.message);
+    const ownMsg = sanitizeEnvelope(m?.msg);
 
     // Detect whether this is a view-once message by checking for the
     // wrapper keys at ANY nesting depth (ephemeral → viewOnce → media).
     const hasViewOnceEnvelope = isViewOnceEnvelope(rawEnvelope) ||
-      isViewOnceEnvelope(m?.message) || isViewOnceEnvelope(m?.msg);
+      isViewOnceEnvelope(ownMessage) || isViewOnceEnvelope(ownMsg);
     if (!hasViewOnceEnvelope) return false;
 
     const messageId = mek?.key?.id || m?.key?.id;
@@ -263,24 +291,19 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     let media = await downloadMedia(content);
 
     // Fallback: check if m.message has media directly (smsg unwrapped it)
-    if (!media && m?.message) {
-      media = await downloadMedia(m.message);
+    if (!media) {
+      media = await downloadMedia(unwrapViewOnce(ownMessage));
     }
 
     // Last fallback: check m itself (smsg sometimes puts media type at top)
     if (!media) {
-      for (const t of ['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage']) {
-        if (m?.[t]) {
-          const stream = await downloadContentFromMessage(m[t], t.replace('Message', '').toLowerCase());
-          const chunks = [];
-          for await (const chunk of stream) chunks.push(chunk);
-          media = { type: t, buffer: Buffer.concat(chunks) };
-          break;
-        }
-      }
+      media = await downloadMedia(unwrapViewOnce(ownMsg));
     }
 
-    if (!media) return false;
+    if (!media) {
+      if (messageId) processedAutoVV.delete(messageId);
+      return false;
+    }
 
     const senderCandidates = [
       m?.sender,
@@ -309,3 +332,7 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
 };
 
 module.exports.isViewOnceEnvelope = isViewOnceEnvelope;
+module.exports.findMedia = findMedia;
+module.exports.setAutoVV = function setAutoVV(chat, enabled) {
+  autoVVChats[chat] = Boolean(enabled);
+};
