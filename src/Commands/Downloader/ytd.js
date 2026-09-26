@@ -106,3 +106,9 @@ module.exports = {
         }
     }
 };
+
+// Kept public for focused command-level tests; the bot router still uses execute().
+module.exports.extractUrl = extractUrl;
+module.exports.sendKeysFor = sendKeysFor;
+module.exports.sendFromApi = sendFromApi;
+module.exports.sendLocal = sendLocal;
