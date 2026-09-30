@@ -19,8 +19,12 @@ module.exports = {
             return reply(`✓ *Name updated:* ${name}`);
         } catch (err) {
             console.error('[NAME ERROR]', err.message);
-            await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-            return reply(`\`✘ Error: ${err.message}\``);
+            try { await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } }); } catch {}
+            const detail = String(err?.message || err);
+            if (/app state key not present|app-state|bad mac/i.test(detail)) {
+                return reply('`✘ WhatsApp app-state keys are stale. The connection is refreshing; run !setname again after it reconnects.`');
+            }
+            return reply(`\`✘ Error: ${detail}\``);
         }
     }
 };
