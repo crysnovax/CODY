@@ -9,27 +9,15 @@ module.exports = {
         success: '✨'
     },
     
-  execute: async (sock, m) => {
+  execute: async (sock, m, { reply }) => {
     try {
-      if (!m.key.fromMe) return; 
-
-     
-      await sock.chatModify({
-        delete: true,
-        lastMessages: [{ 
-          key: m.key, 
-          messageTimestamp: m.messageTimestamp 
-        }]
-      }, m.chat);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      
-      await sock.sendMessage(m.chat, { 
-        text: '✦ _*clean*_' 
-      });
-
+      if (!m.key.fromMe) return reply('✘ This command is owner-only.');
+      const confirmation = await reply('✦ _*Clearing this chat locally…*_');
+      const target = { key: m.key, messageTimestamp: m.messageTimestamp };
+      await sock.chatModify({ delete: true, lastMessages: [target] }, m.chat);
+      return confirmation;
     } catch (err) {
-      console.error("Wipe Logic Error:", err);
+      console.error('[CLEAR ERROR]', err?.message || err);
+      return reply(`✘ Clear failed: ${err?.message || 'WhatsApp did not accept the request'}`);
     }
-  }
-};
+  }};
