@@ -25,6 +25,7 @@ module.exports = {
       });
     } catch (err) {
       console.error('Wipe Logic Error:', err);
+      await sock.sendMessage(m.chat, { text: `✘ Clear failed: ${err?.message || 'WhatsApp rejected the chat clear request'}` });
     }
   }
 };

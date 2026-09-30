@@ -3,6 +3,7 @@
 const axios = require('axios');
 
 const SNAPSHOT_API = 'https://snapshot.xwolf.space/api';
+const RECORD_ENDPOINT = `${SNAPSHOT_API}/record`;
 const URL_PATTERN = /(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}[^\s]*)/g;
 
 function normalizeUrl(value) {
@@ -32,7 +33,7 @@ function recordingViewport(command) {
 }
 
 async function downloadRecording(targetUrl, viewport = 'desktop', httpClient = axios) {
-    const metadataResponse = await httpClient.get(`${SNAPSHOT_API}/record`, {
+    const metadataResponse = await httpClient.get(RECORD_ENDPOINT, {
         params: { siteUrl: targetUrl, viewport },
         timeout: 120000
     });
@@ -40,15 +41,22 @@ async function downloadRecording(targetUrl, viewport = 'desktop', httpClient = a
     if (!metadata || metadata.status === 'failed') {
         throw new Error(metadata?.error || 'Snapshot could not record the site.');
     }
+    if (metadata.status && metadata.status !== 'completed') {
+        throw new Error(`Snapshot recording did not complete (status: ${metadata.status}).`);
+    }
     if (!metadata.videoUrl) throw new Error('Snapshot returned no video URL.');
 
-    const videoUrl = new URL(metadata.videoUrl, SNAPSHOT_API).toString();
+    const videoUrl = new URL(metadata.videoUrl, `${SNAPSHOT_API}/`).toString();
     const videoResponse = await httpClient.get(videoUrl, {
         responseType: 'arraybuffer',
         timeout: 120000,
         maxContentLength: 50 * 1024 * 1024,
         maxBodyLength: 50 * 1024 * 1024
     });
+    const contentType = String(videoResponse.headers?.['content-type'] || '').toLowerCase();
+    if (contentType && !contentType.includes('video') && !contentType.includes('octet-stream')) {
+        throw new Error(`Snapshot video endpoint returned ${contentType}, not an MP4.`);
+    }
     const buffer = Buffer.from(videoResponse.data);
     if (!buffer.length) throw new Error('Snapshot returned an empty video.');
     return buffer;

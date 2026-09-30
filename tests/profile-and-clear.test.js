@@ -24,7 +24,7 @@ test('setname resyncs app state and retries when the key is missing', async () =
     });
 
     assert.equal(updates, 2);
-    assert.deepEqual(calls.find(call => call.type === 'resync').args, [['regular'], true]);
+    assert.deepEqual(calls.find(call => call.type === 'resync').args, [['regular_high', 'regular_low', 'regular'], true]);
     assert.match(replies[0], /Name updated:.*Cody AI/);
 });
 

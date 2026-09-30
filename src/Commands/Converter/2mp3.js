@@ -18,7 +18,7 @@ function cleanUp(...files) {
 
 module.exports = {
     name: '2mp3',
-    alias: ['tompeg', 'vtoa', 'v2mp3', 'video2mp3'],
+    alias: ['mp3', 'tomp3', 'tompeg', 'vtoa', 'v2mp3', 'video2mp3'],
     desc: 'Convert a replied video to MP3 audio (sent alone, no caption)',
     category: 'Converter',
     usage: '.2mp3 (reply to a video)',
@@ -27,9 +27,9 @@ module.exports = {
     execute: async (sock, m, { reply }) => {
         await sock.sendMessage(m.chat, { react: { text: '🎬', key: m.key } });
 
-        if (!m.quoted || m.quoted.mtype !== 'videoMessage') {
+        if (!m.quoted || !['videoMessage', 'documentMessage'].includes(m.quoted.mtype)) {
             await sock.sendMessage(m.chat, { react: { text: '🙅', key: m.key } });
-            return reply('`✘ Reply to a video to convert it to mp3!`\n_Example: reply to a video + .2mp3_');
+            return reply('`✘ Reply to a video file to convert it to MP3.`\n_Reply to the video, then send !mp3 or !tomp3_');
         }
 
         const ts = Date.now();

@@ -42,9 +42,29 @@ module.exports = {
             // Screenshot each url
             for (const targetUrl of urls) {
                 try {
-                    const api = `https://api-rebix.zone.id/api/ssweb?url=${encodeURIComponent(targetUrl)}&device=${device}`
-                    const res = await axios.get(api, { responseType: 'arraybuffer' })
-                    const buffer = Buffer.from(res.data)
+                    const endpoints = [
+                        `https://snapshot.xwolf.space/api/capture?siteUrl=${encodeURIComponent(targetUrl)}&device=${device}`,
+                        `https://api-rebix.zone.id/api/ssweb?url=${encodeURIComponent(targetUrl)}&device=${device}`
+                    ]
+                    let response
+                    let lastError
+                    for (const api of endpoints) {
+                        try {
+                            const candidate = await axios.get(api, {
+                                responseType: 'arraybuffer',
+                                timeout: 30000,
+                                validateStatus: status => status >= 200 && status < 300
+                            })
+                            const contentType = String(candidate.headers['content-type'] || '').toLowerCase()
+                            if (!contentType.includes('image')) throw new Error(`Unexpected response type: ${contentType || 'unknown'}`)
+                            response = candidate
+                            break
+                        } catch (error) {
+                            lastError = error
+                        }
+                    }
+                    if (!response) throw lastError || new Error('Screenshot service unavailable')
+                    const buffer = Buffer.from(response.data)
 
                     await sock.sendMessage(m.chat, { image: buffer }, { quoted: m })
                 } catch (err) {
