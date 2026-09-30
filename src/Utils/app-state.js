@@ -17,7 +17,8 @@ const withAppStateRecovery = async (sock, operation) => {
         }
 
         try {
-            await sock.resyncAppState(['regular'], true);
+            await sock.resyncAppState(['regular_high', 'regular_low', 'regular'], true);
+            await new Promise(resolve => setTimeout(resolve, 1200));
         } catch (_) {
             // Preserve the actionable original error if the recovery request
             // itself cannot complete (for example, while the socket is offline).
