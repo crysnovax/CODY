@@ -1,3 +1,5 @@
+const { withAppStateRecovery } = require('../../Utils/app-state');
+
 module.exports = {
     name: 'setname',
     alias: ['myname', 'username'],
@@ -12,7 +14,7 @@ module.exports = {
 
         try {
             await sock.sendMessage(m.chat, { react: { text: '✏️', key: m.key } });
-            await sock.updateProfileName(name);
+            await withAppStateRecovery(sock, () => sock.updateProfileName(name));
             await sock.sendMessage(m.chat, { react: { text: '🍃', key: m.key } });
             return reply(`✓ *Name updated:* ${name}`);
         } catch (err) {

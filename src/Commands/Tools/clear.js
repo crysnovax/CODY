@@ -1,23 +1,30 @@
+const { withAppStateRecovery } = require('../../Utils/app-state');
+
 module.exports = {
   name: 'clearchat',
-  alias: ['clear', 'clr','wipe'],
+  alias: ['clear', 'clr', 'wipe'],
   category: 'tools',
   desc: 'Wipe chat then start a new thread with status',
-   // ⭐ Reaction config
-    reactions: {
-        start: '🧹',
-        success: '✨'
-    },
-    
-  execute: async (sock, m, { reply }) => {
+  reactions: {
+    start: '🧹',
+    success: '✨'
+  },
+
+  execute: async (sock, m) => {
     try {
-      if (!m.key.fromMe) return reply('✘ This command is owner-only.');
-      const confirmation = await reply('✦ _*Clearing this chat locally…*_');
-      const target = { key: m.key, messageTimestamp: m.messageTimestamp };
-      await sock.chatModify({ delete: true, lastMessages: [target] }, m.chat);
-      return confirmation;
+      await withAppStateRecovery(sock, () => sock.chatModify({
+        clear: true,
+        lastMessages: [{
+          key: m.key,
+          messageTimestamp: m.messageTimestamp
+        }]
+      }, m.chat));
+
+      await sock.sendMessage(m.chat, {
+        text: '✦ _*clean*_'
+      });
     } catch (err) {
-      console.error('[CLEAR ERROR]', err?.message || err);
-      return reply(`✘ Clear failed: ${err?.message || 'WhatsApp did not accept the request'}`);
+      console.error('Wipe Logic Error:', err);
     }
-  }};
+  }
+};
