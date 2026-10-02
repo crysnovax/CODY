@@ -47,7 +47,7 @@ if (CODY_API_KEY) {
         url: `http://localhost:${process.env.PANEL_API_PORT || 9000}`,
         api_key: CODY_API_KEY
     }).then(() => console.log(chalk.green('✅ Registered with Cody Worker')))
-      .catch(e => console.log(chalk.yellow('⚠️ Cody Worker registration failed:'), e.message));
+      .catch(() => console.log(chalk.yellow('⚠️ Cody Worker registration failed.')));
 } else {
     console.log(chalk.gray('ℹ️ Cody Worker registration skipped (no API key)'));
 }
