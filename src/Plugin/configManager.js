@@ -26,10 +26,9 @@ const load = () => {
 /* Save runtime config */
 const save = () => {
     try {
-        fs.writeFileSync(
-            RUNTIME_FILE,
-            JSON.stringify(runtime, null, 2)
-        );
+        const tempFile = `${RUNTIME_FILE}.tmp-${process.pid}`;
+        fs.writeFileSync(tempFile, `${JSON.stringify(runtime, null, 2)}\n`, 'utf8');
+        fs.renameSync(tempFile, RUNTIME_FILE);
     } catch (e) {
         console.error('configManager save error:', e.message);
     }
@@ -42,10 +41,16 @@ const setVar = (key, value) => {
 
     if (value === 'true') v = true;
     else if (value === 'false') v = false;
-    else if (!isNaN(value) && value !== '') v = Number(value);
+    // Do not run booleans through isNaN(): Number(false) is 0 and Number(true)
+    // is 1, which made `.autoread off` persist as 0 and display as ON.
+    else if (typeof value === 'string' && value.trim() !== '' && !isNaN(value)) v = Number(value);
 
     runtime[key] = v;
     save();
+    // Do not report a successful toggle if the value cannot be read back.
+    if (getVar(key) !== v) {
+        throw new Error(`Failed to persist runtime variable ${key}`);
+    }
 
     // Configuration modules read runtime values through getVar. Do not evict
     // arbitrary dependencies whose path happens to contain "config".

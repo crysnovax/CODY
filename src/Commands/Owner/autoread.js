@@ -24,17 +24,32 @@ module.exports = {
         if (args[0].toLowerCase() === 'group') {
             const mode = String(args[1] || '').toLowerCase();
             if (!['on', 'off'].includes(mode)) return reply('Usage: .autoread group on | .autoread group off');
-            setVar('AUTO_READ_GROUP', mode === 'on');
+            try {
+                setVar('AUTO_READ_GROUP', mode === 'on');
+            } catch (error) {
+                console.error('[AUTOREAD] group persistence failed:', error.message);
+                return reply('✘ Group auto read was not saved. Please try again.');
+            }
             return reply(`🥏 Group auto read: *${mode.toUpperCase()}*`);
         }
 
         if (args[0].toLowerCase() === 'on') {
-            setVar('AUTO_READ', true);
+            try {
+                setVar('AUTO_READ', true);
+            } catch (error) {
+                console.error('[AUTOREAD] persistence failed:', error.message);
+                return reply('✘ Auto read was not saved. Please try again.');
+            }
             return reply('🥏 Auto read: *ON*\n_Bot will mark all messages as read_');
         }
 
         if (args[0].toLowerCase() === 'off') {
-            setVar('AUTO_READ', false);
+            try {
+                setVar('AUTO_READ', false);
+            } catch (error) {
+                console.error('[AUTOREAD] persistence failed:', error.message);
+                return reply('✘ Auto read was not saved. Please try again.');
+            }
             return reply('😩 Auto read: *OFF*');
         }
 
