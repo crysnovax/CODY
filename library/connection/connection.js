@@ -14,7 +14,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const zlib = require('zlib');
 
-const SESSION_PATH = './sessions';
+const SESSION_PATH = path.resolve(process.env.SESSION_PATH || './sessions');
 
 async function getAuthState() {
     if (!fs.existsSync(SESSION_PATH)) {
@@ -35,7 +35,10 @@ async function getAuthState() {
 async function downloadFromKV(shortId) {
     try {
         const CF_WORKER_URL = 'https://id.crysnova.qzz.io';
-        const response = await fetch(`${CF_WORKER_URL}/session/load/${shortId}`);
+        const response = await fetch(`${CF_WORKER_URL}/session/load/${shortId}`, {
+            signal: AbortSignal.timeout(15000)
+        });
+        if (!response.ok) throw new Error(`KV returned HTTP ${response.status}`);
         const result = await response.json();
         
         if (result.sessionData || result.data) {
@@ -208,15 +211,22 @@ const REPLACED_BACKOFF_MS = [15000, 30000, 60000];
 // the session out.
 function cleanAppStateFiles() {
     try {
-        const staleFiles = ['app-state-sync-key.data', 'app-state-sync-version.data'];
-        for (const f of staleFiles) {
-            const fp = path.join(SESSION_PATH, f);
-            if (fs.existsSync(fp)) {
-                fs.removeSync(fp);
-                console.log(`🧹 Removed ${f}`);
-            }
+        if (!fs.existsSync(SESSION_PATH)) return;
+        // Multi-file auth stores app state in one version file plus one or more
+        // app-state-sync-key-*.json files. The old cleanup targeted .data names
+        // that this runtime never creates, so a 500/bad-session loop reused the
+        // broken keys forever. Keep creds, identity and signal keys intact.
+        const stale = fs.readdirSync(SESSION_PATH).filter(name =>
+            /^app-state-sync-key.*\.json$/i.test(name) ||
+            /^app-state-sync-version.*\.json$/i.test(name)
+        );
+        for (const name of stale) {
+            fs.removeSync(path.join(SESSION_PATH, name));
+            console.log(`🧹 Removed stale app-state file ${name}`);
         }
-    } catch (_) {}
+    } catch (error) {
+        console.warn('⚠️ Could not clean app-state files:', error.message);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────

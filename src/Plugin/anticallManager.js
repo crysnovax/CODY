@@ -27,7 +27,14 @@ function loadConfig() {
             return { ...defaultConfig, ...JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) };
         }
     } catch {}
-    return { ...defaultConfig };
+    // The deploy starter may provide the initial value through ANTI_CALL, but
+    // an existing JSON file remains authoritative after first configuration.
+    const envEnabled = process.env.ANTI_CALL;
+    return {
+        ...defaultConfig,
+        enabled: envEnabled === undefined ? defaultConfig.enabled :
+            ['true', '1', 'yes', 'on'].includes(String(envEnabled).trim().toLowerCase())
+    };
 }
 
 function saveConfig(config) {

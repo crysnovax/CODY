@@ -53,7 +53,15 @@ const DEPLOY_CONFIG = {
     PREFIX:           '!',
     MODE:             'public',
     AUTO_READ:        'true',
-    AUTO_STATUS_VIEW: 'false'
+    ALWAYS_ONLINE:    'true',
+    ANTI_CALL:        'false',
+    AUTO_STATUS_VIEW: 'false',
+    AUTO_STATUS_LIKE: 'false',
+    PLOGME_ENABLED:   'false',
+    MENTION_ACTION:   'off',
+    MENTION_EMOJI:    '❤️‍🔥',
+    MENTION_TEXT:     'Busy, back later',
+    AUTO_UPDATE:      'false'
 };
 
 // Keys without which the bot cannot connect / identify its owner.
@@ -64,7 +72,9 @@ const BOT_DIR  = path.join(__dirname, 'bot');
 const ENV_PATH = path.join(BOT_DIR, '.env');
 const CREDS_PATH = path.join(BOT_DIR, 'sessions', 'creds.json');
 
-const reconfigure = process.argv.includes('--reconfigure') || process.env.RECONFIGURE === '1';
+// Configuration is intentionally one-way: only SESSION_ID may be refreshed.
+// All other values are defaults and never overwrite an existing user choice.
+const reconfigure = false;
 
 function readEnvFile(file) {
     const map = new Map();
@@ -101,9 +111,9 @@ function ensureEnvFile() {
     }
 
     const missing = Object.keys(DEPLOY_CONFIG).filter(key => !existing.has(key));
-    const differing = reconfigure
-        ? Object.keys(DEPLOY_CONFIG).filter(key => existing.get(key) !== DEPLOY_CONFIG[key])
-        : [];
+    const differing = existing.has('SESSION_ID') &&
+        existing.get('SESSION_ID') !== DEPLOY_CONFIG.SESSION_ID
+        ? ['SESSION_ID'] : [];
 
     if (!missing.length && !differing.length) {
         log.info('.env already configured — leaving it untouched');
@@ -118,11 +128,11 @@ function ensureEnvFile() {
         log.ok(`.env: added missing keys → ${missing.join(', ')}`);
     }
 
-    if (reconfigure) {
+    if (differing.includes('SESSION_ID')) {
         const map = readEnvFile(ENV_PATH);
-        for (const [key, value] of Object.entries(DEPLOY_CONFIG)) map.set(key, value);
+        map.set('SESSION_ID', DEPLOY_CONFIG.SESSION_ID);
         fs.writeFileSync(ENV_PATH, [...map].map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
-        log.warn(`.env: --reconfigure applied to ${differing.length || 'all'} key(s)`);
+        log.warn('.env: refreshed SESSION_ID; all other existing values were preserved');
     } else {
         const kept = Object.keys(DEPLOY_CONFIG).filter(
             key => existing.has(key) && existing.get(key) !== DEPLOY_CONFIG[key]
@@ -186,6 +196,27 @@ function run(command, cwd, label) {
     }
 }
 
+function writeJsonIfMissing(file, value) {
+    if (fs.existsSync(file)) return;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
+}
+
+function ensureRuntimeDefaults() {
+    writeJsonIfMissing(path.join(BOT_DIR, 'database', 'autoupdate.json'), {
+        enabled: DEPLOY_CONFIG.AUTO_UPDATE === 'true'
+    });
+    writeJsonIfMissing(path.join(BOT_DIR, 'database', 'plogme_global_priv.json'), {
+        enabled: DEPLOY_CONFIG.PLOGME_ENABLED === 'true'
+    });
+    writeJsonIfMissing(path.join(BOT_DIR, 'database', 'mention_config.json'), {
+        active: DEPLOY_CONFIG.MENTION_ACTION !== 'off',
+        action: DEPLOY_CONFIG.MENTION_ACTION === 'react' || DEPLOY_CONFIG.MENTION_ACTION === 'text' ? DEPLOY_CONFIG.MENTION_ACTION : '',
+        emoji: DEPLOY_CONFIG.MENTION_EMOJI,
+        text: DEPLOY_CONFIG.MENTION_TEXT
+    });
+}
+
 async function firstTimeSetup() {
     log.step('First-time setup');
 
@@ -204,6 +235,7 @@ async function firstTimeSetup() {
 
     fs.mkdirSync(BOT_DIR, { recursive: true });
     ensureEnvFile();
+    ensureRuntimeDefaults();
 
     if (!fs.existsSync(CREDS_PATH)) {
         log.info('Writing session credentials…');
