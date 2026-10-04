@@ -1,8 +1,10 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { EventEmitter } = require('node:events');
 
 const setname = require('../src/Commands/Owner/sn.js');
 const clear = require('../src/Commands/Tools/clear.js');
+const { withAppStateRecovery } = require('../src/Utils/app-state');
 
 test('setname resyncs app state and retries when the key is missing', async () => {
     const calls = [];
@@ -49,4 +51,27 @@ test('clear uses the supported clear-chat patch for commands from the owner', as
         mod: { clear: true, lastMessages: [{ key: message.key, messageTimestamp: 42 }] }
     });
     assert.deepEqual(sent, [{ jid: message.chat, content: { text: '✦ _*clean*_' } }]);
+});
+
+test('app-state recovery waits for a key-share update before retrying', async () => {
+    const ev = new EventEmitter();
+    const calls = [];
+    let attempts = 0;
+    const sock = {
+        ev,
+        resyncAppState: async collections => {
+            calls.push(collections);
+            ev.emit('creds.update', { myAppStateKeyId: 'fresh-key' });
+        }
+    };
+
+    const result = await withAppStateRecovery(sock, async () => {
+        attempts++;
+        if (attempts === 1) throw new Error('App state key not present!');
+        return 'recovered';
+    });
+
+    assert.equal(result, 'recovered');
+    assert.equal(attempts, 2);
+    assert.deepEqual(calls, [['regular_high', 'regular_low', 'regular']]);
 });

@@ -54,9 +54,35 @@ async function downloadFromKV(shortId) {
 /**
  * Decode SESSION_ID — supports:
  * - Cloudflare KV short ID: CODY_AI!KV:xxxx
- * - Plain base64: CODY_AI!eyJjcmVkcyI6...
+ * - Plain base64: CODY_AI!eyJ2ZXJzaW9uIjoxLCJmaWxlcyI6...
  * - Gzip-compressed base64
  */
+function restoreSessionPayload(payload) {
+    if (!payload || typeof payload !== 'object') {
+        throw new Error('Invalid session payload');
+    }
+
+    if (payload.version === 1 && payload.files && typeof payload.files === 'object') {
+        fs.mkdirSync(SESSION_PATH, { recursive: true });
+        for (const [file, contents] of Object.entries(payload.files)) {
+            if (!file.endsWith('.json') || file.includes('/') || file.includes('\\')) continue;
+            fs.writeFileSync(path.join(SESSION_PATH, file), contents);
+        }
+        if (!fs.existsSync(path.join(SESSION_PATH, 'creds.json'))) {
+            throw new Error('Session bundle does not contain creds.json');
+        }
+        return;
+    }
+
+    // Backward compatibility for old SESSION_ID values that contained only
+    // creds.json. Such sessions may need a fresh app-state key from WhatsApp.
+    if (!payload.noiseKey && !payload.me) {
+        throw new Error('Invalid creds format');
+    }
+    fs.mkdirSync(SESSION_PATH, { recursive: true });
+    fs.writeFileSync(path.join(SESSION_PATH, 'creds.json'), JSON.stringify(payload, null, 2));
+}
+
 async function decodeSession(sessionId) {
     if (!sessionId || typeof sessionId !== 'string') return false;
 
@@ -72,16 +98,7 @@ async function decodeSession(sessionId) {
         }
         
         try {
-            const creds = JSON.parse(sessionJson);
-            if (!fs.existsSync(SESSION_PATH)) {
-                fs.mkdirSync(SESSION_PATH, { recursive: true });
-            }
-            
-            fs.writeFileSync(
-                path.join(SESSION_PATH, 'creds.json'),
-                JSON.stringify(creds, null, 2)
-            );
-            
+            restoreSessionPayload(JSON.parse(sessionJson));
             console.log('✅ Session restored from Cloudflare KV');
             return true;
         } catch (err) {
@@ -107,20 +124,7 @@ async function decodeSession(sessionId) {
             decoded = buffer.toString('utf8');
         }
 
-        const creds = JSON.parse(decoded);
-        if (!creds.noiseKey && !creds.me) {
-            throw new Error('Invalid creds format');
-        }
-
-        if (!fs.existsSync(SESSION_PATH)) {
-            fs.mkdirSync(SESSION_PATH, { recursive: true });
-        }
-
-        fs.writeFileSync(
-            path.join(SESSION_PATH, 'creds.json'),
-            JSON.stringify(creds, null, 2)
-        );
-
+        restoreSessionPayload(JSON.parse(decoded));
         console.log('🔐 Session restored from base64');
         return true;
     } catch (err) {
@@ -131,10 +135,14 @@ async function decodeSession(sessionId) {
 
 function encodeSession() {
     try {
-        const credsPath = path.join(SESSION_PATH, 'creds.json');
-        if (!fs.existsSync(credsPath)) return null;
-        const creds = fs.readFileSync(credsPath, 'utf8');
-        return `CODY_AI!${Buffer.from(creds).toString('base64')}`;
+        if (!fs.existsSync(path.join(SESSION_PATH, 'creds.json'))) return null;
+        const files = {};
+        for (const file of fs.readdirSync(SESSION_PATH)) {
+            if (!file.endsWith('.json')) continue;
+            files[file] = fs.readFileSync(path.join(SESSION_PATH, file), 'utf8');
+        }
+        const bundle = JSON.stringify({ version: 1, files });
+        return `CODY_AI!${Buffer.from(bundle).toString('base64')}`;
     } catch (err) {
         console.log('❌ Failed to encode session:', err.message);
         return null;
