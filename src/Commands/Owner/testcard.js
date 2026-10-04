@@ -1,3 +1,5 @@
+const { sendRelayRichGrid } = require('../../Plugin/richRelay');
+
 const MENU_IMAGE = 'https://cdn.crysnovax.link/files/1786913837400-12ad05cc-468a-4d71-8de8-1e5a11b48f3b.jpeg';
 
 const card = (title, buttons) => ({
@@ -12,7 +14,7 @@ const testcard = {
     desc: 'Send a Meta AI-style rich button grid test card',
     category: 'Owner',
     execute: async (sock, m, { reply }) => {
-        if (typeof sock.sendRichButtonGrid !== 'function') {
+        if (typeof sock.sendA2UICommandMenu !== 'function' && typeof sock.sendRichButtonGrid !== 'function') {
             return reply('sendRichButtonGrid is unavailable. Install or update plogme and restart CODY.');
         }
 
@@ -40,7 +42,7 @@ const testcard = {
         };
 
         try {
-            const result = await sock.sendRichButtonGrid(m.chat, payload);
+            const result = await sendRelayRichGrid(sock, m.chat, payload);
             const messageId = result?.key?.id || result?.messageId;
             const renderedCards = result?.message?.cards || result?.cards;
             const cardCount = Array.isArray(renderedCards) ? renderedCards.length : 0;

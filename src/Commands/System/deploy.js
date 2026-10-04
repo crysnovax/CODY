@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomBytes } = require('node:crypto');
+const { sendRelayRichGrid } = require('../../Plugin/richRelay');
 
 const MENU_IMAGE = 'https://cdn.crysnovax.link/files/1786913837400-12ad05cc-468a-4d71-8de8-1e5a11b48f3b.jpeg';
 const PANEL_URL = 'https://sl.crysnovax.link/PANEL2';
@@ -14,10 +15,10 @@ const REEL_PROFILE_URL = 'https://cdn.crysnovax.link/files/1787731491020-2b60587
 const quoteOptions = message => ({ quoted: message });
 
 const sendDeployMenu = async (sock, message, grid) => {
-    if (typeof sock.sendRichButtonGrid !== 'function') {
+    if (typeof sock.sendA2UICommandMenu !== 'function' && typeof sock.sendRichButtonGrid !== 'function') {
         throw new Error('sock.sendRichButtonGrid is unavailable. Install plogme 2.0.5 or newer and restart CODY.');
     }
-    return sock.sendRichButtonGrid(message.chat, grid, quoteOptions(message));
+    return sendRelayRichGrid(sock, message.chat, grid, quoteOptions(message));
 };
 
 const sendTutorialReels = async (sock, message) => {
@@ -157,7 +158,6 @@ const deployCommand = {
     alias: ['pair'],
     desc: 'Open the plogme rich CODY deployment guide',
     category: 'System',
-    ownerOnly: true,
     reactions: { start: '📚', success: '✅', error: '❌' },
     execute: async (sock, message, { args, reply }) => {
         const action = String(args?.[0] || 'menu').toLowerCase();

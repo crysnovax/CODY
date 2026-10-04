@@ -273,10 +273,12 @@ async function researchWeb(query, limit = 3) {
     }
     return { query: q, sources };
 }
+const { sendRelayRichGrid } = require('../../Plugin/richRelay');
+
 async function sendMissionControls(sock, m, mission) {
-    if (typeof sock?.sendRichButtonGrid !== 'function') return null;
+    if (typeof sock?.sendA2UICommandMenu !== 'function' && typeof sock?.sendRichButtonGrid !== 'function') return null;
     try {
-        return await sock.sendRichButtonGrid(m.chat, {
+        return await sendRelayRichGrid(sock, m.chat, {
             text: `MISSION ${mission.id}`,
             footer: mission.objective.slice(0, 120),
             cards: [{ title: 'Mission Control', buttons: [

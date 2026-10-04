@@ -6,6 +6,7 @@
  */
 
 const { _internals: { buildSponsorPayload } } = require('./sponsor');
+const { sendRelayRichGrid } = require('../../Plugin/richRelay');
 
 module.exports = {
     name: 'repo',
@@ -59,8 +60,8 @@ module.exports = {
                 caption
             }, { quoted: m });
 
-            if (typeof sock.sendRichButtonGrid === 'function') {
-                await sock.sendRichButtonGrid(m.key.remoteJid, buildSponsorPayload(), { quoted: m });
+            if (typeof sock.sendA2UICommandMenu === 'function' || typeof sock.sendRichButtonGrid === 'function') {
+                await sendRelayRichGrid(sock, m.key.remoteJid, buildSponsorPayload(), { quoted: m });
             }
         } catch (e) {
             console.log('[Repo command error]', e.message);

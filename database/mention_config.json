@@ -1,6 +1,7 @@
 {
-  "active": false,
-  "action": "",
+  "active": true,
+  "action": "text",
   "emoji": "",
-  "text": "Busy, back later"
+  "text": "Busy, back later",
+  "sticker": ""
 }

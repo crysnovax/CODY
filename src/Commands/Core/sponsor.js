@@ -1,3 +1,5 @@
+const { sendRelayRichGrid } = require('../../Plugin/richRelay');
+
 const DEFAULT_SPONSOR_URL = 'https://github.com/sponsors/crysnovax';
 
 function getSponsorUrl() {
@@ -32,8 +34,8 @@ module.exports = {
         const options = { quoted: m };
 
         try {
-            if (typeof sock.sendRichButtonGrid === 'function') {
-                return await sock.sendRichButtonGrid(m.chat || m.key?.remoteJid, buildSponsorPayload(url), options);
+            if (typeof sock.sendA2UICommandMenu === 'function' || typeof sock.sendRichButtonGrid === 'function') {
+                return await sendRelayRichGrid(sock, m.chat || m.key?.remoteJid, buildSponsorPayload(url), options);
             }
 
             // Older runtimes may not expose the rich-grid helper. Keep the

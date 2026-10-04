@@ -8,7 +8,10 @@ async function request(path, params = {}, options = {}) {
         timeout: options.timeout || 60000,
         responseType: options.responseType || 'json',
         validateStatus: () => true,
-        headers: { Accept: options.responseType === 'arraybuffer' ? 'image/*, application/json' : 'application/json' }
+        headers: {
+            Accept: options.responseType === 'arraybuffer' ? 'image/*, application/json' : 'application/json',
+            ...(options.headers || {})
+        }
     });
     return response;
 }

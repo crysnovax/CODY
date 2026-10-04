@@ -1,17 +1,10 @@
 {
-  "generatedAt": "2026-09-29T23:23:20.806Z",
+  "generatedAt": "2026-10-04T19:52:07.799Z",
   "root": ".",
-  "commandCount": 534,
+  "commandCount": 555,
   "syntaxFailures": 0,
-  "brokenCount": 123,
+  "brokenCount": 115,
   "duplicateNames": [
-    {
-      "name": "!",
-      "files": [
-        "src/Commands/AI/!.js",
-        "src/Commands/Core/!.js"
-      ]
-    },
     {
       "name": "weather",
       "files": [
@@ -23,6 +16,7 @@
       "name": "x",
       "files": [
         "src/Commands/AI/X.js",
+        "src/Commands/Downloader/X.js",
         "src/Commands/Owner/x.js"
       ]
     },
@@ -175,12 +169,45 @@
     }
   ],
   "categories": {
+    "AI": [
+      "gema",
+      "aimodels",
+      "aiwriter",
+      "copilot",
+      "deepseek",
+      "caption",
+      "faceswap",
+      "gemini",
+      "gini",
+      "gpt",
+      "horror",
+      "pixelart",
+      "rembg",
+      "story",
+      "ai4chat",
+      "aiapk",
+      "chateverywhere",
+      "askgpt",
+      "cartoon",
+      "codeai",
+      "code",
+      "fakeignote",
+      "fakeigpost",
+      "iqc",
+      "kobalt",
+      "luna",
+      "musicgen",
+      "nanobanana",
+      "plogme",
+      "spongebob",
+      "tojs",
+      "listvoice",
+      "ttsm",
+      "felo"
+    ],
     "Unknown": [
-      "!",
       "#",
       "Changebg",
-      "Fs",
-      "Gini",
       "Img",
       "Sora",
       "X",
@@ -190,7 +217,6 @@
       "crysnova",
       "enhance",
       "generate",
-      "nba",
       "remini",
       "⊹",
       "▸",
@@ -208,8 +234,6 @@
       "8",
       "9",
       "Neko",
-      "blue",
-      "loli",
       "manga",
       "ranime",
       "rchar",
@@ -258,7 +282,6 @@
       "xblur",
       "〄",
       "5",
-      "〽️",
       "___",
       "addstatus",
       "dual",
@@ -267,7 +290,6 @@
       "sudo",
       "x",
       "ཽ",
-      "Felo",
       "Sounds",
       "Web",
       "movie",
@@ -286,27 +308,6 @@
       "md",
       "mdhelp",
       "sticker-converter"
-    ],
-    "AI": [
-      "aimodels",
-      "aiwriter",
-      "copilot",
-      "deepseek",
-      "caption",
-      "gemini",
-      "gpt",
-      "horror",
-      "pixelart",
-      "rembg",
-      "story",
-      "chateverywhere",
-      "codeai",
-      "luna",
-      "musicgen",
-      "plogme",
-      "tojs",
-      "listvoice",
-      "ttsm"
     ],
     "Search": [
       "weather",
@@ -337,9 +338,6 @@
       "quran",
       "tanak"
     ],
-    "ai": [
-      "code"
-    ],
     "Group": [
       "all",
       "ephemeral",
@@ -368,6 +366,7 @@
       "listonline",
       "mute",
       "add",
+      "antibug",
       "antilink",
       "antispam",
       "antitag",
@@ -404,11 +403,13 @@
       "ytranscript",
       "ytranscript",
       "bank",
+      "wssr",
       "wss",
       "calendar",
       "device",
       "distance",
       "encryptcode",
+      "hostcheck",
       "jid",
       "location",
       "pinchat",
@@ -457,6 +458,8 @@
       "kill#",
       "waifu",
       "ahug",
+      "bluearchive",
+      "loli",
       "waifu",
       "animesearch"
     ],
@@ -486,6 +489,7 @@
       "delcmd",
       "delemoji",
       "listemoji",
+      "protocoltest",
       "setcmd",
       "setemoji",
       "setpp",
@@ -624,6 +628,7 @@
       "ttp",
       "collage",
       "toround",
+      "bratvid",
       "rounds",
       "rtoimg",
       "sprem",
@@ -677,16 +682,18 @@
       "word"
     ],
     "downloader": [
+      "capcut",
       "fbstream",
       "fb",
       "ig",
+      "pinterest",
       "yts",
       "tiktok",
-      "video"
+      "video",
+      "x"
     ],
     "Download": [
       "mediafire",
-      "pinterest",
       "spotify",
       "yturld"
     ],
@@ -719,6 +726,7 @@
       "quote"
     ],
     "Games": [
+      "1to7",
       "2048",
       "8ball",
       "dare",
@@ -738,9 +746,6 @@
       "wordle",
       "zombie",
       "password"
-    ],
-    "Maker": [
-      "brat"
     ],
     "textmaker": [
       "matrix",
@@ -778,6 +783,9 @@
       "circle",
       "facepalm"
     ],
+    "Overlays": [
+      "fakecall"
+    ],
     "utility": [
       "delpp"
     ],
@@ -789,11 +797,20 @@
       "mathquiz",
       "trivia"
     ],
+    "random": [
+      "car",
+      "cat",
+      "dog"
+    ],
     "Random": [
       "animehentai"
     ],
     "News": [
       "news"
+    ],
+    "search": [
+      "applemusic",
+      "codesearch"
     ],
     "Education": [
       "element"
@@ -822,19 +839,20 @@
   },
   "commands": [
     {
-      "name": "!",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "gema",
+      "aliases": [
+        "gem",
+        "gemi"
+      ],
+      "category": "AI",
       "file": "src/Commands/AI/!.js",
       "imports": [
-        "axios",
-        "fs",
-        "../../../settings/config"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "#",
@@ -889,8 +907,7 @@
       "category": "AI",
       "file": "src/Commands/AI/Capilot.js",
       "imports": [
-        "axios",
-        "../../../settings/config"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -945,18 +962,20 @@
       "lastError": ""
     },
     {
-      "name": "Fs",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "faceswap",
+      "aliases": [
+        "fs",
+        "swapface"
+      ],
+      "category": "AI",
       "file": "src/Commands/AI/Fs.js",
       "imports": [
-        "axios",
-        "form-data"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "gemini",
@@ -967,7 +986,7 @@
       "category": "AI",
       "file": "src/Commands/AI/Gemini.js",
       "imports": [
-        "axios"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -975,15 +994,20 @@
       "lastError": ""
     },
     {
-      "name": "Gini",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "gini",
+      "aliases": [
+        "giniimg",
+        "gimage"
+      ],
+      "category": "AI",
       "file": "src/Commands/AI/Gini.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "gpt",
@@ -1127,7 +1151,37 @@
       "syntax": true,
       "syntaxError": "",
       "broken": true,
-      "lastError": "duplicate command name: src/Commands/AI/X.js, src/Commands/Owner/x.js"
+      "lastError": "duplicate command name: src/Commands/AI/X.js, src/Commands/Downloader/X.js, src/Commands/Owner/x.js"
+    },
+    {
+      "name": "ai4chat",
+      "aliases": [
+        "aichat4"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/ai4chat.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "aiapk",
+      "aliases": [
+        "apkai"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/aiapk.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "chateverywhere",
@@ -1156,6 +1210,39 @@
       "syntaxError": "",
       "broken": true,
       "lastError": "missing module.exports"
+    },
+    {
+      "name": "askgpt",
+      "aliases": [
+        "gpt5",
+        "ask"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/askgpt.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "cartoon",
+      "aliases": [
+        "cartoona",
+        "toonai"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/cartoon.js",
+      "imports": [
+        "axios",
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "chatbot-compat",
@@ -1188,8 +1275,7 @@
       "category": "AI",
       "file": "src/Commands/AI/codeai.js",
       "imports": [
-        "axios",
-        "../../../settings/config"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -1198,11 +1284,15 @@
     },
     {
       "name": "code",
-      "aliases": [],
-      "category": "ai",
+      "aliases": [
+        "aicode",
+        "coder",
+        "dev"
+      ],
+      "category": "AI",
       "file": "src/Commands/AI/coder.js",
       "imports": [
-        "axios"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -1239,6 +1329,36 @@
       "lastError": "missing module.exports"
     },
     {
+      "name": "fakeignote",
+      "aliases": [
+        "fignote"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/fakeignote.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "fakeigpost",
+      "aliases": [
+        "figpost"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/fakeigpost.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "generate",
       "aliases": [],
       "category": "Unknown",
@@ -1248,6 +1368,36 @@
       "syntaxError": "",
       "broken": true,
       "lastError": "missing module.exports"
+    },
+    {
+      "name": "iqc",
+      "aliases": [
+        "iqcheck"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/iqc.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "kobalt",
+      "aliases": [
+        "kobaltgen"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/kobaltgen.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "luna",
@@ -1282,15 +1432,20 @@
       "lastError": ""
     },
     {
-      "name": "nba",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "nanobanana",
+      "aliases": [
+        "nano",
+        "aiimage"
+      ],
+      "category": "AI",
       "file": "src/Commands/AI/nba.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "plogme",
@@ -1318,6 +1473,21 @@
       "syntaxError": "",
       "broken": true,
       "lastError": "missing module.exports"
+    },
+    {
+      "name": "spongebob",
+      "aliases": [
+        "sponge"
+      ],
+      "category": "AI",
+      "file": "src/Commands/AI/spongebob.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "tojs",
@@ -1459,6 +1629,26 @@
       "lastError": ""
     },
     {
+      "name": "antibug",
+      "aliases": [
+        "anti-bug",
+        "bugguard",
+        "abug"
+      ],
+      "category": "Admin",
+      "file": "src/Commands/Admin/antibug.js",
+      "imports": [
+        "fs",
+        "path",
+        "../../Plugin/identityUtils",
+        "./tkick"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "antidemote",
       "aliases": [],
       "category": "Unknown",
@@ -1591,7 +1781,8 @@
       "category": "Unknown",
       "file": "src/Commands/Admin/antivv.js",
       "imports": [
-        "../../Plugin/antiMessageModeration"
+        "../../Plugin/antiMessageModeration",
+        "../../Plugin/viewOnce"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -2002,26 +2193,35 @@
       "lastError": ""
     },
     {
-      "name": "blue",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "bluearchive",
+      "aliases": [
+        "blue",
+        "bluearc"
+      ],
+      "category": "Anime",
       "file": "src/Commands/Anime/blue.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "loli",
-      "aliases": [],
-      "category": "Unknown",
+      "aliases": [
+        "lolirandom"
+      ],
+      "category": "Anime",
       "file": "src/Commands/Anime/loli.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "manga",
@@ -2888,6 +3088,8 @@
     {
       "name": "2mp3",
       "aliases": [
+        "mp3",
+        "tomp3",
         "tompeg",
         "vtoa",
         "v2mp3",
@@ -3072,7 +3274,8 @@
         "path",
         "plogme",
         "../../Plugin/identityUtils",
-        "../../Plugin/antiText"
+        "../../Plugin/antiText",
+        "../../Plugin/viewOnce"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -3116,8 +3319,8 @@
       "imports": [],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "duplicate command name: src/Commands/AI/!.js, src/Commands/Core/!.js"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "'",
@@ -3266,6 +3469,7 @@
         "./plogme-dependencies",
         "./plogme-health",
         "./plogme-project-index",
+        "../../Plugin/richRelay",
         "pdfkit",
         "../Owner/mention.js",
         "../../Plugin/identityUtils",
@@ -3309,7 +3513,9 @@
       ],
       "category": "Info",
       "file": "src/Commands/Core/sponsor.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/richRelay"
+      ],
       "syntax": true,
       "syntaxError": "",
       "broken": false,
@@ -3410,7 +3616,8 @@
       "category": "Info",
       "file": "src/Commands/Core/⎙.js",
       "imports": [
-        "./sponsor"
+        "./sponsor",
+        "../../Plugin/richRelay"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -3946,6 +4153,22 @@
       "lastError": "duplicate command name: src/Commands/Downloader/Bank.js, src/Commands/Tools/Bank.js"
     },
     {
+      "name": "capcut",
+      "aliases": [
+        "cc",
+        "capcutdl"
+      ],
+      "category": "downloader",
+      "file": "src/Commands/Downloader/Capcut.js",
+      "imports": [
+        "../../Plugin/socialDl"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "fbstream",
       "aliases": [
         "fbs",
@@ -4013,13 +4236,13 @@
     {
       "name": "pinterest",
       "aliases": [
-        "pint",
+        "pin",
         "pindl"
       ],
-      "category": "Download",
+      "category": "downloader",
       "file": "src/Commands/Downloader/Pinterest.js",
       "imports": [
-        "node-fetch"
+        "../../Plugin/socialDl"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -4106,6 +4329,22 @@
       "syntaxError": "",
       "broken": false,
       "lastError": ""
+    },
+    {
+      "name": "x",
+      "aliases": [
+        "twitter",
+        "xdl"
+      ],
+      "category": "downloader",
+      "file": "src/Commands/Downloader/X.js",
+      "imports": [
+        "../../Plugin/socialDl"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": true,
+      "lastError": "duplicate command name: src/Commands/AI/X.js, src/Commands/Downloader/X.js, src/Commands/Owner/x.js"
     },
     {
       "name": "yturld",
@@ -4482,6 +4721,21 @@
       ],
       "category": "fun",
       "file": "src/Commands/Fun/responder.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "1to7",
+      "aliases": [
+        "17",
+        "guess17",
+        "one to seven"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/1to7.js",
       "imports": [],
       "syntax": true,
       "syntaxError": "",
@@ -5357,12 +5611,15 @@
       "lastError": ""
     },
     {
-      "name": "brat",
-      "aliases": [],
-      "category": "Maker",
+      "name": "bratvid",
+      "aliases": [
+        "bt",
+        "bratvideo"
+      ],
+      "category": "Media",
       "file": "src/Commands/Media/bt.js",
       "imports": [
-        "axios"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -6235,17 +6492,19 @@
       "lastError": ""
     },
     {
-      "name": "〽️",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "fakecall",
+      "aliases": [
+        "fcall"
+      ],
+      "category": "Overlays",
       "file": "src/Commands/Overlays/〽️.js",
       "imports": [
-        "form-data"
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "autorecording",
@@ -6614,6 +6873,7 @@
         "path",
         "../../Plugin/accessListManager",
         "../../Plugin/identityUtils",
+        "plogme",
         "../../../settings/config"
       ],
       "syntax": true,
@@ -6705,6 +6965,22 @@
       "imports": [
         "plogme",
         "../../Plugin/identityUtils"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "protocoltest",
+      "aliases": [
+        "prototest",
+        "watrace"
+      ],
+      "category": "owner",
+      "file": "src/Commands/Owner/protocoltest.js",
+      "imports": [
+        "plogme"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -6876,7 +7152,9 @@
       ],
       "category": "Owner",
       "file": "src/Commands/Owner/sn.js",
-      "imports": [],
+      "imports": [
+        "../../Utils/app-state"
+      ],
       "syntax": true,
       "syntaxError": "",
       "broken": false,
@@ -6953,7 +7231,9 @@
       ],
       "category": "Owner",
       "file": "src/Commands/Owner/testcard.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/richRelay"
+      ],
       "syntax": true,
       "syntaxError": "",
       "broken": false,
@@ -7205,6 +7485,51 @@
       "lastError": ""
     },
     {
+      "name": "car",
+      "aliases": [
+        "randomcar"
+      ],
+      "category": "random",
+      "file": "src/Commands/Random/car.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "cat",
+      "aliases": [
+        "randomcat"
+      ],
+      "category": "random",
+      "file": "src/Commands/Random/cat.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "dog",
+      "aliases": [
+        "randomdog"
+      ],
+      "category": "random",
+      "file": "src/Commands/Random/dog.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "animehentai",
       "aliases": [
         "ahentai"
@@ -7267,15 +7592,20 @@
       "lastError": ""
     },
     {
-      "name": "Felo",
-      "aliases": [],
-      "category": "Unknown",
+      "name": "felo",
+      "aliases": [
+        "felosearch",
+        "feloai"
+      ],
+      "category": "AI",
       "file": "src/Commands/Search/Felo.js",
-      "imports": [],
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "missing module.exports"
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "fetch",
@@ -7486,6 +7816,22 @@
       "lastError": "duplicate command name: src/Commands/Search/Ytt.js, src/Commands/Search/ytts.js"
     },
     {
+      "name": "applemusic",
+      "aliases": [
+        "amusic",
+        "apple"
+      ],
+      "category": "search",
+      "file": "src/Commands/Search/applemusic.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "chrome",
       "aliases": [],
       "category": "Search",
@@ -7509,6 +7855,22 @@
       "file": "src/Commands/Search/cinfo.js",
       "imports": [
         "axios"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "codesearch",
+      "aliases": [
+        "searchcode",
+        "githubcode"
+      ],
+      "category": "search",
+      "file": "src/Commands/Search/code.js",
+      "imports": [
+        "../../Plugin/prexzy"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -7838,7 +8200,8 @@
       "category": "System",
       "file": "src/Commands/System/deploy.js",
       "imports": [
-        "node:crypto"
+        "node:crypto",
+        "../../Plugin/richRelay"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -8204,6 +8567,24 @@
       "lastError": "missing module.exports"
     },
     {
+      "name": "wssr",
+      "aliases": [
+        "screenrecord",
+        "screenrec",
+        "recordsite",
+        "wssrmobile"
+      ],
+      "category": "Tools",
+      "file": "src/Commands/Tools/ScreenRecord.js",
+      "imports": [
+        "axios"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "wss",
       "aliases": [
         "wssp",
@@ -8295,7 +8676,9 @@
       ],
       "category": "tools",
       "file": "src/Commands/Tools/clear.js",
-      "imports": [],
+      "imports": [
+        "../../Utils/app-state"
+      ],
       "syntax": true,
       "syntaxError": "",
       "broken": false,
@@ -8372,6 +8755,23 @@
       "syntaxError": "",
       "broken": true,
       "lastError": "missing module.exports"
+    },
+    {
+      "name": "hostcheck",
+      "aliases": [
+        "host",
+        "domaincheck",
+        "dnscheck"
+      ],
+      "category": "Tools",
+      "file": "src/Commands/Tools/hostcheck.js",
+      "imports": [
+        "../../Plugin/prexzy"
+      ],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "jid",
