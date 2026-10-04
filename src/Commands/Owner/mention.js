@@ -2,8 +2,10 @@ const fs   = require('fs');
 const path = require('path');
 const { getList } = require('../../Plugin/accessListManager');
 const { getContextInfo, identityVariants, normalizeJid } = require('../../Plugin/identityUtils');
+const { downloadContentFromMessage } = require('plogme');
 
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
+const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
 
 // IMPORTANT: Never reassign this object — always mutate it with Object.assign
 // so that the exported reference in handler stays valid across reloads
@@ -11,7 +13,8 @@ const mentionConfig = {
     active: false,
     action: '',
     emoji:  '❤️‍🔥',
-    text:   ''
+    text:   '',
+    sticker: ''
 };
 
 const loadMentionConfig = () => {
@@ -103,6 +106,7 @@ module.exports = {
                 `│ 𓄄 Action : ${mentionConfig.action || 'None'}\n` +
                 `│ ✦ Emoji  : ${mentionConfig.emoji  || '-'}\n` +
                 `│ ❏ Text   : ${mentionConfig.text   || '-'}\n` +
+                `│ 🧩 Sticker: ${mentionConfig.sticker ? 'Configured' : '-'}\n` +
                 `╰──────────────────`
             );
         }
@@ -120,6 +124,28 @@ module.exports = {
             return reply(`╭─❍ *MENTION*\n│\n│ ✦ Status : ON\n│ 𓄄 Action : REACT\n│ ⚉ Emoji  : ${value}\n╰──────────────────`);
         }
 
+        // STICKER: quote a sticker, or provide a direct sticker URL.
+        if (option === 'sticker' || option === '-sticker') {
+            const quotedSticker = m.quoted?.stickerMessage || m.quoted?.message?.stickerMessage || (m.quoted?.mtype === 'stickerMessage' ? m.quoted : null);
+            if (quotedSticker) {
+                const stream = await downloadContentFromMessage(quotedSticker, 'sticker');
+                const chunks = [];
+                for await (const chunk of stream) chunks.push(chunk);
+                fs.mkdirSync(path.dirname(MENTION_STICKER_FILE), { recursive: true });
+                fs.writeFileSync(MENTION_STICKER_FILE, Buffer.concat(chunks));
+                mentionConfig.sticker = MENTION_STICKER_FILE;
+            } else if (value && /^https?:\/\//i.test(value)) {
+                mentionConfig.sticker = value;
+            } else if (!mentionConfig.sticker) {
+                return reply(`╭─❍ *MENTION*\n│ ✘ Reply to a sticker or provide a sticker URL\n│ ⚉ Example: ${prefix}mention -sticker <url>\n╰──────────────────`);
+            }
+            mentionConfig.active = true;
+            mentionConfig.action = 'sticker';
+            mentionConfig.emoji = '';
+            mentionConfig.text = '';
+            saveMentionConfig();
+            return reply(`╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : STICKER\n╰──────────────────`);
+        }
         // TEXT
         if (option === 'text' || option === '-text') {
             if (!value) {
@@ -145,6 +171,8 @@ module.exports = {
             `│ ➫ ${prefix}mention -react <emoji>\n` +
             `│   Auto-react when mentioned\n` +
             `│   Example: ${prefix}mention -react ❤️‍🔥\n│\n` +
+            `│ ➫ ${prefix}mention -sticker [url]\n` +
+            `│   Reply to a sticker or provide a sticker URL\n│\n` +
             `│ ➫ ${prefix}mention -text <message>\n` +
             `│   Auto-reply when mentioned\n` +
             `│   Example: ${prefix}mention -text Busy, back later\n│\n` +

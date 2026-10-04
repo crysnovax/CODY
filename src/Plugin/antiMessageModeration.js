@@ -98,7 +98,7 @@ function createAntiMessageModeration({
                 msg: sanitize(m.msg || {}),
                 serialized: sanitize(m)
             };
-            if (!m.isGroup || m.key?.fromMe || !detector(detectionPayload)) return false;
+            if (!m.isGroup || m.key?.fromMe || !detector(detectionPayload, { m, mek, messageId: mek?.key?.id || m?.key?.id })) return false;
             const config = readJson(dbPath)[m.chat];
             if (!config?.enabled) return false;
 

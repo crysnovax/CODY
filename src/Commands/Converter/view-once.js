@@ -3,6 +3,7 @@ const path = require('path');
 const { downloadContentFromMessage } = require('plogme');
 const { resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
 const { stripBotMarkerDeep, stripQuotedDeep } = require('../../Plugin/antiText');
+const { isViewOnce, unwrap: unwrapShared, findMedia: findSharedMedia } = require('../../Plugin/viewOnce');
 
 const DATA_FILE = path.join(__dirname, '../../../database/vv-reactions.json');
 const AUTOVV_FILE = path.join(__dirname, '../../../database/autovv.json');
@@ -46,7 +47,7 @@ function unwrapViewOnce(message) {
   return content;
 }
 const VIEW_ONCE_KEYS = ['viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'];
-const MEDIA_KEYS = ['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'];
+const MEDIA_KEYS = ['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage', 'documentMessage'];
 
 // WhatsApp puts `messageContextInfo`, `deviceSentMessage` and other bookkeeping
 // keys alongside the media inside a view-once envelope, and their order is not
@@ -79,7 +80,7 @@ function sanitizeEnvelope(value) {
 function isViewOnceEnvelope(message, seen = new WeakSet()) {
   if (!message || typeof message !== 'object' || seen.has(message)) return false;
   seen.add(message);
-  if (VIEW_ONCE_KEYS.some(key => Boolean(message[key]))) return true;
+  if (isViewOnce(message)) return true;
   return Object.values(message).some(value => isViewOnceEnvelope(value, seen));
 }
 
@@ -284,7 +285,7 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
     }
 
     // Try unwrapping from the raw envelope first (most reliable for detection)
-    let content = unwrapViewOnce(rawEnvelope);
+    let content = unwrapShared(rawEnvelope);
 
     // If unwrap didn't change anything (no wrapper found), the message might
     // already be unwrapped by smsg — just use it directly.
@@ -317,7 +318,7 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
       || senderCandidates[0];
     if (!recipient) return false;
     const sendType = media.type.replace('Message', '').toLowerCase();
-    await sock.sendMessage(recipient, { [sendType]: media.buffer });
+    await sock.sendMessage(recipient, { [sendType]: media.buffer, ...(sendType === 'document' ? { fileName: 'view-once-document' } : {}) });
     if (chat.endsWith('@g.us') && (typeof sock.sendMessage === 'function')) {
       await sock.sendMessage(chat, { delete: m?.key || mek?.key }).catch(() => {});
     }

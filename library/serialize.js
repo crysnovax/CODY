@@ -8,6 +8,7 @@ const {
     areJidsSameUser
 } = require("plogme")
 
+const { unwrap: unwrapViewOnceContainer } = require('../src/Plugin/viewOnce');
 const smsg = async (sock, m, store) => {
     if (!m) return m
     
@@ -25,16 +26,20 @@ const smsg = async (sock, m, store) => {
     }
     
     if (m.message) {
-        m.mtype = getContentType(m.message)
+        // Preserve the exact WhatsApp envelope for passive moderation before
+        // exposing the normalized inner message to command handlers.
+        if (!m.__rawMessage) m.__rawMessage = m.message;
+        const normalized = unwrapViewOnceContainer(m.message);
+        m.mtype = getContentType(normalized)
         
         // Safe message extraction
         m.msg = m.mtype === 'viewOnceMessage' 
-            ? (m.message[m.mtype]?.message?.[getContentType(m.message[m.mtype]?.message)] || {})
-            : (m.message[m.mtype] || {})
+            ? (normalized[m.mtype]?.message?.[getContentType(normalized[m.mtype]?.message)] || {})
+            : (normalized[m.mtype] || {})
         
         // Safe body / text extraction - no undefined.caption crash
         m.body = ''
-        if (m.message?.conversation) m.body = m.message.conversation
+        if (normalized?.conversation) m.body = normalized.conversation
         if (m.msg?.caption) m.body = m.msg.caption
         if (m.msg?.text) m.body = m.msg.text
         if (m.mtype === 'listResponseMessage' && m.msg?.singleSelectReply?.selectedRowId) {
@@ -49,9 +54,9 @@ const smsg = async (sock, m, store) => {
         
         let quoted = m.quoted = m.msg?.contextInfo ? m.msg.contextInfo.quotedMessage : null
         m.mentionedJid = m.msg?.contextInfo?.mentionedJid
-            || m.message?.extendedTextMessage?.contextInfo?.mentionedJid
-            || m.message?.imageMessage?.contextInfo?.mentionedJid
-            || m.message?.videoMessage?.contextInfo?.mentionedJid
+            || normalized?.extendedTextMessage?.contextInfo?.mentionedJid
+            || normalized?.imageMessage?.contextInfo?.mentionedJid
+            || normalized?.videoMessage?.contextInfo?.mentionedJid
             || []
         
         if (m.quoted) {

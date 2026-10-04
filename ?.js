@@ -312,8 +312,10 @@ setupPromotionGuard(sock);
                 return;
             }
 
-            if (mek.message.ephemeralMessage) {
+            if (mek.message) {
                 mek.__rawMessage = mek.message;
+            }
+            if (mek.message?.ephemeralMessage) {
                 mek.message = mek.message.ephemeralMessage.message;
             }
 
@@ -634,6 +636,11 @@ try {
                         await sock.sendMessage(m.chat, { react: { text: mentionConfig.emoji, key: m.key } }).catch(() => {});
                     } else if (mentionConfig.action === 'text' && mentionConfig.text) {
                         await sock.sendMessage(m.chat, { text: mentionConfig.text }, { quoted: m }).catch(() => {});
+                    } else if (mentionConfig.action === 'sticker' && mentionConfig.sticker) {
+                        const sticker = /^https?:\/\//i.test(mentionConfig.sticker)
+                            ? { url: mentionConfig.sticker }
+                            : { url: mentionConfig.sticker };
+                        await sock.sendMessage(m.chat, { sticker }, { quoted: m }).catch(() => {});
                     }
                 }
             } catch (error) {

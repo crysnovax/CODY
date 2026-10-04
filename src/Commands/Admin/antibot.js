@@ -27,12 +27,17 @@ function matchedStamp(messageId) {
 function extractMessageId(m, mek) {
     return mek?.key?.id || m?.key?.id || null;
 }
-
-function isKnownBotStampMessage(message, context = {}) {
-    // The detector signature in createAntiMessageModeration passes the raw
-    // WhatsApp message content, not m/mek directly — the message ID has to
-    // travel through context instead, set by the caller below.
-    return Boolean(context.messageId && matchedStamp(context.messageId));
+function hasBotEnvelope(value, seen = new WeakSet()) {
+    if (!value || typeof value !== 'object' || seen.has(value)) return false;
+    seen.add(value);
+    // These fields are emitted by automation clients and are not present on
+    // ordinary phone-authored chat messages. Keep this deliberately narrow.
+    if (value.botMessageId || value.botMessageMetadata || value.automationContext) return true;
+    return Object.values(value).some(child => hasBotEnvelope(child, seen));
+}
+function isBotLikeMessage(message, context = {}) {
+    const id = extractMessageId(context.m, context.mek);
+    return Boolean(matchedStamp(id) || hasBotEnvelope(message) || context.m?.isBaileys === true);
 }
 
 const plugin = createAntiMessageModeration({
@@ -42,14 +47,9 @@ const plugin = createAntiMessageModeration({
     description: 'Flag messages carrying a known bot-library ID stamp',
     databaseName: 'antibot.json',
     warningDatabaseName: 'antibot_warns.json',
-    // detector is called by antiMessageModeration.js as detector(message) —
-    // it does not receive m/mek/context, only the raw message object. Since
-    // the actual signal here lives in the message ID (outside the message
-    // content itself), the real check happens in the handleModeration
-    // override below, which does have access to m/mek. This detector is a
-    // permissive pass-through so createAntiMessageModeration's own gating
-    // logic doesn't reject it before the ID check ever runs.
-    detector: () => true,
+    // The shared moderation layer passes both raw content and message
+    // context, so AntiBot can inspect IDs and explicit bot metadata.
+    detector: isBotLikeMessage,
     violationLabel: 'known bot-library message stamps'
     // No deleteMessage override — falls through to antiMessageModeration.js's
     // own default: sock.sendMessage(m.chat, { delete: m.key }). That's a
@@ -59,13 +59,10 @@ const plugin = createAntiMessageModeration({
     // touched this default path). No reason to disable it here.
 });
 
+// The shared moderation layer now passes message context to the detector.
+// Do not gate only on the ID: different bot forks use different IDs.
 const originalHandleModeration = plugin.handleModeration;
-plugin.handleModeration = async (sock, m, mek) => {
-    const messageId = extractMessageId(m, mek);
-    const stamp = matchedStamp(messageId);
-    if (!stamp) return false; // no known stamp — not flagged, defer entirely to original gating for anything else
-    return originalHandleModeration(sock, m, mek);
-};
+plugin.handleModeration = async (sock, m, mek) => originalHandleModeration(sock, m, mek);
 
 plugin.matchedStamp = matchedStamp;
 plugin.KNOWN_BOT_ID_STAMPS = KNOWN_BOT_ID_STAMPS;
