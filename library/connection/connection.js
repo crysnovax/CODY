@@ -60,12 +60,39 @@ async function downloadFromKV(shortId) {
  * - Plain base64: CODY_AI!eyJ2ZXJzaW9uIjoxLCJmaWxlcyI6...
  * - Gzip-compressed base64
  */
+function hasKeyPair(pair) {
+    return Boolean(pair && pair.public && pair.private);
+}
+function hasUsableCredentials(creds) {
+    return Boolean(
+        creds &&
+        hasKeyPair(creds.noiseKey) &&
+        hasKeyPair(creds.signedIdentityKey) &&
+        hasKeyPair(creds.signedPreKey?.keyPair) &&
+        Number.isInteger(creds.registrationId) &&
+        creds.advSecretKey
+    );
+}
+function readLocalCredentials() {
+    try {
+        const file = path.join(SESSION_PATH, 'creds.json');
+        if (!fs.existsSync(file)) return null;
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {
+        return null;
+    }
+}
 function restoreSessionPayload(payload) {
     if (!payload || typeof payload !== 'object') {
         throw new Error('Invalid session payload');
     }
 
     if (payload.version === 1 && payload.files && typeof payload.files === 'object') {
+        let bundledCreds;
+        try { bundledCreds = JSON.parse(payload.files['creds.json']); } catch { bundledCreds = null; }
+        if (!hasUsableCredentials(bundledCreds)) {
+            throw new Error('Session bundle has incomplete WhatsApp credentials; pair a new device');
+        }
         fs.mkdirSync(SESSION_PATH, { recursive: true });
         for (const [file, contents] of Object.entries(payload.files)) {
             if (!file.endsWith('.json') || file.includes('/') || file.includes('\\')) continue;
@@ -79,8 +106,8 @@ function restoreSessionPayload(payload) {
 
     // Backward compatibility for old SESSION_ID values that contained only
     // creds.json. Such sessions may need a fresh app-state key from WhatsApp.
-    if (!payload.noiseKey && !payload.me) {
-        throw new Error('Invalid creds format');
+    if (!hasUsableCredentials(payload)) {
+        throw new Error('Session credentials are incomplete; pair a new device');
     }
     fs.mkdirSync(SESSION_PATH, { recursive: true });
     fs.writeFileSync(path.join(SESSION_PATH, 'creds.json'), JSON.stringify(payload, null, 2));
@@ -153,10 +180,15 @@ function encodeSession() {
 }
 
 function hasLocalSession() {
-    return fs.existsSync(path.join(SESSION_PATH, 'creds.json'));
+    return hasUsableCredentials(readLocalCredentials());
 }
 
 async function createSocket(sessionId = process.env.SESSION_ID) {
+    const credsPath = path.join(SESSION_PATH, 'creds.json');
+    if (fs.existsSync(credsPath) && !hasLocalSession()) {
+        console.log('⚠️ Local session credentials are incomplete. Rebuilding from SESSION_ID…');
+        await fs.remove(SESSION_PATH);
+    }
     if (sessionId && !hasLocalSession()) {
         console.log('🔑 No local session. Attempting SESSION_ID restore...');
         const restored = await decodeSession(sessionId);
@@ -209,16 +241,15 @@ const REPLACED_BACKOFF_MS = [15000, 30000, 60000];
 // 408 is a transport timeout and must NOT be treated this way: deleting auth
 // state for a timeout makes the reconnect look like a fresh pairing and logs
 // the session out.
-function cleanAppStateFiles() {
+function cleanAppStateFiles({ rebuildDerivedKeys = false } = {}) {
     try {
         if (!fs.existsSync(SESSION_PATH)) return;
-        // Multi-file auth stores app state in one version file plus one or more
-        // app-state-sync-key-*.json files. The old cleanup targeted .data names
-        // that this runtime never creates, so a 500/bad-session loop reused the
-        // broken keys forever. Keep creds, identity and signal keys intact.
-        const stale = fs.readdirSync(SESSION_PATH).filter(name =>
-            /^app-state-sync-key.*\.json$/i.test(name) ||
-            /^app-state-sync-version.*\.json$/i.test(name)
+        // A 500 with "reading 'public'" means a derived crypto record is
+        // malformed, not merely an old app-state version. Preserve creds.json
+        // (the linked account identity) but rebuild every derived key file.
+        const stale = fs.readdirSync(SESSION_PATH).filter(name => rebuildDerivedKeys
+            ? name !== 'creds.json' && name.endsWith('.json')
+            : (/^app-state-sync-key.*\.json$/i.test(name) || /^app-state-sync-version.*\.json$/i.test(name))
         );
         for (const name of stale) {
             fs.removeSync(path.join(SESSION_PATH, name));
@@ -335,8 +366,9 @@ const konek = async ({ sock, update, clientstart, DisconnectReason, Boom }) => {
     }
 
     // badSession / anything else the entry point refuses to reconnect for.
-    console.log('❌ Bad session. Cleaning stale session keys…');
-    cleanAppStateFiles();
+    const malformedCrypto = /reading ['\"]public['\"]/i.test(errorMsg);
+    console.log(`❌ Bad session. ${malformedCrypto ? 'Rebuilding derived crypto keys' : 'Cleaning stale app-state keys'}…`);
+    cleanAppStateFiles({ rebuildDerivedKeys: malformedCrypto });
     const delay = storm ? 60000 : 5000;
     console.log(`♻️  Reconnecting in ${delay / 1000}s…`);
     replacedTimer = setTimeout(safeStart, delay);
