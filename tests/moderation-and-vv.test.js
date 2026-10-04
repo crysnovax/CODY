@@ -11,6 +11,9 @@ test('AntiForward detects forwarding metadata in every message container', () =>
   assert.equal(isForwardedMessage({ raw: { extendedTextMessage: { contextInfo: { isForwarded: true } } } }), true);
   assert.equal(isForwardedMessage({ msg: { contextInfo: { forwardingScore: 2 } } }), true);
   assert.equal(isForwardedMessage({ message: { conversation: 'ordinary text' } }), false);
+  // The moderation framework passes context as argument two; it must not be
+  // mistaken for the detector's internal WeakSet traversal state.
+  assert.equal(isForwardedMessage({ message: { contextInfo: { isForwarded: true } } }, { m: {}, mek: {} }), true);
 });
 
 test('AntiLink detects and extracts TikTok short links from nested message text', () => {
@@ -49,6 +52,9 @@ test('AntiGroupStatus does not claim status mentions or ordinary messages', () =
   assert.equal(antigroupstatus.isGroupStatusMessage({
     raw: { extendedTextMessage: { text: 'hello' } }, message: { conversation: 'hello' }
   }), false);
+  assert.equal(antigroupstatus.isGroupStatusMessage({
+    raw: { groupStatusMessageV2: { message: {} } }, message: {}
+  }, { m: {}, mek: {} }), true);
 });
 
 test('AntiVV finds a view-once envelope nested under other wrappers', () => {
