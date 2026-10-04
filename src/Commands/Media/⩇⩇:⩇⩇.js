@@ -54,7 +54,7 @@ module.exports = {
         // PACK_NAME branding — ⚉ • <PACK_NAME>, author from STICKER_AUTHOR (@crysnovax—FIX09-08-26)
         const { pack: brandPack, author: brandAuthor } = getStickerBranding();
 
-        const botToken = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
+        const botToken = String(process.env.TELEGRAM_BOT_TOKEN || '8785971951:AAEpZnwIrkH7zpmNK3Dwtzr8xgymLPBuppE').trim();
         if (!botToken) return safeReply('✘ Telegram sticker support is not configured on this deployment.');
 
         // Local temp dir for this run's processed .webp files, since the pack
