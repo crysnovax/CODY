@@ -1,63 +1,22 @@
-const axios = require("axios");
-
-// Apex Gateway - Gemini (smartest endpoint)
-const AI_GATEWAY = 'https://appex.crysnovax.link';
-const AI_TOKEN = 'x';
-
+const { request, pickText, errorText, encodeParams } = require('../../Plugin/prexzy');
+const sessions = new Map();
 module.exports = {
-    name: "gemini",
-    alias: ["gchat", "gemgpt"],
-    category: "AI",
-    desc: "Gemini AI Assistant powered by CRYSNOVA",
-
-    execute: async (sock, m, { args, reply }) => {
-        const jid = m.chat;
-        const query = args.join(" ").trim();
-
-        if (!query) {
-            return reply("⚉ _*Please ask something*_.");
-        }
-
-        try {
-            await sock.sendMessage(jid, { react: { text: "", key: m.key } });
-
-            const prompt = `You are CRYSNOVA AI, a helpful, intelligent, and professional assistant. Be concise, accurate, and natural. Do not roleplay, flirt, or break character.\n\nUser: ${query}\nAssistant:`;
-
-            // Call Apex Gemini API
-            const response = await axios.get(
-                `${AI_GATEWAY}/ai/gemini?text=${encodeURIComponent(prompt)}&token=${AI_TOKEN}`,
-                { timeout: 45000 }
-            );
-
-            const replyText = response.data?.result || '';
-
-            if (replyText && replyText.length > 5) {
-                // Clean up any roleplay/flirty remnants
-                const cleanText = replyText
-                    .replace(/handsome|darling|sweetie|honey|babe|cushy/gi, '')
-                    .trim();
-                
-                await sock.sendMessage(jid, { text: cleanText || replyText }, { quoted: m });
-            } else {
-                // Fallback to Bypass
-                const fallbackRes = await axios.get(
-                    `${AI_GATEWAY}/ai/bypass?text=${encodeURIComponent(query)}&token=${AI_TOKEN}`,
-                    { timeout: 45000 }
-                );
-                const fallbackText = fallbackRes.data?.result || '';
-                
-                if (fallbackText && fallbackText.length > 5) {
-                    await sock.sendMessage(jid, { text: fallbackText }, { quoted: m });
-                } else {
-                    reply("𓉤 GPT response invalid.");
-                }
-            }
-
-            await sock.sendMessage(jid, { react: { text: "🔖", key: m.key } });
-
-        } catch (err) {
-            console.error("Gemini Plugin Error:", err.message);
-            reply("`⚠︎ AI failed. Try again later.`");
-        }
-    }
+  name: 'gemini', alias: ['gchat','gemgpt'], category: 'AI', desc: 'Gemini AI assistant with session memory',
+  execute: async (sock, m, { args, reply }) => {
+    const prompt = args.join(' ').trim();
+    if (!prompt) return reply('⚉ Ask Gemini something.');
+    try {
+      await sock.sendMessage(m.chat, { react: { text: '🤖', key: m.key } });
+      const response = await request('/ai/gemini', encodeParams({ prompt, session_id: sessions.get(m.chat) }));
+      let text = pickText(response.data);
+      if (response.data?.session_id) sessions.set(m.chat, response.data.session_id);
+      if (!text || /invalid request/i.test(text)) {
+        const fallback = await request('/ai/askgpt5', encodeParams({ prompt, state: sessions.get(m.chat) }));
+        text = pickText(fallback.data);
+        if (fallback.data?.state) sessions.set(m.chat, fallback.data.state);
+      }
+      if (!text) throw new Error(errorText(response));
+      return sock.sendMessage(m.chat, { text: `✦ *GEMINI*\n\n${text}` }, { quoted: m });
+    } catch (err) { console.error('[GEMINI]', err.message); return reply('✘ Gemini is temporarily unavailable.'); }
+  }
 };

@@ -1,0 +1,2 @@
+const { request } = require('../../Plugin/prexzy');
+module.exports={name:'dog',alias:['randomdog'],category:'random',desc:'Send a random dog image',execute:async(sock,m,{reply})=>{try{const r=await request('/random/dog',{}, {responseType:'arraybuffer',timeout:90000});if(r.status<200||r.status>=300)throw Error('HTTP '+r.status);return sock.sendMessage(m.chat,{image:Buffer.from(r.data),caption:'🎲 Random dog'},{quoted:m});}catch(e){console.error('[RANDOM DOG]',e.message);return reply('✘ Could not fetch a random dog.');}}};
