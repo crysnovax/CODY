@@ -567,6 +567,7 @@ try {
             // violation delete + notify twice.
             try { await require('./src/Commands/Admin/antigm.js').handleAntiGM?.(sock, m, mek); } catch (err) { console.error('[ANTIGM ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antigroupstatus.js').handleAntiGroupStatus?.(sock, m, mek); } catch (err) { console.error('[ANTIGROUPSTATUS ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antibug.js').handleAntiBug?.(sock, m, mek); } catch (err) { console.error('[ANTIBUG ERROR]', err?.stack || err?.message || String(err)); }
             try { await require('./src/Commands/Admin/antibot.js').handleAntiBot?.(sock, m, mek); } catch (err) { console.error('[ANTIBOT ERROR]', err?.stack || err?.message || String(err)); }
             // AutoVV must run before AntiVV: AntiVV deletes the view-once
             // message, and a deleted message can no longer be downloaded.
