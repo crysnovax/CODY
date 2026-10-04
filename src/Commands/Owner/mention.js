@@ -3,9 +3,11 @@ const path = require('path');
 const { getList } = require('../../Plugin/accessListManager');
 const { getContextInfo, identityVariants, normalizeJid } = require('../../Plugin/identityUtils');
 const { downloadContentFromMessage } = require('plogme');
+const { loadMentionSticker } = require('../../Plugin/mentionSticker');
 
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
+const MENTION_PROTOCOL_FILE = path.join(__dirname, '../../../database/mention-sticker-message.json');
 
 // IMPORTANT: Never reassign this object — always mutate it with Object.assign
 // so that the exported reference in handler stays valid across reloads
@@ -14,7 +16,9 @@ const mentionConfig = {
     action: '',
     emoji:  '❤️‍🔥',
     text:   '',
-    sticker: ''
+    sticker: '',
+    stickerKind: 'sticker',
+    stickerIsAnimated: false
 };
 
 const loadMentionConfig = () => {
@@ -79,6 +83,23 @@ async function isPrivilegedMentioned(sock, m, mek) {
     return false;
 }
 
+async function sendMentionSticker(sock, jid, options = {}) {
+    if (mentionConfig.stickerKind === 'lottie') {
+        if (!fs.existsSync(MENTION_PROTOCOL_FILE) || typeof sock.relayMessage !== 'function') {
+            throw new Error('Lottie mention stickers require a preserved protocol message');
+        }
+        const saved = JSON.parse(fs.readFileSync(MENTION_PROTOCOL_FILE, 'utf8'));
+        return sock.relayMessage(jid, { [saved.type]: saved.value }, {
+            messageId: options.messageId || undefined
+        });
+    }
+    const payload = await loadMentionSticker(mentionConfig.sticker, {
+        kind: mentionConfig.stickerKind,
+        isAnimated: mentionConfig.stickerIsAnimated
+    });
+    return sock.sendMessage(jid, { sticker: payload.buffer, isAnimated: payload.isAnimated }, options.quoted ? { quoted: options.quoted } : undefined);
+}
+
 module.exports = {
     name:      'mention',
     alias:     ['tagme', 'owntag'],
@@ -127,15 +148,31 @@ module.exports = {
         // STICKER: quote a sticker, or provide a direct sticker URL.
         if (option === 'sticker' || option === '-sticker') {
             const quotedSticker = m.quoted?.stickerMessage || m.quoted?.message?.stickerMessage || (m.quoted?.mtype === 'stickerMessage' ? m.quoted : null);
-            if (quotedSticker) {
+            const quotedLottie = m.quoted?.lottieStickerMessage || m.quoted?.message?.lottieStickerMessage || (m.quoted?.mtype === 'lottieStickerMessage' ? m.quoted : null);
+            if (quotedLottie) {
+                // Lottie is a distinct WAProto wrapper; plogme intentionally
+                // does not expose it as a normal downloadable sticker type.
+                // Preserve and relay that wrapper rather than creating the
+                // "cannot view sticker" placeholder.
+                fs.mkdirSync(path.dirname(MENTION_PROTOCOL_FILE), { recursive: true });
+                fs.writeFileSync(MENTION_PROTOCOL_FILE, JSON.stringify({ type: 'lottieStickerMessage', value: quotedLottie }));
+                mentionConfig.sticker = MENTION_PROTOCOL_FILE;
+                mentionConfig.stickerKind = 'lottie';
+                mentionConfig.stickerIsAnimated = true;
+            } else if (quotedSticker) {
                 const stream = await downloadContentFromMessage(quotedSticker, 'sticker');
                 const chunks = [];
                 for await (const chunk of stream) chunks.push(chunk);
                 fs.mkdirSync(path.dirname(MENTION_STICKER_FILE), { recursive: true });
                 fs.writeFileSync(MENTION_STICKER_FILE, Buffer.concat(chunks));
                 mentionConfig.sticker = MENTION_STICKER_FILE;
+                mentionConfig.stickerKind = 'sticker';
+                mentionConfig.stickerIsAnimated = Boolean(quotedSticker?.isAnimated);
+                if (fs.existsSync(MENTION_PROTOCOL_FILE)) fs.rmSync(MENTION_PROTOCOL_FILE, { force: true });
             } else if (value && /^https?:\/\//i.test(value)) {
                 mentionConfig.sticker = value;
+                mentionConfig.stickerKind = 'sticker';
+                mentionConfig.stickerIsAnimated = false;
             } else if (!mentionConfig.sticker) {
                 return reply(`╭─❍ *MENTION*\n│ ✘ Reply to a sticker or provide a sticker URL\n│ ⚉ Example: ${prefix}mention -sticker <url>\n╰──────────────────`);
             }
@@ -185,4 +222,5 @@ module.exports.mentionConfig = mentionConfig;
 module.exports.loadMentionConfig = loadMentionConfig;
 module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
+module.exports.sendMentionSticker = sendMentionSticker;
 module.exports.norm = norm;

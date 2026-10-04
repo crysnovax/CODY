@@ -638,10 +638,9 @@ try {
                     } else if (mentionConfig.action === 'text' && mentionConfig.text) {
                         await sock.sendMessage(m.chat, { text: mentionConfig.text }, { quoted: m }).catch(() => {});
                     } else if (mentionConfig.action === 'sticker' && mentionConfig.sticker) {
-                        const sticker = /^https?:\/\//i.test(mentionConfig.sticker)
-                            ? { url: mentionConfig.sticker }
-                            : { url: mentionConfig.sticker };
-                        await sock.sendMessage(m.chat, { sticker }, { quoted: m }).catch(() => {});
+                        await mention.sendMentionSticker(sock, m.chat, { quoted: m }).catch(error => {
+                            console.error('[MENTION STICKER]', error.message);
+                        });
                     }
                 }
             } catch (error) {
