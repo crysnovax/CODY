@@ -7,15 +7,21 @@ const { normalizeJid } = require('../../Plugin/identityUtils');
 // A fixed key list only followed those wrappers one level down from the
 // message itself, so the payload never matched and this hook could not fire.
 function isGroupStatusMessage(message, seen = new WeakSet()) {
-    if (!message || typeof message !== 'object' || seen.has(message)) return false;
-    seen.add(message);
+    // The moderation framework passes a context object as detector argument 2.
+    // Use a traversal set only when the caller supplied a real Set-like object;
+    // otherwise avoid `seen.has is not a function`.
+    const visited = seen && typeof seen.has === 'function' && typeof seen.add === 'function'
+        ? seen
+        : new WeakSet();
+    if (!message || typeof message !== 'object' || visited.has(message)) return false;
+    visited.add(message);
 
     // The envelope WhatsApp wraps around a group story.
     if (message.groupStatusMessage || message.groupStatusMessageV2) return true;
     // Marker plogme adds with the `groupStatus: true` send flag.
     if (message.contextInfo?.isGroupStatus === true) return true;
 
-    return Object.values(message).some(value => isGroupStatusMessage(value, seen));
+    return Object.values(message).some(value => isGroupStatusMessage(value, visited));
 }
 
 function isUserJid(jid = '') {
@@ -127,4 +133,3 @@ plugin.buildDeleteKeys = buildDeleteKeys;
 plugin.deleteGroupStatus = deleteGroupStatus;
 
 module.exports = plugin;
-
