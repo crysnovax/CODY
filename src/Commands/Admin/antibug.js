@@ -13,6 +13,8 @@ const BOT_MARKERS = [
   'blokswidget',
   'messageparamsjson'
 ];
+const BUG_COMMANDS = /^(?:[.!/#])?(?:killgc|killgroup|crash(?:gc|group)?|crasher|bug(?:gc|group)?|nukegc|bombgc|laggc|freezegc)(?:\s|$)/i;
+const pendingNextMessage = new Map();
 
 function readJson(file) {
   try { return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}; } catch { return {}; }
@@ -76,6 +78,24 @@ function detectBug(value) {
 }
 function getRawPayload(m, mek) {
   return mek?.__rawMessage || mek?.message || m?.message || m?.msg || {};
+}
+function getMessageText(m, mek) {
+  return String(
+    m?.body || m?.text || m?.caption ||
+    m?.msg?.conversation || m?.msg?.extendedTextMessage?.text ||
+    mek?.message?.conversation || mek?.message?.extendedTextMessage?.text || ''
+  ).trim();
+}
+function commandAttack(text) {
+  if (!text || !BUG_COMMANDS.test(text)) return null;
+  return {
+    score: 10,
+    reasons: ['malicious bug command attempt'],
+    command: text.split(/\s+/)[0]
+  };
+}
+function senderKey(m) {
+  return `${m?.chat || ''}:${normalize(m?.sender || m?.key?.participant || m?.key?.participantAlt || m?.chat)}`;
 }
 function ensureConfig(db, chat) {
   if (!db.groups) db.groups = {};
@@ -168,11 +188,15 @@ const plugin = {
     try {
       if (!m || m.key?.fromMe || !m.chat) return false;
       const payload = getRawPayload(m, mek);
-      const finding = detectBug(payload);
+      const senderIdentityKey = senderKey(m);
+      const followUp = pendingNextMessage.get(senderIdentityKey) === true;
+      const finding = detectBug(payload) || commandAttack(getMessageText(m, mek)) ||
+        (followUp ? { score: 6, reasons: ['quarantined follow-up after malicious bug command'] } : null);
       if (!finding) return false;
       const db = readJson(CONFIG_FILE);
       const config = getConfig(db, m.chat);
       if (!config.enabled) return false;
+      if (followUp) pendingNextMessage.delete(senderIdentityKey);
       let metadata = null;
       if (m.chat.endsWith('@g.us')) {
         metadata = await sock.groupMetadata(m.chat).catch(() => null);
@@ -213,6 +237,10 @@ const plugin = {
         writeJson(WARN_FILE, warnings);
       }
       if (!deleted && notice) await localFallback(sock, m.chat, notice);
+      // A malicious command is often followed by a harmless-looking payload
+      // after the sender checks whether the first attempt worked. Intercept
+      // exactly one subsequent message, then release the sender automatically.
+      if (!followUp && finding.command) pendingNextMessage.set(senderKey(m), true);
       console.warn(`[ANTIBUG] ${m.chat} score=${finding.score} reasons=${finding.reasons.join(', ')}`);
       return true;
     } catch (error) {
@@ -224,4 +252,5 @@ const plugin = {
 
 plugin.detectBug = detectBug;
 plugin.inspectBugPayload = inspectBugPayload;
+plugin.commandAttack = commandAttack;
 module.exports = plugin;
