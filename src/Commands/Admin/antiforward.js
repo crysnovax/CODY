@@ -6,16 +6,21 @@ function contextIsForwarded(contextInfo) {
 
 function isForwardedMessage(message, seen = new WeakSet()) {
     if (!message || typeof message !== 'object') return false;
-    if (seen.has(message)) return false;
-    seen.add(message);
+    // The moderation framework passes a context object as argument 2. Only
+    // use it as a traversal set when it actually supports Set/WeakSet APIs.
+    const visited = seen && typeof seen.has === 'function' && typeof seen.add === 'function'
+        ? seen
+        : new WeakSet();
+    if (visited.has(message)) return false;
+    visited.add(message);
 
     if (contextIsForwarded(message.contextInfo)) return true;
 
     return Object.values(message).some(value => {
         if (Array.isArray(value)) {
-            return value.some(item => isForwardedMessage(item, seen));
+            return value.some(item => isForwardedMessage(item, visited));
         }
-        return isForwardedMessage(value, seen);
+        return isForwardedMessage(value, visited);
     });
 }
 
