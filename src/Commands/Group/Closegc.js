@@ -48,8 +48,15 @@ module.exports = {
         if (!initialMetadata) return reply('_Could not read group members; no changes were made._');
         if (!isGroupAdmin(initialMetadata, initiatorIds)) return reply('_Your admin role could not be verified; no changes were made._');
         if (!isGroupAdmin(initialMetadata, botIds)) return reply('_CODY must be a group admin before this action can be approved._');
+        const botSet = new Set(botIds.map(normalizeJid));
+        const initialTargets = (initialMetadata.participants || [])
+            .filter(participant => !participantAliases(participant).some(alias => botSet.has(alias)))
+            .map(participant => participant.id || participant.jid || participant.lid)
+            .filter(Boolean);
+        if (!initialTargets.length) return reply('_No other group members were found; no changes were made._');
+        const targetSnapshot = initialTargets.map(normalizeJid).sort();
 
-        await reply('⚠️ *DANGEROUS ACTION:* this will remove every other member and make CODY leave the group. A strict majority of current group admins must vote *Continue*. Any admin may vote *Cancel*. The poll expires in 2 minutes.');
+        await reply(`⚠️ *DANGEROUS ACTION:* this will remove ${initialTargets.length} current member(s) (everyone except CODY) and make CODY leave the group. The poll is bound to this exact membership snapshot; if membership changes, approval is discarded and the command must be run again. A strict majority of current group admins must vote *Continue*. Any admin may vote *Cancel*. The poll expires in 2 minutes.`);
 
         try {
             await requestPollApproval(sock, {
@@ -61,12 +68,13 @@ module.exports = {
                     const current = await sock.groupMetadata(chatId);
                     if (!isGroupAdmin(current, initiatorIds)) throw new Error('The initiating admin is no longer a group admin.');
                     if (!isGroupAdmin(current, botIds)) throw new Error('CODY is no longer a group admin.');
-                    const botSet = new Set(botIds.map(normalizeJid));
                     const targets = (current.participants || [])
                         .filter(participant => !participantAliases(participant).some(alias => botSet.has(alias)))
                         .map(participant => participant.id || participant.jid || participant.lid)
                         .filter(Boolean);
-                    if (!targets.length) throw new Error('No other group members were found.');
+                    if (JSON.stringify(targets.map(normalizeJid).sort()) !== JSON.stringify(targetSnapshot)) {
+                        throw new Error('Group membership changed after the poll was posted. No one was removed; run kickall again to review a fresh snapshot.');
+                    }
 
                     await sock.sendMessage(chatId, { text: `Admin approval passed. Removing ${targets.length} member(s); CODY will then leave this group.` });
                     for (let index = 0; index < targets.length; index += 10) {

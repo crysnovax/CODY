@@ -148,3 +148,48 @@ test('kickinactive preserves preview and 10-member cap but only removes after po
     assert.equal(removals.length, 1);
     assert.deepEqual(removals[0][1], ['idle@s.whatsapp.net']);
 });
+
+test('kickall cancels approval if group membership changes after the poll starts', async () => {
+    const chatId = `group-kickall-stale-${Date.now()}@g.us`;
+    const participants = [
+        { id: 'bot@s.whatsapp.net', admin: 'admin' },
+        { id: 'owner@s.whatsapp.net', admin: 'admin' },
+        { id: 'member@s.whatsapp.net', admin: null },
+    ];
+    const { sock, pollId } = makeSock(chatId, participants);
+    const removals = [];
+    let leaves = 0;
+    sock.groupParticipantsUpdate = async (...args) => removals.push(args);
+    sock.groupLeave = async () => { leaves += 1; };
+    await kickall.execute(sock, {
+        chat: chatId,
+        sender: 'owner@s.whatsapp.net',
+        key: { remoteJid: chatId, participant: 'owner@s.whatsapp.net' },
+    }, { reply: async () => {}, isGroupAdmin: true });
+    participants.push({ id: 'new-member@s.whatsapp.net', admin: null });
+    await approval._processUpdates(sock, voteUpdate(chatId, pollId, 'owner@s.whatsapp.net', 'Continue'));
+    assert.equal(removals.length, 0);
+    assert.equal(leaves, 0);
+    assert.ok(sock.sent.some(item => /membership changed after the poll was posted/i.test(item.content.text || '')));
+});
+
+test('kickinactive cancels approval if the dry-run candidate list changes', async () => {
+    const chatId = `group-inactive-stale-${Date.now()}@g.us`;
+    const participants = [
+        { id: 'bot@s.whatsapp.net', admin: 'admin' },
+        { id: 'owner@s.whatsapp.net', admin: 'admin' },
+        { id: 'idle@s.whatsapp.net', admin: null, lastSeen: Date.now() - 40 * 86_400_000 },
+    ];
+    const { sock, pollId } = makeSock(chatId, participants);
+    const removals = [];
+    sock.groupParticipantsUpdate = async (...args) => removals.push(args);
+    await kickinactive.execute(sock, {
+        chat: chatId,
+        sender: 'owner@s.whatsapp.net',
+        key: { remoteJid: chatId, participant: 'owner@s.whatsapp.net' },
+    }, { args: ['30d'], reply: async () => {}, isAdmin: true });
+    participants.push({ id: 'new-idle@s.whatsapp.net', admin: null, lastSeen: Date.now() - 50 * 86_400_000 });
+    await approval._processUpdates(sock, voteUpdate(chatId, pollId, 'owner@s.whatsapp.net', 'Continue'));
+    assert.equal(removals.length, 0);
+    assert.ok(sock.sent.some(item => /target list changed after the dry run/i.test(item.content.text || '')));
+});
