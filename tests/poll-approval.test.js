@@ -6,6 +6,7 @@ const { EventEmitter } = require('node:events');
 const approval = require('../src/Plugin/pollApproval');
 const kickall = require('../src/Commands/Group/Closegc');
 const kickinactive = require('../src/Commands/Admin/kickinactive');
+const update = require('../src/Commands/System/📅.js');
 
 function makeSock(chatId, participants) {
     let pollId = `poll-${Math.random().toString(36).slice(2)}`;
@@ -89,7 +90,7 @@ test('non-admin votes do not approve an action and any current admin can cancel'
     await approval._processUpdates(sock, voteUpdate(chatId, pollId, 'admin1@s.whatsapp.net', 'Cancel'));
     assert.equal(ran, 0, 'cancel must not execute the pending action');
     assert.equal(approval._pendingByPoll.has(pollId), false);
-    assert.ok(sock.sent.some(item => /cancelled by a group admin/i.test(item.content.text || '')));
+    assert.ok(sock.sent.some(item => /cancelled by an authorized voter/i.test(item.content.text || '')));
 });
 
 test('kickall alias does not remove members until the approval poll reaches quorum', async () => {
@@ -192,4 +193,25 @@ test('kickinactive cancels approval if the dry-run candidate list changes', asyn
     await approval._processUpdates(sock, voteUpdate(chatId, pollId, 'owner@s.whatsapp.net', 'Continue'));
     assert.equal(removals.length, 0);
     assert.ok(sock.sent.some(item => /target list changed after the dry run/i.test(item.content.text || '')));
+});
+
+test('.update in private chat waits for the owner poll and Cancel prevents update work', async () => {
+    const chatId = 'owner@s.whatsapp.net';
+    const { sock, pollId } = makeSock(chatId, []);
+    const replies = [];
+    await update.execute(sock, {
+        chat: chatId,
+        sender: chatId,
+        key: { remoteJid: chatId, fromMe: false },
+    }, { reply: async text => replies.push(text), isOwner: true });
+
+    assert.ok(sock.sent.some(item => item.content.poll));
+    assert.ok(replies.some(text => /download the latest.*overwrite matching application files/i.test(text)));
+    assert.ok(!sock.sent.some(item => /10%|20%|30%/.test(item.content.text || '')));
+
+    await approval._processUpdates(sock, voteUpdate(chatId, pollId, 'intruder@s.whatsapp.net', 'Continue'));
+    assert.ok(!sock.sent.some(item => /Approval reached for \*CODY update/i.test(item.content.text || '')));
+    await approval._processUpdates(sock, voteUpdate(chatId, pollId, chatId, 'Cancel'));
+    assert.ok(sock.sent.some(item => /cancelled by an authorized voter/i.test(item.content.text || '')));
+    assert.ok(!sock.sent.some(item => /10%|20%|30%/.test(item.content.text || '')));
 });

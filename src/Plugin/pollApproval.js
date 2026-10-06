@@ -88,6 +88,19 @@ function matchAdmin(candidates, admins) {
     return null;
 }
 
+function matchAllowedVoter(candidates, allowedVoters) {
+    const allowed = new Set(allowedVoters.map(normalizeJid).filter(Boolean));
+    const matched = candidates.find(candidate => allowed.has(candidate));
+    return matched || null;
+}
+
+function allowedVoterCandidates(key) {
+    const participantCandidates = [key?.participantAlt, key?.participant]
+        .map(normalizeJid).filter(Boolean);
+    if (participantCandidates.length) return [...new Set(participantCandidates)];
+    return [...new Set([key?.remoteJidAlt, key?.remoteJid].map(normalizeJid).filter(Boolean))];
+}
+
 function resolvePollVoteId(message, update, entry) {
     const outerKey = message?.key || {};
     const voterKey = update?.pollUpdateMessageKey || outerKey;
@@ -144,10 +157,10 @@ async function finish(entry, result, sock) {
     clearPending(entry);
     try {
         if (result === 'cancel') {
-            await sock.sendMessage(entry.chatId, { text: `🛑 *${entry.actionLabel} cancelled by a group admin.* No changes were made.` });
+            await sock.sendMessage(entry.chatId, { text: `🛑 *${entry.actionLabel} cancelled by an authorized voter.* No changes were made.` });
             return;
         }
-        await sock.sendMessage(entry.chatId, { text: `✅ Admin approval reached for *${entry.actionLabel}*. Continuing now.` });
+        await sock.sendMessage(entry.chatId, { text: `✅ Approval reached for *${entry.actionLabel}*. Continuing now.` });
         await entry.onApproved();
     } catch (error) {
         console.error('[POLL APPROVAL] Approved action failed:', error?.stack || error);
@@ -166,13 +179,20 @@ async function processVote(sock, message, update, vote) {
     const candidates = voterJids(voterKey, sock);
     if (!candidates.length) return;
 
-    let metadata;
-    try { metadata = await sock.groupMetadata(entry.chatId); } catch { return; }
-    const admins = adminRecords(metadata, sock);
-    if (!admins.length) return;
-    const voter = matchAdmin(candidates, admins);
-    if (!voter) return;
-    const voterId = [...voter.aliases].sort()[0];
+    let admins = [];
+    let voterId;
+    if (entry.allowedVoters?.length) {
+        voterId = matchAllowedVoter(allowedVoterCandidates(voterKey), entry.allowedVoters);
+        if (!voterId) return;
+    } else {
+        let metadata;
+        try { metadata = await sock.groupMetadata(entry.chatId); } catch { return; }
+        admins = adminRecords(metadata, sock);
+        if (!admins.length) return;
+        const voter = matchAdmin(candidates, admins);
+        if (!voter) return;
+        voterId = [...voter.aliases].sort()[0];
+    }
 
     const hashes = await getDecryptedHashes(vote, entry, voterKey, sock);
     if (hashes.length !== 1) return;
@@ -190,9 +210,12 @@ async function processVote(sock, message, update, vote) {
     // Strict majority of the current admins must vote Continue. A sole-admin
     // group therefore needs that admin's own vote; additional admins raise the
     // quorum. Recalculated on every update, so stale membership cannot lower it.
-    const continueCount = [...entry.votes.entries()].filter(([id, value]) => value === 'continue'
-        && admins.some(admin => admin.aliases.has(id))).length;
-    const quorum = Math.floor(admins.length / 2) + 1;
+    const continueCount = entry.allowedVoters?.length
+        ? [...entry.votes.entries()].filter(([id, value]) => value === 'continue'
+            && entry.allowedVoters.some(allowed => normalizeJid(allowed) === id)).length
+        : [...entry.votes.entries()].filter(([id, value]) => value === 'continue'
+            && admins.some(admin => admin.aliases.has(id))).length;
+    const quorum = entry.allowedVoters?.length ? 1 : Math.floor(admins.length / 2) + 1;
     if (continueCount >= quorum) await finish(entry, 'continue', sock);
 }
 
@@ -231,10 +254,14 @@ async function requestPollApproval(sock, {
     title,
     actionLabel,
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    allowedVoters = [],
     onApproved,
 }) {
-    if (!chatId || !String(chatId).endsWith('@g.us')) throw new Error('Poll approval is available only in group chats.');
-    if (pendingByGroup.has(chatId)) throw new Error('There is already an approval poll pending in this group.');
+    if (!chatId) throw new Error('A chat is required for poll approval.');
+    if (!String(chatId).endsWith('@g.us') && !allowedVoters.length) {
+        throw new Error('Private-chat approval requires an explicit authorized voter.');
+    }
+    if (pendingByGroup.has(chatId)) throw new Error('There is already an approval poll pending in this chat.');
     if (typeof onApproved !== 'function') throw new Error('An approved-action handler is required.');
     setupPollApprovalListener(sock);
 
@@ -274,6 +301,7 @@ async function requestPollApproval(sock, {
         options,
         actionLabel: String(actionLabel || 'group action'),
         onApproved,
+        allowedVoters: [...new Set(allowedVoters.map(normalizeJid).filter(Boolean))],
         expiresAt: Date.now() + timeoutMs,
         votes: new Map(),
         finished: false,
