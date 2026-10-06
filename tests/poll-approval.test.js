@@ -68,6 +68,30 @@ test('approval requires a strict majority of current human admins; bot is not pa
     assert.equal(approval._pendingByPoll.has(pollId), false);
 });
 
+test('decoded plogme poll.vote events reach the approval handler', async () => {
+    const chatId = `group-plogme-event-${Date.now()}@g.us`;
+    const { sock, pollId } = makeSock(chatId, [admin('bot@s.whatsapp.net'), admin('admin1@s.whatsapp.net')]);
+    let ran = 0;
+    await approval.requestPollApproval(sock, {
+        chatId,
+        actionLabel: 'poll.vote event action',
+        title: 'Continue?',
+        timeoutMs: 60_000,
+        onApproved: async () => { ran += 1; },
+    });
+
+    const listener = sock.ev.listeners('poll.vote')[0];
+    assert.equal(typeof listener, 'function', 'approval setup subscribes to the dedicated event');
+    await listener({
+        pollCreationMessageKey: { id: pollId, remoteJid: chatId, fromMe: true },
+        pollUpdateMessageKey: { id: 'vote-message', remoteJid: chatId, participant: 'admin1@s.whatsapp.net' },
+        vote: { selectedOptions: [approval._optionHash('Continue')] },
+        selectedOptions: ['Continue'],
+    });
+    assert.equal(ran, 1);
+    assert.equal(approval._pendingByPoll.has(pollId), false);
+});
+
 test('non-admin votes do not approve an action and any current admin can cancel', async () => {
     const chatId = `group-cancel-${Date.now()}@g.us`;
     const { sock, pollId } = makeSock(chatId, [

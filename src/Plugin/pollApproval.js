@@ -238,6 +238,12 @@ async function processUpdates(sock, updates) {
     }
 }
 
+async function processDecodedPollVote(sock, pollVote) {
+    const pollCreationMessageKey = pollVote?.pollCreationMessageKey;
+    if (!pollCreationMessageKey?.id) return;
+    await processVote(sock, { key: pollCreationMessageKey }, pollVote, pollVote.vote);
+}
+
 function setupPollApprovalListener(sock) {
     if (!sock?.ev?.on || wiredSockets.has(sock)) return;
     wiredSockets.add(sock);
@@ -246,6 +252,10 @@ function setupPollApprovalListener(sock) {
     });
     sock.ev.on('messages.update', updates => {
         processUpdates(sock, updates).catch(error => console.error('[POLL APPROVAL] update handler:', error.message));
+    });
+    sock.ev.on('poll.vote', pollVote => {
+        return processDecodedPollVote(sock, pollVote)
+            .catch(error => console.error('[POLL APPROVAL] poll.vote handler:', error.message));
     });
 }
 
@@ -326,6 +336,7 @@ module.exports = {
     setupPollApprovalListener,
     // Export pure/controlled helpers for unit tests.
     _processUpdates: processUpdates,
+    _processDecodedPollVote: processDecodedPollVote,
     _pendingByPoll: pendingByPoll,
     _clearPending: clearPending,
     _optionHash: optionHash,
