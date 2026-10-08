@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const command = require('../src/Commands/Owner/poolcard.js');
-const { normalizeDeployButton } = require('../src/Plugin/deployButtonRouter.js');
+const { normalizePoolcardButton } = require('../src/Plugin/poolcardButtonRouter.js');
 
 const baseMessage = { chat: '123@s.whatsapp.net', key: { id: 'command-1' } };
 
@@ -22,9 +22,9 @@ test('poolcard sends a native in-message card with no URL CTA', async () => {
 });
 
 test('pool buttons normalize to poolcard actions', () => {
-  assert.equal(normalizeDeployButton('poolcard:bet'), '.poolcard bet');
-  assert.equal(normalizeDeployButton('poolcard:shoot'), '.poolcard shoot');
-  assert.equal(normalizeDeployButton('poolcard:reset'), '.poolcard reset');
+  assert.equal(normalizePoolcardButton('poolcard:bet'), '.poolcard bet');
+  assert.equal(normalizePoolcardButton('poolcard:shoot'), '.poolcard shoot');
+  assert.equal(normalizePoolcardButton('poolcard:reset'), '.poolcard reset');
 });
 
 test('poolcard updates the original card through sendMessage edit', async () => {

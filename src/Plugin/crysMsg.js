@@ -1,7 +1,7 @@
 // crysMsg.js
 const { getCommand, getAll } = require('./crysCmd');
 const { getVar, resolvePrefix } = require('./configManager');
-const { normalizeDeployButton, normalizeDeployButtonMessage } = require('./deployButtonRouter');
+const { normalizePoolcardButton, normalizePoolcardButtonMessage } = require('./poolcardButtonRouter');
 const chalk = require('chalk');
 const fs    = require('fs');
 const path  = require('path');
@@ -208,11 +208,10 @@ const handleMessage = async (sock, m, store) => {
                        (altNum && isDualUser(altJid, store));
 
         const rawBody = m.text || '';
-        // Gen4 rich-menu CTAs may arrive as ordinary conversation text on
-        // WhatsApp clients. Normalize exact deployment labels/callback IDs
-        // back into the command syntax before prefix parsing.
-        const normalizedDeployButton = normalizeDeployButton(rawBody) || normalizeDeployButtonMessage(m.message);
-        const body = normalizedDeployButton || rawBody;
+        // Poolcard CTAs may arrive as ordinary conversation text on WhatsApp
+        // clients. Normalize only poolcard callback IDs before prefix parsing.
+        const normalizedPoolcardButton = normalizePoolcardButton(rawBody) || normalizePoolcardButtonMessage(m.message);
+        const body = normalizedPoolcardButton || rawBody;
 
         // ── RAW EVAL TRIGGERS: $ (JS) and \ (Shell) — owner/dual only ──
         if (isOwner || isDual) {

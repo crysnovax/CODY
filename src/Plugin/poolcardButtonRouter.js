@@ -4,34 +4,10 @@ const POOL_BUTTON_COMMANDS = new Map([
     ['poolcard:reset', '.poolcard reset'],
 ]);
 
-const DEPLOY_BUTTON_COMMANDS = new Map([
-    ['step 1 · discord', '.deploy step1'],
-    ['step 1 - discord', '.deploy step1'],
-    ['step 1 discord', '.deploy step1'],
-    ['step 2 · panel', '.deploy step2'],
-    ['step 2 - panel', '.deploy step2'],
-    ['step 2 panel', '.deploy step2'],
-    ['step 3 · pair', '.deploy step3'],
-    ['step 3 - pair', '.deploy step3'],
-    ['step 3 pair', '.deploy step3'],
-    ['step 4 · upload', '.deploy step4'],
-    ['step 4 - upload', '.deploy step4'],
-    ['step 4 upload', '.deploy step4'],
-    ['help', '.deploy help'],
-    ['tutorials', '.deploy tutorials'],
-    ['back to menu', '.deploy menu'],
-]);
-
-const normalizeDeployButton = value => {
+const normalizePoolcardButton = value => {
     const text = String(value || '').trim();
     if (!text) return null;
-    const poolAction = POOL_BUTTON_COMMANDS.get(text.toLowerCase());
-    if (poolAction) return poolAction;
-    const menuScoped = text.match(/^\.deploy\s+(step[1-4]|help|tutorials|menu)(?:\s+--menu=[a-z0-9_-]+)?$/i);
-    if (menuScoped) return `.deploy ${menuScoped[1].toLowerCase()}`;
-    const deployScoped = text.match(/^deploy:(step[1-4]|help|tutorials|menu)(?:\s+--menu=[a-z0-9_-]+)?$/i);
-    if (deployScoped) return `.deploy ${deployScoped[1].toLowerCase()}`;
-    return DEPLOY_BUTTON_COMMANDS.get(text.toLowerCase()) || null;
+    return POOL_BUTTON_COMMANDS.get(text.toLowerCase()) || null;
 };
 
 const parseJson = value => {
@@ -41,13 +17,7 @@ const parseJson = value => {
     try { return JSON.parse(value); } catch { return null; }
 };
 
-/**
- * Extract a user-visible label or callback id from Baileys-normalized or raw
- * WhatsApp interactive response messages. Gen4 rich-menu taps can be echoed as
- * ordinary conversation text, but newer clients may use one of the response
- * message envelopes below.
- */
-const extractDeployButtonValues = message => {
+const extractPoolcardButtonValues = message => {
     const values = [];
     const add = value => {
         if (value !== undefined && value !== null && String(value).trim()) values.push(String(value).trim());
@@ -98,18 +68,17 @@ const extractDeployButtonValues = message => {
     return [...new Set(values)];
 };
 
-const normalizeDeployButtonMessage = message => {
-    for (const value of extractDeployButtonValues(message)) {
-        const command = normalizeDeployButton(value);
+const normalizePoolcardButtonMessage = message => {
+    for (const value of extractPoolcardButtonValues(message)) {
+        const command = normalizePoolcardButton(value);
         if (command) return command;
     }
     return null;
 };
 
 module.exports = {
-    normalizeDeployButton,
-    normalizeDeployButtonMessage,
-    extractDeployButtonValues,
-    DEPLOY_BUTTON_COMMANDS,
+    normalizePoolcardButton,
+    normalizePoolcardButtonMessage,
+    extractPoolcardButtonValues,
     POOL_BUTTON_COMMANDS
 };
