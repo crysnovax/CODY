@@ -74,6 +74,26 @@ async function downloadFacebook(url, format = 'mp4') {
     return { buffer, mimetype: audio ? 'audio/mpeg' : 'video/mp4', extension };
 }
 
+async function downloadSpotify(url) {
+    const socialDl = await loadSocialDl();
+    const info = await socialDl.spotifyDl(url);
+    if (info?.type && info.type !== 'track') {
+        throw new Error('Use a Spotify track link to download one song.');
+    }
+    const buffer = await saveToBuffer(
+        file => socialDl.spotifySaveMatched(info, file),
+        { extension: 'mp3', audio: true }
+    );
+    return {
+        buffer,
+        title: info.title || 'Spotify track',
+        artist: info.artist || info.author || 'Unknown artist',
+        thumbnail: info.thumbnail || null,
+        mimetype: 'audio/mpeg',
+        extension: 'mp3'
+    };
+}
+
 module.exports = {
     loadSocialDl,
     downloadYouTube,
@@ -81,5 +101,6 @@ module.exports = {
     downloadTikTok,
     downloadInstagram,
     downloadFacebook,
+    downloadSpotify,
     safeDownloadError
 };
