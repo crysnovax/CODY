@@ -336,9 +336,11 @@ const handleMessage = async (sock, m, store) => {
             return;
         }
 
-        if (cmd.ownerOnly      && !isOwner && !isDual)             return reply(cfg.message.owner || 'Owner only!');
-        if (cmd.privilegedOnly && !isOwner && !isSudo && !isDual)  return reply('Owner, sudo, or dual users only!');
-        if (cmd.sudoOnly       && !isSudo)                          return reply(cfg.message.owner || 'Sudo only!');
+        // Keep privileged commands silent for unauthorized users. Do not reveal
+        // owner/sudo/dual-only command details in group or private chats.
+        if (cmd.ownerOnly      && !isOwner && !isDual)             return;
+        if (cmd.privilegedOnly && !isOwner && !isSudo && !isDual)  return;
+        if (cmd.sudoOnly       && !isSudo)                          return;
         if (cmd.groupOnly   && !m.isGroup)               return reply(cfg.message.group   || 'Group only!');
         if (cmd.privateOnly && m.isGroup)                return reply(cfg.message.private || 'Private only!');
         // ── FIX: adminOnly now checks if SENDER is admin ──
