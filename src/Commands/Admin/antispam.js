@@ -4,6 +4,7 @@ const path = require('path');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antispam.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antispam_warns.json');
+const { isModerationEnabled } = require('../../Plugin/moderationControl');
 
 // Spam tracking cache (in-memory, cleared on restart)
 const messageCache = new Map(); // group: { userId: { count, firstTime, lastTime } }
@@ -173,7 +174,7 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiSpam = async function(sock, m) {
     try {
-        if (!m.isGroup || m.key?.fromMe) return;
+        if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return;
 
         const db    = loadDB();
         const group = m.chat;

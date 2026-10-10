@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('./identityUtils');
 const { stripBotMarkerDeep, stripQuotedDeep } = require('./antiText');
+const { isModerationEnabled } = require('./moderationControl');
 
 function readJson(filePath) {
     if (!fs.existsSync(filePath)) return {};
@@ -100,7 +101,7 @@ function createAntiMessageModeration({
                 msg: sanitize(m.msg || {}),
                 serialized: sanitize(m)
             };
-            if (!m.isGroup || m.key?.fromMe) return false;
+            if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return false;
             const config = readJson(dbPath)[m.chat];
             if (!config?.enabled) return false;
             if (!detector(detectionPayload, { m, mek, config, messageId: mek?.key?.id || m?.key?.id })) return false;

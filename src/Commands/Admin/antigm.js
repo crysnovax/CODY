@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
+const { isModerationEnabled } = require('../../Plugin/moderationControl');
 
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antigm.json');
@@ -142,7 +143,7 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiGM = async function(sock, m, mek) {
     try {
-        if (!m.isGroup || m.key?.fromMe) return;
+        if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return;
 
         // Only the message the member sent may trigger moderation. A reply
         // can carry a status-mention envelope inside contextInfo.quotedMessage;

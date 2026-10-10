@@ -543,6 +543,10 @@ try {
             }
 
             // ── PASSIVE MODERATION HOOKS ────────────────────────────────
+            // /antis controls message moderation only. Participant-management
+            // protections such as AntiRaid and AntiPromote remain independent.
+            const moderationAntisEnabled = !m.isGroup || require('./src/Plugin/moderationControl').isModerationEnabled(m.chat);
+            if (moderationAntisEnabled) {
             // Runs exactly ONCE per message, and early enough that no
             // reply-driven consumer (greet button, shazam, tic-tac-toe,
             // plogme toggle) or the command router can short-circuit the
@@ -578,6 +582,7 @@ try {
                 if (antitag?.handleAntiTag) await antitag.handleAntiTag(sock, m);
             } catch {}
 
+            }
             // ── DND — delete + reply when the bot is tagged (@crysnovax—FIX06-08-26) ──
             try {
                 const dnd = require('./src/Commands/Group/dnd.js');
@@ -809,7 +814,8 @@ try {
   ['antibot.js', 'handleAntiBot'],
   ['antibug.js', 'handleAntiBug']
   ];
-  for (const [moduleName, handlerName] of editAntiHandlers) {
+  const editedChat = edited.chat || edited.remoteJid;
+  if (editedChat && require('./src/Plugin/moderationControl').isModerationEnabled(editedChat)) for (const [moduleName, handlerName] of editAntiHandlers) {
   try {
   const anti = require(`./src/Commands/Admin/${moduleName}`);
   await anti?.[handlerName]?.(sock, moderated, editedEnvelope);

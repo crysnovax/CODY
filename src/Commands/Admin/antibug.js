@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('../../Plugin/identityUtils');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
+const { isModerationEnabled } = require('../../Plugin/moderationControl');
 
 const CONFIG_FILE = path.join(process.cwd(), 'database', 'antibug.json');
 const WARN_FILE = path.join(process.cwd(), 'database', 'antibug_warns.json');
@@ -187,7 +188,7 @@ const plugin = {
   },
   handleAntiBug: async (sock, m, mek) => {
     try {
-      if (!m || m.key?.fromMe || !m.chat) return false;
+      if (!m || m.key?.fromMe || !m.chat || (m.isGroup && !isModerationEnabled(m.chat))) return false;
       const payload = getRawPayload(m, mek);
       const senderIdentityKey = senderKey(m);
       const followUp = pendingNextMessage.get(senderIdentityKey) === true;

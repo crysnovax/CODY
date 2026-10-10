@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
+const { isModerationEnabled } = require('../../Plugin/moderationControl');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antilink.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antilink_warns.json');
@@ -316,7 +317,7 @@ module.exports.hasLink = hasLink;
 module.exports.extractUrls = extractUrls;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
-        if (!m.isGroup) return;
+        if (!m.isGroup || !isModerationEnabled(m.chat)) return;
         if (m.key?.fromMe) return;
 
         const db = loadDB();

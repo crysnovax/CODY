@@ -2,6 +2,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
+const { isModerationEnabled } = require('../../Plugin/moderationControl');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antitag.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antitag_warns.json');
@@ -177,7 +178,7 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiTag = async function(sock, m) {
     try {
-        if (!m.isGroup || m.key?.fromMe) return;
+        if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return;
 
         const db    = loadDB();
         const group = m.chat;

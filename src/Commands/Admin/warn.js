@@ -93,7 +93,7 @@ module.exports = [
     },
     {
         name: 'resetwarn',
-        alias: ['clearwarn', 'rwarn', 'unwarn'],
+        alias: ['rwarn', 'unwarn'],
         category: 'Admin',
         desc: 'Reset warnings for a user',
         usage: '.resetwarn @user',
