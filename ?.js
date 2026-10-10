@@ -775,9 +775,24 @@ try {
   const editedEnvelope = { key: entry.key, message: edited, __rawMessage: edited };
   const moderated = await smsg(sock, editedEnvelope, customStore);
   if (!moderated) continue;
-  try { await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, moderated, editedEnvelope); } catch (err) { console.error('[ANTIFORWARD EDIT ERROR]', err.message); }
-  try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, moderated, editedEnvelope); } catch (err) { console.error('[ANTILINK EDIT ERROR]', err.message); }
-  try { await require('./src/Commands/Admin/antitag.js').handleAntiTag?.(sock, moderated, editedEnvelope); } catch (err) { console.error('[ANTITAG EDIT ERROR]', err.message); }
+  const editAntiHandlers = [
+  ['antivv.js', 'handleAntiVV'],
+  ['antiforward.js', 'handleAntiForward'],
+  ['antilink.js', 'handleAntiLink'],
+  ['antitag.js', 'handleAntiTag'],
+  ['antispam.js', 'handleAntiSpam'],
+  ['antiword.js', 'handleAntiWord'],
+  ['antigroupstatus.js', 'handleAntiGroupStatus'],
+  ['antigm.js', 'handleAntiGM'],
+  ['antibot.js', 'handleAntiBot'],
+  ['antibug.js', 'handleAntiBug']
+  ];
+  for (const [moduleName, handlerName] of editAntiHandlers) {
+  try {
+  const anti = require(`./src/Commands/Admin/${moduleName}`);
+  await anti?.[handlerName]?.(sock, moderated, editedEnvelope);
+  } catch (err) { console.error(`[${handlerName.toUpperCase()} EDIT ERROR]`, err.message); }
+  }
   }
   } catch (err) { console.error('[EDIT MODERATION ERROR]', err?.message || err); }
   try {
