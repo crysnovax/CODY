@@ -160,14 +160,23 @@ function createAntiMessageModeration({
             const mention = `@${senderJid.split('@')[0]}`;
             const sendNotice = text => sock.sendMessage(m.chat, { text, mentions: [senderJid] }, { quoted: mek }).catch(() => {});
             const deletionNote = removalError ? ' WhatsApp rejected content deletion, but the moderation action was still applied.' : '';
+            const logAction = actionName => {
+                try {
+                    require('./modLog').recordAction(m.chat, {
+                        command, actor: m.sender || senderJid, target: senderJid, action: actionName,
+                    });
+                } catch {}
+            };
 
             if (action === 'delete') {
                 await sendNotice(`${mention} ${violationLabel} are not allowed here. The content was deleted.${deletionNote}`);
+                logAction('delete');
                 return true;
             }
             if (action === 'kick') {
                 await sendNotice(`${mention} was removed for ${violationLabel}.${deletionNote}`);
                 await sock.groupParticipantsUpdate(m.chat, [senderJid], 'remove');
+                logAction('kick');
                 return true;
             }
             if (action === 'tkick') {
@@ -175,6 +184,7 @@ function createAntiMessageModeration({
                 const duration = parseTime(config.tkickDuration || '5m') || 5 * 60 * 1000;
                 await sendNotice(`${mention} was temporarily removed for ${violationLabel}.${deletionNote}`);
                 await tkick(sock, m.chat, senderJid, duration, `Anti ${label}`);
+                logAction('tkick');
                 return true;
             }
 
@@ -186,10 +196,12 @@ function createAntiMessageModeration({
                 writeJson(warningDbPath, warnings);
                 await sendNotice(`${mention} was removed after 3/3 warnings for ${violationLabel}.${deletionNote}`);
                 await sock.groupParticipantsUpdate(m.chat, [senderJid], 'remove');
+                logAction('warn→kick');
             } else {
                 warnings[warningKey] = { count, user: normalizeJid(senderJid) };
                 writeJson(warningDbPath, warnings);
                 await sendNotice(`${mention} warning ${count}/3: ${violationLabel} are not allowed.${deletionNote}`);
+                logAction('warn');
             }
             return true;
         } catch (error) {

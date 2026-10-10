@@ -50,6 +50,11 @@ module.exports = {
         const antiPoll = readGroupConfig('antipoll.json');
         const antiEvent = readGroupConfig('antievent.json');
         const antiNewcomer = readGroupConfig('antinewcomer.json');
+        const antiRaid = readGroupConfig('antiraid.json');
+        const antiLocation = readGroupConfig('antilocation.json');
+        const antiContact = readGroupConfig('anticontact.json');
+        const slowmode = readGroupConfig('slowmode.json');
+        const modlog = readGroupConfig('modlog.json');
         const noSticker = readGroupConfig('nosticker.json');
 
         const mentions = resolvedModerators.map(({ jid }) => jid).filter(jid => jid.endsWith('@s.whatsapp.net'));
@@ -70,6 +75,11 @@ module.exports = {
             `• AntiPoll: ${status(antiPoll, m.chat)} (${action(antiPoll, m.chat)})\n` +
             `• AntiEvent: ${status(antiEvent, m.chat)} (${action(antiEvent, m.chat)})\n` +
             `• AntiNewcomerLinks: ${status(antiNewcomer, m.chat)} (${Math.round((antiNewcomer?.[m.chat]?.windowMs || 600_000) / 60_000)}m)\n` +
+            `• AntiRaid: ${status(antiRaid, m.chat)} (${antiRaid?.[m.chat]?.threshold || 5}/${Math.round((antiRaid?.[m.chat]?.windowMs || 600_000) / 60_000)}m)\n` +
+            `• AntiLocation: ${status(antiLocation, m.chat)} (${action(antiLocation, m.chat)})\n` +
+            `• AntiContact: ${status(antiContact, m.chat)} (${action(antiContact, m.chat)})\n` +
+            `• Slowmode: ${status(slowmode, m.chat)} (${Math.round((slowmode?.[m.chat]?.intervalMs || 10_000) / 1000)}s)\n` +
+            `• ModLog: ${status(modlog, m.chat)} (${modlog?.[m.chat]?.retentionDays || 30}d retention)\n` +
             `• NoSticker: ${status(noSticker, m.chat)} (${action(noSticker, m.chat)})`,
             { mentions }
         );

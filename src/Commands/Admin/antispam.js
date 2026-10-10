@@ -188,6 +188,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
         if (muteExpiry && now < muteExpiry) {
             // User is muted - delete their message
             await sock.sendMessage(group, { delete: m.key }).catch(() => {});
+            try { require('../../Plugin/modLog').recordAction(group, { command: 'antispam', actor: sender, target: sender, action: 'delete (muted)' }); } catch {}
             console.log(`[ANTI SPAM] Muted user message deleted: ${sender.split('@')[0]}`);
             return;
         }
@@ -222,6 +223,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
 
         // Check if spam threshold reached
         if (userData.count >= maxMessages) {
+            let auditAction = action;
             // Check admin exemption
             const meta = await sock.groupMetadata(group).catch(() => null);
             if (meta) {
@@ -263,6 +265,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 console.log(`[ANTISPAM WARN] ${sender.split('@')[0]} now has ${warnCount}/3 warnings`);
                 
                 if (warnCount >= 3) {
+                    auditAction = 'warn→kick';
                     // Delete warns before kicking
                     delete warns[warnKey];
                     saveWarns(warns);
@@ -324,6 +327,8 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 groupCache.delete(sender);
                 console.log(`[ANTI SPAM] Temp kicked: ${sender.split('@')[0]}`);
             }
+
+            try { require('../../Plugin/modLog').recordAction(group, { command: 'antispam', actor: sender, target: sender, action: auditAction }); } catch {}
 
             // Reset count after action
             userData.count = 0;

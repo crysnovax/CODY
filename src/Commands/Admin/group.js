@@ -96,6 +96,12 @@ module.exports = [
 
             try {
                 await sock.groupJoinApprovalMode(m.chat, setting);
+                try {
+                    require('./antiraid').cancelApprovalRestore(m.chat);
+                    require('../../Plugin/modLog').recordAction(m.chat, {
+                        command: 'setapproval', actor: m.sender, action: setting,
+                    });
+                } catch {}
                 await sock.sendMessage(m.chat, { react: { text: '🍃', key: m.key } });
                 return reply(`${prefix}✓ *Join approval mode set to:* ${String(setting).toUpperCase()}`);
             } catch (err) {
@@ -143,4 +149,3 @@ module.exports = [
         }
     }
 ];
-

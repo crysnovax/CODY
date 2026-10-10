@@ -369,6 +369,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         if (admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
+        let auditAction = action;
 
         // Delete the message FIRST for all actions
         await sock.sendMessage(group, { delete: mek?.key || m.key }).catch(() => {});
@@ -392,6 +393,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
             const warnCount = warns[warnKey].count;
 
             if (warnCount >= 3) {
+                auditAction = 'warn→kick';
                 delete warns[warnKey];
                 saveWarns(warns);
 
@@ -429,6 +431,12 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
 
             await tkick(sock, group, sender, durMs, 'sent a link (antilink)');
         }
+
+        try {
+            require('../../Plugin/modLog').recordAction(group, {
+                command: 'antilink', actor: sender, target: sender, action: auditAction,
+            });
+        } catch {}
 
     } catch (err) {
         console.error('[ANTILINK ERROR]', err.message);

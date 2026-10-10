@@ -81,11 +81,13 @@ module.exports = [
                 }).catch(() => {});
 
                 await sock.groupParticipantsUpdate(group, [targetJid], 'remove').catch(() => {});
+                try { require('../../Plugin/modLog').recordAction(group, { command: 'warn', actor: m.sender, target: targetJid, action: 'warn→kick' }); } catch {}
             } else {
                 await sock.sendMessage(group, {
                     text: `⚠︎ @${targetNum} *Warning ${warnCount}/3*\n${remaining} more = kick!\n\n📝 ${reason}`,
                     mentions: [targetJid]
                 }).catch(() => {});
+                try { require('../../Plugin/modLog').recordAction(group, { command: 'warn', actor: m.sender, target: targetJid, action: 'warn' }); } catch {}
             }
         }
     },
@@ -119,6 +121,27 @@ module.exports = [
                 text: `✓ Warnings reset for @${targetNum}`,
                 mentions: [target.jid]
             }).catch(() => {});
+        }
+    },
+    {
+        name: 'warns',
+        alias: ['warnings'],
+        category: 'Admin',
+        desc: 'Review manual warnings for a group member',
+        usage: '.warns @user',
+        groupOnly: true,
+        adminOnly: true,
+        execute: async (sock, m, { reply }) => {
+            if (!m.isGroup) return reply('⚉ Group only');
+            const target = getTarget(m);
+            if (!target) return reply('Usage: .warns @user (or reply to the user)');
+            const record = loadWarns()[`${m.chat}_${target.num}`];
+            if (!record?.count) return reply(`@${target.num} has no active manual warnings.`, { mentions: [target.jid] });
+            const reasons = (record.reasons || []).slice(-5).map(item => {
+                const timestamp = item.time ? new Date(item.time).toLocaleString('en-GB') : 'unknown time';
+                return `• ${timestamp}: ${String(item.reason || 'No reason').slice(0, 160)}`;
+            });
+            return reply(`*Warnings for @${target.num}*\n• Active count: ${record.count}/3\n${reasons.join('\n') || '• No reason history available.'}`, { mentions: [target.jid] });
         }
     }
 ];

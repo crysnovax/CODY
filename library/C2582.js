@@ -100,7 +100,15 @@ const getUserProfilePic = async (sock, userId) => {
 
 // ── Setup Group Welcome/Goodbye Events ──
 const setupGroupEvents = async (sock, ignoredErrors = []) => {
+    require('../src/Commands/Admin/antiraid').restoreTemporaryApprovals(sock).catch(error => {
+        console.error('[ANTIRAID RESTORE ERROR]', error?.stack || error?.message || error);
+    });
     sock.ev.on('group-participants.update', async (update) => {
+        try {
+            await require('../src/Commands/Admin/antiraid').handleParticipantUpdate(sock, update);
+        } catch (error) {
+            console.error('[ANTIRAID JOIN EVENT]', error?.stack || error?.message || error);
+        }
         try {
             require('../src/Commands/Admin/antinewcomer').handleParticipantUpdate(update);
         } catch (error) {

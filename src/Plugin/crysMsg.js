@@ -367,6 +367,10 @@ const handleMessage = async (sock, m, store) => {
                 isBotAdmin, isOwnerAdmin, isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar
             });
 
+            if (m.isGroup && isAdmin) {
+                try { require('./modLog').recordAdminCommand(m.chat, cmd.name || cmdName, m.sender); } catch {}
+            }
+
             if (global.crysStats) global.crysStats.commands++;
 
             // success → remove the reaction again (@crysnovax—FIX06-08-26)
