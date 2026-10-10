@@ -5,6 +5,9 @@ const antilink = require('../src/Commands/Admin/antilink');
 const vv = require('../src/Commands/Converter/view-once');
 const antivv = require('../src/Commands/Admin/antivv');
 const antigroupstatus = require('../src/Commands/Admin/antigroupstatus');
+const antigm = require('../src/Commands/Admin/antigm');
+const antibug = require('../src/Commands/Admin/antibug');
+const { stripQuotedDeep } = require('../src/Plugin/antiText');
 const { addCommand, getCommand, clearRegistry } = require('../src/Plugin/crysCmd');
 
 test('AntiForward detects forwarding metadata in every message container', () => {
@@ -14,6 +17,31 @@ test('AntiForward detects forwarding metadata in every message container', () =>
   // The moderation framework passes context as argument two; it must not be
   // mistaken for the detector's internal WeakSet traversal state.
   assert.equal(isForwardedMessage({ message: { contextInfo: { isForwarded: true } } }, { m: {}, mek: {} }), true);
+});
+
+test('antisystems ignore violations that exist only in a quoted reply', () => {
+  const reply = {
+    extendedTextMessage: {
+      text: 'ordinary reply',
+      contextInfo: {
+        quotedMessage: {
+          groupStatusMentionMessage: { message: {} },
+          extendedTextMessage: { contextInfo: { isForwarded: true } },
+          buttonsMessage: { contentText: 'x'.repeat(20000) }
+        }
+      }
+    }
+  };
+  const ownOnly = stripQuotedDeep(reply);
+
+  // AntiGM must not treat a status mention nested only in the quoted message
+  // as a status mention from the replier.
+  assert.equal(antigm.isStatusMention({ message: reply }), false);
+  assert.equal(antigm.isStatusMention({ message: ownOnly }), false);
+  assert.equal(isForwardedMessage({ raw: reply }), true);
+  assert.equal(isForwardedMessage({ raw: ownOnly }), false);
+  assert.ok(antibug.detectBug(reply));
+  assert.equal(antibug.detectBug(ownOnly), null);
 });
 
 test('AntiLink detects and extracts TikTok short links from nested message text', () => {

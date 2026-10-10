@@ -1,6 +1,6 @@
 const fs   = require('fs');
 const path = require('path');
-const { stripBotMarker } = require('../../Plugin/antiText');
+const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antiword.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antiword_warns.json');
@@ -33,7 +33,9 @@ function containsBannedWord(text, bannedWords) {
 function extractText(m) {
     if (m.text) return stripBotMarker(m.text);
     if (m.body) return stripBotMarker(m.body);
-    const msg = m.message || m.msg || {};
+    // Never inspect the quoted subtree. A reply to a message containing a
+    // banned word is still an ordinary message by the replier.
+    const msg = stripQuotedDeep(m.message || m.msg || {});
     if (msg.conversation) return stripBotMarker(msg.conversation);
     if (msg.extendedTextMessage?.text) return stripBotMarker(msg.extendedTextMessage.text);
     if (msg.imageMessage?.caption) return stripBotMarker(msg.imageMessage.caption);

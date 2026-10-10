@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { stripQuotedDeep } = require('../../Plugin/antiText');
 
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antigm.json');
@@ -143,8 +144,10 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
     try {
         if (!m.isGroup || m.key?.fromMe) return;
 
-        // Only fire on status mentions
-        if (!isStatusMention(mek)) return;
+        // Only the message the member sent may trigger moderation. A reply
+        // can carry a status-mention envelope inside contextInfo.quotedMessage;
+        // that belongs to the quoted author, not the replier.
+        if (!isStatusMention(stripQuotedDeep(mek || {}))) return;
 
         const db = loadDB();
         const group = m.chat;

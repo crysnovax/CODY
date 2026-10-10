@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('../../Plugin/identityUtils');
+const { stripQuotedDeep } = require('../../Plugin/antiText');
 
 const CONFIG_FILE = path.join(process.cwd(), 'database', 'antibug.json');
 const WARN_FILE = path.join(process.cwd(), 'database', 'antibug_warns.json');
@@ -77,7 +78,7 @@ function detectBug(value) {
   return result.score >= 5 ? result : null;
 }
 function getRawPayload(m, mek) {
-  return mek?.__rawMessage || mek?.message || m?.message || m?.msg || {};
+  return stripQuotedDeep(mek?.__rawMessage || mek?.message || m?.message || m?.msg || {});
 }
 function getMessageText(m, mek) {
   return String(
