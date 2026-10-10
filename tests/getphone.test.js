@@ -50,6 +50,34 @@ test('DM getphone maps the caller LID to a real phone number', async () => {
     assert.equal(sock.sent[0][1].text, '447700900123');
 });
 
+test('self-sent getphone in a private chat returns the chat peer, not the bot sender', async () => {
+    const bot = '15559999999@s.whatsapp.net';
+    const peer = '447700900123@s.whatsapp.net';
+    const sock = makeSock();
+    await getphone.execute(sock, {
+        isGroup: false,
+        chat: peer,
+        sender: bot,
+        fromMe: true,
+        key: { fromMe: true, remoteJid: peer },
+    }, { args: [], reply: async text => { throw new Error(`Unexpected reply: ${text}`); } });
+    assert.equal(sock.sent[0][1].text, '447700900123');
+});
+
+test('self-sent getphone uses the peer phone alternate when the DM JID is a LID', async () => {
+    const bot = '15559999999@s.whatsapp.net';
+    const peerLid = '112233445566@lid';
+    const peerPhone = '447700900123@s.whatsapp.net';
+    const sock = makeSock();
+    await getphone.execute(sock, {
+        isGroup: false,
+        chat: peerLid,
+        sender: bot,
+        key: { fromMe: true, remoteJid: peerLid, remoteJidAlt: peerPhone },
+    }, { args: [], reply: async text => { throw new Error(`Unexpected reply: ${text}`); } });
+    assert.equal(sock.sent[0][1].text, '447700900123');
+});
+
 test('group admin can resolve a member LID, delivered privately as digits only', async () => {
     const sock = makeSock({ participants: [
         { id: REQUESTER, admin: 'admin' },
@@ -104,7 +132,7 @@ test('DM cannot resolve another user and an unresolved LID is never treated as a
     await getphone.execute(sock, { isGroup: false, chat: ownLid, sender: ownLid }, {
         args: [otherLid], reply: async text => { replies.push(text); },
     });
-    assert.match(replies.at(-1), /only return your own/);
+    assert.match(replies.at(-1), /person in that DM/);
     assert.equal(sock.sent.length, 0);
 
     await getphone.execute(sock, { isGroup: false, chat: ownLid, sender: ownLid }, {

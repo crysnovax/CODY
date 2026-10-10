@@ -145,6 +145,13 @@ async function targetFromMessage(m, args) {
     return parseUserJid(mentioned || quoted);
 }
 
+function privateLookupCandidates(m) {
+    const selfSent = Boolean(m?.key?.fromMe || m?.fromMe);
+    return selfSent
+        ? [m?.key?.remoteJidAlt, m?.key?.remoteJid, m?.chat]
+        : [m?.key?.participantAlt, m?.sender, m?.key?.participant, m?.key?.remoteJid];
+}
+
 async function deliverNumber(sock, m, number, group) {
     if (!group) {
         await sock.sendMessage(m.chat, { text: number }, { quoted: m });
@@ -160,9 +167,9 @@ async function deliverNumber(sock, m, number, group) {
 const plugin = {
     name: 'getphone',
     alias: ['getnumber', 'phoneof'],
-    desc: 'Return the verified phone number for yourself or a group member ID',
+    desc: 'Return the verified phone number for the person in a DM or a group member ID',
     category: 'Tools',
-    usage: '.getphone (in your DM) | .getphone <JID/LID> (group admin)',
+    usage: '.getphone (in the person’s DM) | .getphone <JID/LID> (group admin)',
     execute: async (sock, m, context = {}) => {
         const group = isGroupChat(m);
         const rawTarget = await targetFromMessage(m, context.args || []);
@@ -170,7 +177,7 @@ const plugin = {
 
         if (group) {
             if (!target) {
-                return context.reply?.('In a DM, run `.getphone` for your own number. For a group member, use `.getphone <JID/LID>` or reply/mention them; only group admins can request another member’s number.');
+                return context.reply?.('In a DM, run `.getphone` in the chat with the person whose number you want. For a group member, use `.getphone <JID/LID>` or reply/mention them; only group admins can request another member’s number.');
             }
             const metadata = await sock.groupMetadata(m.chat).catch(() => null);
             if (!metadata) return context.reply?.('Could not read this group’s member list.');
@@ -181,18 +188,19 @@ const plugin = {
                 return context.reply?.('That JID/LID is not a member of this group.');
             }
         } else {
-            const requester = m?.sender || m?.key?.participant || m?.key?.remoteJid;
+            const allowedPrivateIds = privateLookupCandidates(m).filter(Boolean);
+            const lookupPeer = allowedPrivateIds.map(parseUserJid).find(Boolean);
             if (target) {
-                const requesterVariants = new Set();
-                for (const id of [requester, m?.key?.participantAlt].filter(Boolean)) {
-                    for (const jid of await identityVariants(sock, id)) requesterVariants.add(jid);
+                const allowedVariants = new Set();
+                for (const id of allowedPrivateIds) {
+                    for (const jid of await identityVariants(sock, id)) allowedVariants.add(jid);
                 }
                 const targetVariants = await identityVariants(sock, target);
-                if (![...targetVariants].some(id => requesterVariants.has(id))) {
-                    return context.reply?.('In a private chat, getphone can only return your own number.');
+                if (![...targetVariants].some(id => allowedVariants.has(id))) {
+                    return context.reply?.('In a private chat, getphone can only return the number of the person in that DM.');
                 }
             } else {
-                target = parseUserJid(requester);
+                target = lookupPeer;
             }
             if (!target) return context.reply?.('Could not identify your private-chat JID.');
         }
