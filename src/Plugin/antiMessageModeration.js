@@ -49,26 +49,28 @@ function createAntiMessageModeration({
             const db = readJson(dbPath);
             const config = ensureConfig(db, m.chat);
             const subcommand = args[0]?.toLowerCase();
+            const requestedAction = subcommand === 'action' ? args[1]?.toLowerCase() : subcommand;
 
             if (!subcommand || subcommand === 'status') {
                 const action = config.action === 'warn' ? 'WARN (3x → KICK)' : config.action.toUpperCase();
-                return reply(`*${label} Settings*\n\n• Status : ${config.enabled ? 'ON' : 'OFF'}\n• Action : ${action}\n\nCommands:\n• .${command} on / off\n• .${command} delete / warn / kick / tkick [5m]\n• .${command} resetwarn @user`);
+                return reply(`*${label} Settings*\n\n• Status : ${config.enabled ? 'ON' : 'OFF'}\n• Action : ${action}\n\nCommands:\n• .${command} on / off\n• .${command} action <delete|warn|kick|tkick> [5m]\n• .${command} resetwarn @user`);
             }
             if (subcommand === 'on' || subcommand === 'off') {
                 config.enabled = subcommand === 'on';
                 writeJson(dbPath, db);
                 return reply(`*${label}* ${config.enabled ? 'enabled' : 'disabled'}.`);
             }
-            if (['delete', 'warn', 'kick', 'tkick'].includes(subcommand)) {
-                config.action = subcommand;
-                if (subcommand === 'tkick' && args[1]) config.tkickDuration = String(args[1]);
+            if (['delete', 'warn', 'kick', 'tkick'].includes(requestedAction)) {
+                config.action = requestedAction;
+                const duration = subcommand === 'action' ? args[2] : args[1];
+                if (requestedAction === 'tkick' && duration) config.tkickDuration = String(duration);
                 writeJson(dbPath, db);
-                const detail = subcommand === 'warn'
+                const detail = requestedAction === 'warn'
                     ? '3 warnings = automatic kick'
-                    : subcommand === 'tkick'
+                    : requestedAction === 'tkick'
                         ? `temporary kick${config.tkickDuration ? ` (${config.tkickDuration})` : ''}`
-                        : `${subcommand} violating messages`;
-                return reply(`*${label} action:* ${subcommand.toUpperCase()} (${detail}).`);
+                        : `${requestedAction} violating messages`;
+                return reply(`*${label} action:* ${requestedAction.toUpperCase()} (${detail}).`);
             }
             if (subcommand === 'resetwarn') {
                 const target = await resolvePhoneJid(sock, [m.mentionedJid?.[0], m.quoted?.sender, m.msg?.contextInfo?.participantAlt]);
@@ -80,7 +82,7 @@ function createAntiMessageModeration({
                 writeJson(warningDbPath, warnings);
                 return reply(`Warnings reset for @${target.split('@')[0]}`, { mentions: [target] });
             }
-            return reply(`Usage: .${command} on | off | delete | warn | kick | tkick [5m] | resetwarn @user`);
+            return reply(`Usage: .${command} on | off | action <delete|warn|kick|tkick> [5m] | resetwarn @user`);
         }
     };
 
@@ -98,9 +100,10 @@ function createAntiMessageModeration({
                 msg: sanitize(m.msg || {}),
                 serialized: sanitize(m)
             };
-            if (!m.isGroup || m.key?.fromMe || !detector(detectionPayload, { m, mek, messageId: mek?.key?.id || m?.key?.id })) return false;
+            if (!m.isGroup || m.key?.fromMe) return false;
             const config = readJson(dbPath)[m.chat];
             if (!config?.enabled) return false;
+            if (!detector(detectionPayload, { m, mek, config, messageId: mek?.key?.id || m?.key?.id })) return false;
 
             const metadata = await sock.groupMetadata(m.chat).catch(() => null);
             if (!metadata?.participants) return false;
@@ -198,4 +201,4 @@ function createAntiMessageModeration({
     return plugin;
 }
 
-module.exports = { createAntiMessageModeration, normalizeJid };
+module.exports = { createAntiMessageModeration, normalizeJid, readJson, writeJson };

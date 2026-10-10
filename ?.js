@@ -561,6 +561,11 @@ try {
             try { await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek); } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antivideo.js').handleAntiVideo?.(sock, m, mek); } catch (err) { console.error('[ANTIVIDEO ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antiaudio.js').handleAntiAudio?.(sock, m, mek); } catch (err) { console.error('[ANTIAUDIO ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antivoice.js').handleAntiVoice?.(sock, m, mek); } catch (err) { console.error('[ANTIVOICE ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antidoc.js').handleAntiDoc?.(sock, m, mek); } catch (err) { console.error('[ANTIDOC ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antipoll.js').handleAntiPoll?.(sock, m, mek); } catch (err) { console.error('[ANTIPOLL ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antievent.js').handleAntiEvent?.(sock, m, mek); } catch (err) { console.error('[ANTIEVENT ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antinewcomer.js').handleAntiNewcomer?.(sock, m, mek); } catch (err) { console.error('[ANTINEWCOMER ERROR]', err.message); }
             try { await require('./src/Commands/Admin/nosticker.js').handleNoSticker?.(sock, m, mek); } catch (err) { console.error('[NOSTICKER ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, m, mek); } catch (err) { console.error('[ANTIFORWARD ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, m, mek); } catch (err) { console.error('[ANTILINK ERROR]', err.message); }
@@ -782,6 +787,11 @@ try {
   ['antivv.js', 'handleAntiVV'],
   ['antivideo.js', 'handleAntiVideo'],
   ['antiaudio.js', 'handleAntiAudio'],
+  ['antivoice.js', 'handleAntiVoice'],
+  ['antidoc.js', 'handleAntiDoc'],
+  ['antipoll.js', 'handleAntiPoll'],
+  ['antievent.js', 'handleAntiEvent'],
+  ['antinewcomer.js', 'handleAntiNewcomer'],
   ['nosticker.js', 'handleNoSticker'],
   ['antiforward.js', 'handleAntiForward'],
   ['antilink.js', 'handleAntiLink'],

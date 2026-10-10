@@ -102,6 +102,11 @@ const getUserProfilePic = async (sock, userId) => {
 const setupGroupEvents = async (sock, ignoredErrors = []) => {
     sock.ev.on('group-participants.update', async (update) => {
         try {
+            require('../src/Commands/Admin/antinewcomer').handleParticipantUpdate(update);
+        } catch (error) {
+            console.error('[ANTINEWCOMER JOIN EVENT]', error?.message || error);
+        }
+        try {
             const evDBPath = path.join(process.cwd(), 'database/groupEvents.json');
             if (!fs.existsSync(evDBPath)) return;
             

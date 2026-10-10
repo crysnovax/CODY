@@ -45,6 +45,11 @@ module.exports = {
         const antiGroupStatus = readGroupConfig('antigroupstatus.json');
         const antiVideo = readGroupConfig('antivideo.json');
         const antiAudio = readGroupConfig('antiaudio.json');
+        const antiVoice = readGroupConfig('antivoice.json');
+        const antiDoc = readGroupConfig('antidoc.json');
+        const antiPoll = readGroupConfig('antipoll.json');
+        const antiEvent = readGroupConfig('antievent.json');
+        const antiNewcomer = readGroupConfig('antinewcomer.json');
         const noSticker = readGroupConfig('nosticker.json');
 
         const mentions = resolvedModerators.map(({ jid }) => jid).filter(jid => jid.endsWith('@s.whatsapp.net'));
@@ -60,6 +65,11 @@ module.exports = {
             `• AntiGroupStatus: ${status(antiGroupStatus, m.chat)} (${action(antiGroupStatus, m.chat)})\n` +
             `• AntiVideo: ${status(antiVideo, m.chat)} (${action(antiVideo, m.chat)})\n` +
             `• AntiAudio: ${status(antiAudio, m.chat)} (${action(antiAudio, m.chat)})\n` +
+            `• AntiVoice: ${status(antiVoice, m.chat)} (${action(antiVoice, m.chat)})\n` +
+            `• AntiDoc: ${status(antiDoc, m.chat)} (${action(antiDoc, m.chat)})\n` +
+            `• AntiPoll: ${status(antiPoll, m.chat)} (${action(antiPoll, m.chat)})\n` +
+            `• AntiEvent: ${status(antiEvent, m.chat)} (${action(antiEvent, m.chat)})\n` +
+            `• AntiNewcomerLinks: ${status(antiNewcomer, m.chat)} (${Math.round((antiNewcomer?.[m.chat]?.windowMs || 600_000) / 60_000)}m)\n` +
             `• NoSticker: ${status(noSticker, m.chat)} (${action(noSticker, m.chat)})`,
             { mentions }
         );
