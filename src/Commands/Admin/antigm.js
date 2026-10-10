@@ -174,7 +174,7 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `ⓘ @${sender.split('@')[0]} *Status mention detected!* \nStatus mentions are not allowed here. Message deleted. ಥ⁠‿⁠ಥ`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
         }
         else if (action === 'warn') {
             // Load warns fresh from file
@@ -215,7 +215,7 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `ಠ_ಠ @${sender.split('@')[0]} *KICKED* for status mentioning.`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
             
             await sock.groupParticipantsUpdate(group, [sender], 'remove').catch(() => {});
         }
@@ -228,7 +228,7 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `⏱️ @${sender.split('@')[0]} *TEMP KICKED* for status mentioning — auto re-added after ${durText}.`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
 
             await tkick(sock, group, sender, durMs, 'status mention (antigm)');
         }

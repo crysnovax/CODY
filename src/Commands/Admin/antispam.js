@@ -241,7 +241,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 await sock.sendMessage(group, {
                     text: `_ⓘ @${sender.split('@')[0]} *Spam detected!*_\n\n_${userData.count} messages in ${timeWindow / 1000}s_\n_Message deleted._`,
                     mentions: [sender]
-                }).catch(() => {});
+                }, { quoted: m }).catch(() => {});
                 
                 console.log(`[ANTI SPAM] Deleted: ${sender.split('@')[0]} | ${userData.count} msgs`);
             }
@@ -270,7 +270,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                     await sock.sendMessage(group, {
                         text: `_ಠ_ಠ @${sender.split('@')[0]} *KICKED*_\n_3/3 warnings - Spamming._\n\n_${userData.count} messages in ${timeWindow / 1000}s_`,
                         mentions: [sender]
-                    }).catch(() => {});
+                    }, { quoted: m }).catch(() => {});
                     
                     await sock.groupParticipantsUpdate(group, [sender], 'remove').catch(() => {});
                     console.log(`[ANTI SPAM] Kicked: ${sender.split('@')[0]} | 3 warns`);
@@ -278,7 +278,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                     await sock.sendMessage(group, {
                         text: `_⚠︎ @${sender.split('@')[0]} *Warning ${warnCount}/3*_\n_STOP SPAMMING! ${3 - warnCount} more = kick!_\n\n_${userData.count} messages in ${timeWindow / 1000}s_`,
                         mentions: [sender]
-                    }).catch(() => {});
+                    }, { quoted: m }).catch(() => {});
                     console.log(`[ANTI SPAM] Warned: ${sender.split('@')[0]} | ${warnCount}/3`);
                 }
             }
@@ -289,7 +289,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 await sock.sendMessage(group, {
                     text: `_🔇 @${sender.split('@')[0]} has been muted for spamming!_\n\n_${userData.count} messages in ${timeWindow / 1000}s_\n_Muted for ${muteDuration / 1000}s_`,
                     mentions: [sender]
-                }).catch(() => {});
+                }, { quoted: m }).catch(() => {});
                 
                 // Schedule unmute
                 setTimeout(() => {
@@ -303,7 +303,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 await sock.sendMessage(group, {
                     text: `_ಠ_ಠ @${sender.split('@')[0]} *KICKED for spamming!*_\n\n_${userData.count} messages in ${timeWindow / 1000}s_`,
                     mentions: [sender]
-                }).catch(() => {});
+                }, { quoted: m }).catch(() => {});
                 
                 await sock.groupParticipantsUpdate(group, [sender], 'remove').catch(() => {});
                 groupCache.delete(sender);
@@ -318,7 +318,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 await sock.sendMessage(group, {
                     text: `_⏱️ @${sender.split('@')[0]} *TEMP KICKED for spamming!*_\n\n_${userData.count} messages in ${timeWindow / 1000}s_\n_Auto re-added after ${durText}._`,
                     mentions: [sender]
-                }).catch(() => {});
+                }, { quoted: m }).catch(() => {});
 
                 await tkick(sock, group, sender, durMs, 'spamming (antispam)');
                 groupCache.delete(sender);

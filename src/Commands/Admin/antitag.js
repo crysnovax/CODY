@@ -231,7 +231,7 @@ module.exports.handleAntiTag = async function(sock, m) {
             await sock.sendMessage(group, {
                 text: `_ಠ_ಠ @${sender.split('@')[0]}_ _*Mass tagging is not allowed here!*_\n\n_${triggerReason}_\n_Message deleted._`,
                 mentions: [sender]
-            });
+            }, { quoted: m });
         }
         else if (action === 'warn') {
             // Load warns fresh from file
@@ -272,7 +272,7 @@ module.exports.handleAntiTag = async function(sock, m) {
             await sock.sendMessage(group, {
                 text: `_ಠ_ಠ @${sender.split('@')[0]} *KICKED for mass tagging!*_\n\n_${triggerReason}_`,
                 mentions: [sender]
-            });
+            }, { quoted: m });
             await sock.groupParticipantsUpdate(group, [sender], 'remove').catch(() => {});
         }
         else if (action === 'tkick') {
@@ -284,7 +284,7 @@ module.exports.handleAntiTag = async function(sock, m) {
             await sock.sendMessage(group, {
                 text: `_⏱️ @${sender.split('@')[0]} *TEMP KICKED for mass tagging!*_\n\n_${triggerReason}_\n_Auto re-added after ${durText}._`,
                 mentions: [sender]
-            });
+            }, { quoted: m });
 
             await tkick(sock, group, sender, durMs, 'mass tagging (antitag)');
         }

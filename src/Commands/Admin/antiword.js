@@ -222,7 +222,7 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `ⓘ @${sender.split('@')[0]} *Banned word detected!* \nYour message was deleted. ಥ⁠‿⁠ಥ`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
         }
         else if (action === 'warn') {
             // Load warns fresh from file
@@ -263,7 +263,7 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `ಠ_ಠ @${sender.split('@')[0]} *KICKED* for using a banned word.`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
             await sock.groupParticipantsUpdate(group, [sender], 'remove').catch(() => {});
         }
         else if (action === 'tkick') {
@@ -275,7 +275,7 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `⏱️ @${sender.split('@')[0]} *TEMP KICKED* for using a banned word — auto re-added after ${durText}.`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
 
             await tkick(sock, group, sender, durMs, 'banned word (antiword)');
         }

@@ -377,7 +377,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `ⓘ @${sender.split('@')[0]} *Link detected!*\nLinks are not allowed here. Message deleted. ಥ⁠‿⁠ಥ`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
         }
         else if (action === 'warn') {
             const warns = loadWarns();
@@ -412,7 +412,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `ಠ_ಠ @${sender.split('@')[0]} *KICKED* for sending a link.`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
 
             await sock.groupParticipantsUpdate(group, [sender], 'remove').catch(() => {});
         }
@@ -425,7 +425,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
             await sock.sendMessage(group, {
                 text: `⏱️ @${sender.split('@')[0]} *TEMP KICKED* for sending a link — auto re-added after ${durText}.`,
                 mentions: [sender]
-            }).catch(() => {});
+            }, { quoted: mek || m }).catch(() => {});
 
             await tkick(sock, group, sender, durMs, 'sent a link (antilink)');
         }
