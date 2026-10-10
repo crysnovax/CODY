@@ -38,8 +38,9 @@ test('antisystems ignore violations that exist only in a quoted reply', () => {
   // as a status mention from the replier.
   assert.equal(antigm.isStatusMention({ message: reply }), false);
   assert.equal(antigm.isStatusMention({ message: ownOnly }), false);
-  assert.equal(isForwardedMessage({ raw: reply }), true);
+  assert.equal(isForwardedMessage({ raw: reply }), false);
   assert.equal(isForwardedMessage({ raw: ownOnly }), false);
+  assert.equal(isForwardedMessage({ raw: { extendedTextMessage: { contextInfo: { isForwarded: true } } } }), true);
   assert.ok(antibug.detectBug(reply));
   assert.equal(antibug.detectBug(ownOnly), null);
 });
