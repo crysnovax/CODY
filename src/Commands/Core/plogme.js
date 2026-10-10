@@ -422,6 +422,12 @@ const PREXZY = 'https://prexzyapis.com';
 
 // PLOGME's own names — it must NEVER try to "run" itself (that dumped the menu).
 const SELF_NAMES = new Set(['plogme', 'plg', 'plog']);
+// Moderation-control commands belong to the bot router, not PLOGME's
+// command-toggle layer. Ignore stale toggle entries from older deployments.
+const RESERVED_CONTROL_COMMANDS = new Set([
+    'antis', 'antisystem', 'antimoderation', 'moderation',
+    'clearwarn', 'clearwarnings', 'clearallwarns', 'resetallwarns'
+]);
 
 // Files that PLOGME refuses to delete — deleting these would brick the bot.
 const PROTECTED_FILES = new Set([
@@ -525,19 +531,19 @@ const logOp = (type, summary) => {
 // (@crysnovax—FIX10-08-26)
 const isCommandToggled = (name) => {
     const cmd = String(name || '').toLowerCase();
-    if (!cmd || SELF_NAMES.has(cmd)) return false;
+    if (!cmd || SELF_NAMES.has(cmd) || RESERVED_CONTROL_COMMANDS.has(cmd)) return false;
     const d = loadJson(FILES.toggled);
     return d[cmd] === true || d[cmd] === 'off';
 };
 const toggleCommand = (name, off) => {
     const cmd = String(name || '').toLowerCase();
-    if (!cmd || SELF_NAMES.has(cmd)) return false; // plogme toggles via setEnabled, never here
+    if (!cmd || SELF_NAMES.has(cmd) || RESERVED_CONTROL_COMMANDS.has(cmd)) return false; // plogme toggles via setEnabled, never here
     const d = loadJson(FILES.toggled);
     d[cmd] = !!off ? 'off' : 'on';
     saveJson(FILES.toggled, d);
     return true;
 };
-const getToggledList = () => Object.entries(loadJson(FILES.toggled)).filter(([k, v]) => v === 'off' && !SELF_NAMES.has(k)).map(([k]) => k);
+const getToggledList = () => Object.entries(loadJson(FILES.toggled)).filter(([k, v]) => v === 'off' && !SELF_NAMES.has(k) && !RESERVED_CONTROL_COMMANDS.has(k)).map(([k]) => k);
 
 /* ───────────────────────── AI (same working PREXZY models as the chatbot) ───────────────────────── */
 // PLOGME uses the SAME PREXZY models as the .chatbot brain. We verified the
@@ -957,6 +963,10 @@ async function handleControlIntent(sock, m, opts, text) {
         const toggledName = toggleMatch[1].toLowerCase();
         if (SELF_NAMES.has(toggledName)) {
             await opts.reply('_PLOGME itself is toggled with `.plogme on` / `.plogme off`_');
+            return true;
+        }
+        if (RESERVED_CONTROL_COMMANDS.has(toggledName)) {
+            await opts.reply(`_.${toggledName} is a protected control command; use the command itself to change its state._`);
             return true;
         }
         const cmd = getCommand(toggledName);

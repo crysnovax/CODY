@@ -4,7 +4,7 @@ const { isModerationEnabled, setModerationEnabled } = require('../../Plugin/mode
 
 module.exports = {
     name: 'antis',
-    alias: ['antimoderation', 'moderation'],
+    alias: ['antisystem', 'antimoderation', 'moderation'],
     desc: 'Enable or disable all passive moderation antisystems in this group',
     category: 'Admin',
     groupOnly: true,
