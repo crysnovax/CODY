@@ -1,26 +1,5 @@
 const fs = require('fs');
 
-// Render YAML
-const renderYaml = `services:
-  - type: web
-    name: cody-whatsapp-bot
-    runtime: node
-    plan: free
-    buildCommand: npm install
-    startCommand: node index.js
-    envVars:
-      - key: NODE_VERSION
-        value: 18
-      - key: OWNER_NUMBER
-        sync: false
-      - key: OWNER_NAME
-        sync: false
-      - key: BOT_NAME
-        sync: false
-      - key: SESSION_ID
-        sync: false
-`;
-
 // app.json for Heroku
 const appJson = `{
   "name": "CODY WhatsApp Bot",
@@ -42,7 +21,7 @@ const appJson = `{
       "value": "CODY AI"
     },
     "SESSION_ID": {
-      "description": "Session ID from pairing page (https://cody-pair.onrender.com/)",
+      "description": "Session ID from the pairing service.",
       "required": true
     }
   },
@@ -85,8 +64,7 @@ const vercelJson = `{
   }
 }`;
 
-fs.writeFileSync('render.yaml', renderYaml);
 fs.writeFileSync('app.json', appJson);
 fs.writeFileSync('Procfile', procfile);
 fs.writeFileSync('vercel.json', vercelJson);
-console.log('✅ Deployment files created: render.yaml, app.json, Procfile, vercel.json');
+console.log('✅ Deployment files created: app.json, Procfile, vercel.json');
