@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-04T19:52:07.799Z",
+  "generatedAt": "2026-10-10T08:44:29.854Z",
   "root": ".",
-  "commandCount": 555,
+  "commandCount": 560,
   "syntaxFailures": 0,
-  "brokenCount": 115,
+  "brokenCount": 113,
   "duplicateNames": [
     {
       "name": "weather",
@@ -102,13 +102,6 @@
       "files": [
         "src/Commands/Downloader/Bank.js",
         "src/Commands/Tools/Bank.js"
-      ]
-    },
-    {
-      "name": "turbohighway",
-      "files": [
-        "src/Commands/Games/tb.js",
-        "src/Commands/Games/turbohighway.js"
       ]
     },
     {
@@ -730,21 +723,27 @@
       "2048",
       "8ball",
       "dare",
+      "flappy2",
+      "maze",
       "neverhaveiever",
+      "whack",
       "wouldyourather",
       "anagram",
       "breakout",
       "frogger",
       "hint",
+      "memory",
+      "minesweeper",
       "slots",
       "snake",
+      "spaceinvaders",
+      "tbt",
       "turbohighway",
+      "tetris",
       "tictactoe",
       "truth",
       "ttt",
-      "turbohighway",
       "wordle",
-      "zombie",
       "password"
     ],
     "textmaker": [
@@ -822,7 +821,6 @@
       "alive"
     ],
     "System": [
-      "deploy",
       "stats"
     ],
     "General": [
@@ -4258,7 +4256,7 @@
       "category": "Download",
       "file": "src/Commands/Downloader/Spotify.js",
       "imports": [
-        "node-fetch"
+        "../../Plugin/socialDl"
       ],
       "syntax": true,
       "syntaxError": "",
@@ -4785,6 +4783,33 @@
       "lastError": ""
     },
     {
+      "name": "flappy2",
+      "aliases": [
+        "flappybirdv2",
+        "flappynew"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/FP.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "maze",
+      "aliases": [
+        "labyrinth"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/MZ.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "neverhaveiever",
       "aliases": [
         "nhie",
@@ -4792,6 +4817,20 @@
       ],
       "category": "Games",
       "file": "src/Commands/Games/Nhe.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "whack",
+      "aliases": [
+        "mole",
+        "whackamole"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/WK.js",
       "imports": [],
       "syntax": true,
       "syntaxError": "",
@@ -4833,7 +4872,7 @@
         "brick"
       ],
       "category": "Games",
-      "file": "src/Commands/Games/breakout.js",
+      "file": "src/Commands/Games/bk.js",
       "imports": [],
       "syntax": true,
       "syntaxError": "",
@@ -4846,7 +4885,7 @@
         "frog"
       ],
       "category": "Games",
-      "file": "src/Commands/Games/frogger.js",
+      "file": "src/Commands/Games/dino.js",
       "imports": [],
       "syntax": true,
       "syntaxError": "",
@@ -4862,6 +4901,35 @@
       "category": "Games",
       "file": "src/Commands/Games/hint.js",
       "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "memory",
+      "aliases": [
+        "memorymatch"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/mem.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "minesweeper",
+      "aliases": [
+        "mines",
+        "game4"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/minesweeper.js",
+      "imports": [
+        "../../Plugin/htmlGame"
+      ],
       "syntax": true,
       "syntaxError": "",
       "broken": false,
@@ -4912,6 +4980,32 @@
       "lastError": ""
     },
     {
+      "name": "spaceinvaders",
+      "aliases": [
+        "invaders"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/sp.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "tbt",
+      "aliases": [
+        "tabletennis"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/tab.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
+    },
+    {
       "name": "turbohighway",
       "aliases": [
         "th",
@@ -4922,8 +5016,21 @@
       "imports": [],
       "syntax": true,
       "syntaxError": "",
-      "broken": true,
-      "lastError": "duplicate command name: src/Commands/Games/tb.js, src/Commands/Games/turbohighway.js"
+      "broken": false,
+      "lastError": ""
+    },
+    {
+      "name": "tetris",
+      "aliases": [
+        "blocks"
+      ],
+      "category": "Games",
+      "file": "src/Commands/Games/tet.js",
+      "imports": [],
+      "syntax": true,
+      "syntaxError": "",
+      "broken": false,
+      "lastError": ""
     },
     {
       "name": "tictactoe",
@@ -4968,20 +5075,6 @@
       "lastError": ""
     },
     {
-      "name": "turbohighway",
-      "aliases": [
-        "th",
-        "turbo"
-      ],
-      "category": "Games",
-      "file": "src/Commands/Games/turbohighway.js",
-      "imports": [],
-      "syntax": true,
-      "syntaxError": "",
-      "broken": true,
-      "lastError": "duplicate command name: src/Commands/Games/tb.js, src/Commands/Games/turbohighway.js"
-    },
-    {
       "name": "wordle",
       "aliases": [
         "guessword",
@@ -4989,20 +5082,6 @@
       ],
       "category": "Games",
       "file": "src/Commands/Games/wordle.js",
-      "imports": [],
-      "syntax": true,
-      "syntaxError": "",
-      "broken": false,
-      "lastError": ""
-    },
-    {
-      "name": "zombie",
-      "aliases": [
-        "zombies",
-        "survival"
-      ],
-      "category": "Games",
-      "file": "src/Commands/Games/zombie.js",
       "imports": [],
       "syntax": true,
       "syntaxError": "",
@@ -6874,6 +6953,7 @@
         "../../Plugin/accessListManager",
         "../../Plugin/identityUtils",
         "plogme",
+        "../../Plugin/mentionSticker",
         "../../../settings/config"
       ],
       "syntax": true,
@@ -8186,22 +8266,6 @@
       "file": "src/Commands/System/delvar.js",
       "imports": [
         "../../Plugin/configManager"
-      ],
-      "syntax": true,
-      "syntaxError": "",
-      "broken": false,
-      "lastError": ""
-    },
-    {
-      "name": "deploy",
-      "aliases": [
-        "pair"
-      ],
-      "category": "System",
-      "file": "src/Commands/System/deploy.js",
-      "imports": [
-        "node:crypto",
-        "../../Plugin/richRelay"
       ],
       "syntax": true,
       "syntaxError": "",

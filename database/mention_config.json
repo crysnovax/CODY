@@ -3,5 +3,7 @@
   "action": "text",
   "emoji": "",
   "text": "Busy, back later",
-  "sticker": ""
+  "sticker": "",
+  "stickerKind": "sticker",
+  "stickerIsAnimated": false
 }

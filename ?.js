@@ -744,9 +744,25 @@ try {
         })));
     });
 
-    sock.ev.on('messages.update', async (updates) => {
-        try {
-            const antidelete = require('./src/Commands/Tools/antidelete.js');
+  sock.ev.on('messages.update', async (updates) => {
+  // Human edits are update events in current plogme. Rebuild the edited
+  // message and send it through passive moderation so an innocent original
+  // cannot be edited into a link, tag, forward, or other violation.
+  try {
+  const normalizedEdits = normalizePlogmeEditUpdates(updates);
+  for (const entry of normalizedEdits) {
+  const edited = extractEditedMessage(entry?.message || entry?.update);
+  if (!edited || !entry?.key?.remoteJid || entry.key.remoteJid === 'status@broadcast') continue;
+  const editedEnvelope = { key: entry.key, message: edited, __rawMessage: edited };
+  const moderated = await smsg(sock, editedEnvelope, customStore);
+  if (!moderated) continue;
+  try { await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, moderated, editedEnvelope); } catch (err) { console.error('[ANTIFORWARD EDIT ERROR]', err.message); }
+  try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, moderated, editedEnvelope); } catch (err) { console.error('[ANTILINK EDIT ERROR]', err.message); }
+  try { await require('./src/Commands/Admin/antitag.js').handleAntiTag?.(sock, moderated, editedEnvelope); } catch (err) { console.error('[ANTITAG EDIT ERROR]', err.message); }
+  }
+  } catch (err) { console.error('[EDIT MODERATION ERROR]', err?.message || err); }
+  try {
+  const antidelete = require('./src/Commands/Tools/antidelete.js');
             if (antidelete?.onDelete) await antidelete.onDelete(sock, updates, customStore);
         } catch {}
         try {
