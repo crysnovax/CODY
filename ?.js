@@ -559,6 +559,9 @@ try {
             // message, and a deleted message can no longer be downloaded.
             try { await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(sock, m, mek); } catch (err) { console.error('[AUTOVV ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek); } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antivideo.js').handleAntiVideo?.(sock, m, mek); } catch (err) { console.error('[ANTIVIDEO ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antiaudio.js').handleAntiAudio?.(sock, m, mek); } catch (err) { console.error('[ANTIAUDIO ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/nosticker.js').handleNoSticker?.(sock, m, mek); } catch (err) { console.error('[NOSTICKER ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, m, mek); } catch (err) { console.error('[ANTIFORWARD ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, m, mek); } catch (err) { console.error('[ANTILINK ERROR]', err.message); }
 
@@ -777,6 +780,9 @@ try {
   if (!moderated) continue;
   const editAntiHandlers = [
   ['antivv.js', 'handleAntiVV'],
+  ['antivideo.js', 'handleAntiVideo'],
+  ['antiaudio.js', 'handleAntiAudio'],
+  ['nosticker.js', 'handleNoSticker'],
   ['antiforward.js', 'handleAntiForward'],
   ['antilink.js', 'handleAntiLink'],
   ['antitag.js', 'handleAntiTag'],

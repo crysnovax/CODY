@@ -7,6 +7,9 @@ const antivv = require('../src/Commands/Admin/antivv');
 const antigroupstatus = require('../src/Commands/Admin/antigroupstatus');
 const antigm = require('../src/Commands/Admin/antigm');
 const antibug = require('../src/Commands/Admin/antibug');
+const antivideo = require('../src/Commands/Admin/antivideo');
+const antiaudio = require('../src/Commands/Admin/antiaudio');
+const nosticker = require('../src/Commands/Admin/nosticker');
 const { stripQuotedDeep } = require('../src/Plugin/antiText');
 const { addCommand, getCommand, clearRegistry } = require('../src/Plugin/crysCmd');
 
@@ -43,6 +46,26 @@ test('antisystems ignore violations that exist only in a quoted reply', () => {
   assert.equal(isForwardedMessage({ raw: { extendedTextMessage: { contextInfo: { isForwarded: true } } } }), true);
   assert.ok(antibug.detectBug(reply));
   assert.equal(antibug.detectBug(ownOnly), null);
+});
+
+test('media antisystems detect their own media and ignore quoted media', () => {
+  const ownVideo = { videoMessage: { mimetype: 'video/mp4' } };
+  const ownAudio = { audioMessage: { mimetype: 'audio/ogg' } };
+  const ownSticker = { stickerMessage: { mimetype: 'image/webp' } };
+  const replyToMedia = {
+    extendedTextMessage: {
+      text: 'ordinary reply',
+      contextInfo: { quotedMessage: { ...ownVideo, ...ownAudio, ...ownSticker } }
+    }
+  };
+
+  assert.equal(antivideo.hasMessageType(ownVideo), true);
+  assert.equal(antiaudio.hasMessageType(ownAudio), true);
+  assert.equal(nosticker.hasMessageType(ownSticker), true);
+  const ownReplyContent = stripQuotedDeep(replyToMedia);
+  assert.equal(antivideo.hasMessageType(ownReplyContent), false);
+  assert.equal(antiaudio.hasMessageType(ownReplyContent), false);
+  assert.equal(nosticker.hasMessageType(ownReplyContent), false);
 });
 
 test('AntiLink detects and extracts TikTok short links from nested message text', () => {

@@ -43,6 +43,9 @@ module.exports = {
         const antiBot = readGroupConfig('antibot.json');
         const antiForward = readGroupConfig('antiforward.json');
         const antiGroupStatus = readGroupConfig('antigroupstatus.json');
+        const antiVideo = readGroupConfig('antivideo.json');
+        const antiAudio = readGroupConfig('antiaudio.json');
+        const noSticker = readGroupConfig('nosticker.json');
 
         const mentions = resolvedModerators.map(({ jid }) => jid).filter(jid => jid.endsWith('@s.whatsapp.net'));
 
@@ -54,7 +57,10 @@ module.exports = {
             `• AntiGM: ${status(antiGm, m.chat)} (${action(antiGm, m.chat)})\n` +
             `• AntiBot: ${status(antiBot, m.chat)} (${action(antiBot, m.chat)})\n` +
             `• AntiForward: ${status(antiForward, m.chat)} (${action(antiForward, m.chat)})\n` +
-            `• AntiGroupStatus: ${status(antiGroupStatus, m.chat)} (${action(antiGroupStatus, m.chat)})`,
+            `• AntiGroupStatus: ${status(antiGroupStatus, m.chat)} (${action(antiGroupStatus, m.chat)})\n` +
+            `• AntiVideo: ${status(antiVideo, m.chat)} (${action(antiVideo, m.chat)})\n` +
+            `• AntiAudio: ${status(antiAudio, m.chat)} (${action(antiAudio, m.chat)})\n` +
+            `• NoSticker: ${status(noSticker, m.chat)} (${action(noSticker, m.chat)})`,
             { mentions }
         );
     }
