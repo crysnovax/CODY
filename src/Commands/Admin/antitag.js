@@ -1,7 +1,7 @@
 // — Anti Tag / Anti Mass Mention
 const fs   = require('fs');
 const path = require('path');
-const { stripBotMarker } = require('../../Plugin/antiText');
+const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antitag.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antitag_warns.json');
@@ -48,8 +48,13 @@ function collectMentionData(value, state, seen = new WeakSet()) {
 
 function getMentions(m) {
     const state = { mentions: new Set(), nonJidMentionCount: 0, hasAllMention: false };
-    collectMentionData(m.message || {}, state);
-    collectMentionData(m.msg || {}, state);
+    // A reply can expose the quoted message as a nested message object. Strip
+    // that subtree before collecting metadata so a quoted @all/mention cannot
+    // make the reply itself look like a mass-tagging violation.
+    const message = stripQuotedDeep(m.message || {});
+    const msg = stripQuotedDeep(m.msg || {});
+    collectMentionData(message, state);
+    collectMentionData(msg, state);
     for (const jid of m.mentionedJid || []) state.mentions.add(jid);
     return { ...state, mentions: [...state.mentions] };
 }
