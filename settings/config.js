@@ -59,7 +59,7 @@ Priority:
   2. getVar() runtime override (setvar command)
   3. user-config.json
   4. sessions/creds.json  ← auto after pairing
-  5. Hardcoded fallback
+  5. Empty (fail closed; set OWNER_NUMBER explicitly)
 ──────────────────────────────────────────
 */
 const getSessionNumber = () => {
@@ -74,7 +74,7 @@ const getSessionNumber = () => {
     return null;
 };
 
-const defaultNumber = process.env.OWNER_NUMBER || '2347043550282';
+const defaultNumber = process.env.OWNER_NUMBER || '';
 
 const resolvedOwner =
     process.env.OWNER_NUMBER        ||
@@ -204,7 +204,7 @@ const config = {
         ownerJid:
             getVar('OWNER_JID')          ||
             userConfig?.owner?.jid       ||
-            `${resolvedOwner}@s.whatsapp.net`,
+            (resolvedOwner ? `${resolvedOwner}@s.whatsapp.net` : null),
 
         ownerName:
             process.env.OWNER_NAME       ||
@@ -219,7 +219,7 @@ const config = {
     permissions: {
         owners: process.env.OWNER_NUMBERS
             ? process.env.OWNER_NUMBERS.split(',').map(n => n.trim() + '@s.whatsapp.net')
-            : [`${resolvedOwner}@s.whatsapp.net`],
+            : (resolvedOwner ? [`${resolvedOwner}@s.whatsapp.net`] : []),
         premium: [],
         banned: []
     },

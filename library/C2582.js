@@ -9,6 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
+const { getVar } = require('../src/Plugin/configManager');
 
 // Default images for welcome/goodbye (fallback when profile picture fails)
 const DEFAULT_WELCOME_IMG = 'https://cdn.crysnova.qzz.io/files/1787959847091-f53824e7-a40f-4e47-b77a-5be1d89045f1.jpeg';
@@ -20,9 +21,31 @@ const GROUP_JID = '120363410281907240@g.us';
 // This image is used for the connection message (ALWAYS, ignoring config.thumbUrl)
 const GROUP_BUTTON_IMG = 'https://cdn.crysnova.qzz.io/files/1787959605771-ab0d9124-b281-4b45-988e-dfc894d83f2e.jpeg';
 
+function resolveOwnerJid({ envOwner = process.env.OWNER_NUMBER, runtimeOwner = getVar('OWNER_NUMBER') } = {}) {
+    // Read OWNER_NUMBER when the connection opens, not from the config object
+    // captured at module load; Railway/.env initialization can happen later.
+    const raw = String(envOwner ?? '').trim() || String(runtimeOwner ?? '').trim();
+    if (!raw) return null;
+
+    let phone = raw;
+    if (raw.endsWith('@s.whatsapp.net') || raw.endsWith('@c.us')) {
+        phone = raw.slice(0, raw.lastIndexOf('@'));
+    } else if (raw.includes('@')) {
+        return null;
+    }
+    if (!/^[+\d\s().-]+$/.test(phone)) return null;
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 7 || digits.length > 15) return null;
+    return `${digits}@s.whatsapp.net`;
+}
+
 // ── Send Connected Message to Owner (with Group Button) ──
-const sendConnectedMessage = async (sock, config, port) => {
-    const ownerJid = `${config.owner}@s.whatsapp.net`;
+const sendConnectedMessage = async (sock, config, port, options = {}) => {
+    const ownerJid = resolveOwnerJid(options);
+    if (!ownerJid) {
+        console.warn('[Connected msg skipped] OWNER_NUMBER is missing or invalid; no recipient used.');
+        return false;
+    }
     // ALWAYS use the hardcoded GROUP_BUTTON_IMG, ignore config.thumbUrl
     const thumbUrl = GROUP_BUTTON_IMG;
 
@@ -30,8 +53,12 @@ const sendConnectedMessage = async (sock, config, port) => {
         // Fetch the image as buffer
         let thumbnail = null;
         try {
-            const fetch = require('node-fetch');
-            thumbnail = await fetch(thumbUrl).then(r => r.buffer());
+            if (typeof options.fetchThumbnail === 'function') {
+                thumbnail = await options.fetchThumbnail(thumbUrl);
+            } else {
+                const fetch = require('node-fetch');
+                thumbnail = await fetch(thumbUrl).then(r => r.buffer());
+            }
         } catch (e) {
             console.log(chalk.yellow('[Thumbnail fetch failed]'), e.message);
         }
@@ -72,9 +99,11 @@ const sendConnectedMessage = async (sock, config, port) => {
             await sock.sendMessage(ownerJid, { text: caption });
             console.log(chalk.green('✅ Connected message sent to owner (text only)'));
         }
+        return true;
 
     } catch (e) {
         console.log(chalk.red('[Connected msg failed]'), e.message);
+        return false;
     }
 };
 
@@ -180,4 +209,4 @@ const setupGroupEvents = async (sock, ignoredErrors = []) => {
     console.log(chalk.green('✅ Group welcome/goodbye events loaded (styled)'));
 };
 
-module.exports = { sendConnectedMessage, setupGroupEvents };
+module.exports = { sendConnectedMessage, setupGroupEvents, resolveOwnerJid };
