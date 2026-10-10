@@ -11,7 +11,7 @@ const chalk = require('chalk');
 const { setupStatusHandler } = require('./src/Plugin/statusHandler');
 const { getVar }             = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
-const { extractEditedMessage, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
+const { extractEditedMessage, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
 
 // Polyfill: sock.sendRichText was added as an alias for sock.sendMessage
 // to support chatbot responses that call sock.sendRichText(jid, { text }).
@@ -297,17 +297,36 @@ setupPromotionGuard(sock);
             // messages.update. Feed both forms to the same anti-edit module.
             const editedMessage = extractEditedMessage(mek.message);
             if (editedMessage) {
+                const normalizedEdit = normalizeEditUpdate({ key: mek.key, message: mek.message });
+                const editKey = normalizedEdit.key || mek.key;
+                const editedEnvelope = { key: editKey, message: editedMessage, __rawMessage: editedMessage };
                 try {
                     const antiedit = require('./src/Commands/Tools/antiedit.js');
                     if (antiedit?.onEdit) {
                         await antiedit.onEdit(sock, [{
-                            key: mek.key,
+                            key: editKey,
                             message: { editedMessage },
-                            update: { ...mek.key, message: editedMessage }
+                            update: { ...editKey, message: editedMessage }
                         }], customStore);
                     }
                 } catch (err) {
                     console.error('[ANTIEDIT ROUTE ERROR]', err?.message || err);
+                }
+                try {
+                    const edited = await smsg(sock, editedEnvelope, customStore);
+                    if (edited) {
+                        await require('./src/Commands/Admin/antigm.js').handleAntiGM?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antigroupstatus.js').handleAntiGroupStatus?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antibug.js').handleAntiBug?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antibot.js').handleAntiBot?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antitag.js').handleAntiTag?.(sock, edited, editedEnvelope);
+                        await require('./src/Commands/Admin/antiword.js').handleAntiWord?.(sock, edited, editedEnvelope);
+                    }
+                } catch (err) {
+                    console.error('[EDIT MODERATION ERROR]', err?.stack || err?.message || err);
                 }
                 return;
             }
@@ -647,7 +666,7 @@ try {
                 }
             } catch {}
 
-            // ── PLOGME: block toggled-off commands BEFORE the router runs ──
+            // ── PLOGME: block toggled-off commands BEFORE the router runs ─���
             // PLOGME's own names are NEVER blocked here — ".plogme on/off"
             // must always reach the plogme handler, otherwise the toggle
             // dead-locks and every ".plogme ..." spams the block notice.
