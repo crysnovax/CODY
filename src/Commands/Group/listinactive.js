@@ -5,9 +5,6 @@ const {
     isBotParticipant,
 } = require('../../Plugin/groupActivity');
 
-const CHUNK_SIZE = 25;
-const MAX_RESULTS = 300;
-
 module.exports = {
     name: 'listinactive',
     alias: ['inactiveusers'],
@@ -28,22 +25,15 @@ module.exports = {
         }
         const allInactive = members.filter(row => row.count === 0);
         if (!allInactive.length) return reply('No inactive members found; every listed member has sent at least one tracked message.');
-        const inactive = allInactive.slice(0, MAX_RESULTS);
-
         const startedAt = getTrackingStartedAt(m.chat);
         const trackingNote = startedAt
             ? `Tracking began ${new Date(startedAt).toLocaleString()}. Earlier messages are not available.`
             : 'No group messages have been tracked yet. Tracking begins when the next member message arrives.';
-        for (let offset = 0; offset < inactive.length; offset += CHUNK_SIZE) {
-            const chunk = inactive.slice(offset, offset + CHUNK_SIZE);
-            const heading = offset === 0
-                ? `*Inactive members (${inactive.length}${allInactive.length > inactive.length ? ` of ${allInactive.length}` : ''}/${members.length})*\n${trackingNote}\n\n`
-                : `*Inactive members — continued (${offset + 1}-${offset + chunk.length}/${inactive.length})*\n\n`;
-            const lines = chunk.map(row => `• @${row.jid.split('@')[0]}`).join('\n');
-            await sock.sendMessage(m.chat, {
-                text: `${heading}${lines}`,
-                mentions: chunk.map(row => row.jid),
-            }, { quoted: m });
-        }
+        const heading = `*Inactive members (${allInactive.length}/${members.length})*\n${trackingNote}\n\n`;
+        const lines = allInactive.map(row => `• @${row.jid.split('@')[0]}`).join('\n');
+        await sock.sendMessage(m.chat, {
+            text: `${heading}${lines}`,
+            mentions: allInactive.map(row => row.jid),
+        }, { quoted: m });
     },
 };
