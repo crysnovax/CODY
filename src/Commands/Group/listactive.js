@@ -25,7 +25,16 @@ module.exports = {
             if (!row.jid || await isBotParticipant(sock, row.participant)) continue;
             members.push(row);
         }
-        const active = members.filter(row => row.count > 0);
+        // Participant metadata is not a ranking: WhatsApp may return members
+        // in any order. Rank by message count first, then by most recent
+        // activity so the displayed list is deterministic for ties.
+        const active = members
+            .filter(row => row.count > 0)
+            .sort((left, right) =>
+                right.count - left.count
+                || (Number(right.lastAt) || 0) - (Number(left.lastAt) || 0)
+                || String(left.jid).localeCompare(String(right.jid))
+            );
         if (!active.length) return reply('No active members found yet; no member messages have been tracked.');
 
         const startedAt = getTrackingStartedAt(m.chat);

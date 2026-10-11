@@ -66,14 +66,20 @@ test('activity matches a participant phone JID to a stored LID alias', async () 
 test('listinactive and listactive tag the correct users; listactive includes counts', async () => {
     const group = '300@g.us';
     const active = '3333333333@s.whatsapp.net';
+    const higher = '5555555555@s.whatsapp.net';
     const inactive = '4444444444@s.whatsapp.net';
     for (const id of ['active-1', 'active-2']) {
         const item = groupMessage(group, active, id);
         activity.trackGroupMessage(item.m, item.raw);
     }
+    for (let index = 0; index < 6; index++) {
+        const item = groupMessage(group, higher, `higher-${index}`);
+        activity.trackGroupMessage(item.m, item.raw);
+    }
     const participants = [
         { id: '9999999999@s.whatsapp.net', admin: 'admin' },
         { id: active },
+        { id: higher },
         { id: inactive },
     ];
     const sent = [];
@@ -95,6 +101,6 @@ test('listinactive and listactive tag the correct users; listactive includes cou
     assert.equal(sent.length, 2);
     assert.deepEqual(sent[0][1].mentions, [inactive]);
     assert.match(sent[0][1].text, /Inactive members/);
-    assert.deepEqual(sent[1][1].mentions, [active]);
-    assert.match(sent[1][1].text, /@3333333333 — 2 messages/);
+    assert.deepEqual(sent[1][1].mentions, [higher, active]);
+    assert.match(sent[1][1].text, /@5555555555 — 6 messages\n• @3333333333 — 2 messages/);
 });
