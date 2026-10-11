@@ -5,9 +5,13 @@ const { createAntiMessageModeration } = require('./antiMessageModeration');
 function hasMessageType(value, messageType, seen = new WeakSet()) {
     if (!value || typeof value !== 'object' || seen.has(value)) return false;
     seen.add(value);
-    return Object.entries(value).some(([key, child]) =>
-        key === messageType || hasMessageType(child, messageType, seen)
-    );
+    return Object.entries(value).some(([key, child]) => {
+        // A quoted message belongs to the original sender, not to the
+        // member who replied to it. Keep this guard in the primitive
+        // detector too because callers may pass a raw WhatsApp envelope.
+        if (key === 'quotedMessage' || key === 'quoted') return false;
+        return key === messageType || hasMessageType(child, messageType, seen);
+    });
 }
 
 function createMediaAnti({ command, aliases, label, description, messageType, violationLabel, databaseName, warningDatabaseName }) {

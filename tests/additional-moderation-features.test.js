@@ -51,6 +51,22 @@ test('antilocation and anticontact identify supported WhatsApp message types', (
     assert.equal(anticontact.CONTACT_TYPES.some(type => hasMessageType({ conversation: 'hi' }, type)), false);
 });
 
+test('location and contact detectors ignore quoted violations', () => {
+    const reply = {
+        extendedTextMessage: {
+            text: 'ordinary reply',
+            contextInfo: {
+                quotedMessage: {
+                    locationMessage: {},
+                    contactsArrayMessage: {},
+                },
+            },
+        },
+    };
+    assert.equal(antilocation.LOCATION_TYPES.some(type => hasMessageType(reply, type)), false);
+    assert.equal(anticontact.CONTACT_TYPES.some(type => hasMessageType(reply, type)), false);
+});
+
 test('location moderation writes only a rule/action audit event when modlog is enabled', async () => {
     writeConfig('antilocation.json', { enabled: true, action: 'delete' });
     writeConfig('modlog.json', { enabled: true, retentionDays: 30, entries: [] });

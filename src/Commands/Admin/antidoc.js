@@ -10,6 +10,9 @@ function findDocuments(value, output = [], seen = new WeakSet()) {
     if (!value || typeof value !== 'object' || seen.has(value)) return output;
     seen.add(value);
     for (const [key, child] of Object.entries(value)) {
+        // A document inside a quoted message was sent by the quoted author,
+        // not by the member being moderated.
+        if (key === 'quotedMessage' || key === 'quoted') continue;
         if (key === 'documentMessage' && child && typeof child === 'object') output.push(child);
         findDocuments(child, output, seen);
     }

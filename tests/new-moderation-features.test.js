@@ -50,7 +50,7 @@ test.after(() => {
 test('antivoice distinguishes voice notes from regular audio', () => {
     assert.equal(antivoice.hasVoiceNote({ audioMessage: { ptt: true } }), true);
     assert.equal(antivoice.hasVoiceNote({ audioMessage: { ptt: false, mimetype: 'audio/mpeg' } }), false);
-    assert.equal(antivoice.hasVoiceNote({ extendedTextMessage: { contextInfo: { quotedMessage: { audioMessage: { ptt: true } } } } }), true);
+    assert.equal(antivoice.hasVoiceNote({ extendedTextMessage: { contextInfo: { quotedMessage: { audioMessage: { ptt: true } } } } }), false);
 });
 
 test('antidoc uses strict allow-listing with explicit deny rules', () => {
@@ -87,6 +87,26 @@ test('poll and event detectors target creation messages only', () => {
     assert.equal(antipoll.POLL_TYPES.some(type => require(path.join(originalCwd, 'src/Plugin/mediaAnti')).hasMessageType({ pollCreationMessageV3: {} }, type)), true);
     assert.equal(antievent.EVENT_TYPES.some(type => require(path.join(originalCwd, 'src/Plugin/mediaAnti')).hasMessageType({ eventMessage: {} }, type)), true);
     assert.equal(antipoll.POLL_TYPES.some(type => require(path.join(originalCwd, 'src/Plugin/mediaAnti')).hasMessageType({ pollUpdateMessage: {} }, type)), false);
+});
+
+test('new moderation detectors ignore violations that exist only in a quote', () => {
+    const quoted = {
+        imageMessage: {},
+        audioMessage: { ptt: true },
+        documentMessage: { fileName: 'blocked.apk' },
+        pollCreationMessageV3: {},
+        eventMessage: {},
+    };
+    const reply = { extendedTextMessage: {
+        text: 'ordinary reply',
+        contextInfo: { quotedMessage: quoted },
+    } };
+    const media = require(path.join(originalCwd, 'src/Plugin/mediaAnti'));
+    assert.equal(media.hasMessageType(reply, 'imageMessage'), false);
+    assert.equal(media.hasMessageType(reply, 'pollCreationMessageV3'), false);
+    assert.equal(media.hasMessageType(reply, 'eventMessage'), false);
+    assert.equal(antivoice.hasVoiceNote(reply), false);
+    assert.equal(antidoc.shouldBlockDocument(reply, { allowedExtensions: [] }), false);
 });
 
 test('antinewcomer duration parsing accepts supported units and bounds invalid values', () => {

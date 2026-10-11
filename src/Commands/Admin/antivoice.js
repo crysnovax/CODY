@@ -4,11 +4,14 @@ const { createAntiMessageModeration } = require('../../Plugin/antiMessageModerat
 function hasVoiceNote(value, seen = new WeakSet()) {
     if (!value || typeof value !== 'object' || seen.has(value)) return false;
     seen.add(value);
-    return Object.entries(value).some(([key, child]) =>
-        (key === 'audioMessage' && child?.ptt === true)
-        || key === 'voiceMessage'
-        || hasVoiceNote(child, seen)
-    );
+    return Object.entries(value).some(([key, child]) => {
+        // The quoted author's voice note must not be attributed to the
+        // member who sent the reply.
+        if (key === 'quotedMessage' || key === 'quoted') return false;
+        return (key === 'audioMessage' && child?.ptt === true)
+            || key === 'voiceMessage'
+            || hasVoiceNote(child, seen);
+    });
 }
 
 const plugin = createAntiMessageModeration({
