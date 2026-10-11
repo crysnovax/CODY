@@ -3,12 +3,16 @@
  * 🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖🔖
  */
 
+const path = require('path');
+// Read this checkout's .env before loading any module that snapshots config.
+// Platform-provided variables keep precedence; .env fills in missing values.
+require('dotenv').config({ path: path.join(__dirname, '.env'), override: false });
+
 // ── DATABASE REDIRECT (Cloudflare KV on Render, local otherwise) ──
 require('./redirect.js');
 // ─────────────────────────────────────────────────────────────────
 
 const fs = require('fs');
-const path = require('path');
 const chalk = require('chalk');
 
 // -------------------------------------------------------------------

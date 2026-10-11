@@ -49,7 +49,7 @@ const DEPLOY_CONFIG = {
     SESSION_ID:       'CODY_AI!KV:hx809881',
     OWNER_NUMBER:     '2349122083563',
     OWNER_NAME:       'PLOGME',
-    BOT_NAME:         '```CODY AI```',
+    BOT_NAME:         'CODY AI',
     PREFIX:           '!',
     MODE:             'public',
     AUTO_READ:        'true',

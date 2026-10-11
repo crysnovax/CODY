@@ -377,4 +377,9 @@ const config = {
     }
 };
 
+// Older commands read these top-level names; keep them aligned with the
+// canonical settings populated from BOT_NAME and OWNER_NAME.
+config.botname = config.settings.title;
+config.ownerName = config.settings.ownerName;
+
 module.exports = config;
