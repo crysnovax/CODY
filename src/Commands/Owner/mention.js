@@ -1,5 +1,6 @@
 const fs   = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const { getList } = require('../../Plugin/accessListManager');
 const { getContextInfo, identityVariants, normalizeJid } = require('../../Plugin/identityUtils');
 const { downloadContentFromMessage } = require('plogme');
@@ -9,6 +10,7 @@ const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
 const MENTION_PROTOCOL_FILE = path.join(__dirname, '../../../database/mention-sticker-message.json');
 const MENTION_VOICE_FILE = path.join(__dirname, '../../../database/mention-voice.ogg');
+const MAX_VOICE_BYTES = 16 * 1024 * 1024;
 
 // IMPORTANT: Never reassign this object — always mutate it with Object.assign
 // so that the exported reference in handler stays valid across reloads
@@ -116,6 +118,54 @@ async function sendMentionVoice(sock, jid, options = {}) {
     }, options.quoted ? { quoted: options.quoted } : undefined);
 }
 
+function convertToVoiceNote(inputBuffer) {
+    if (!Buffer.isBuffer(inputBuffer) || !inputBuffer.length) {
+        return Promise.reject(new Error('Audio input is empty'));
+    }
+    const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+    return new Promise((resolve, reject) => {
+        const ffmpeg = spawn(ffmpegPath, [
+            '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-vn',
+            '-c:a', 'libopus', '-b:a', '32k', '-application', 'voip',
+            '-ar', '48000', '-ac', '1', '-f', 'ogg', 'pipe:1'
+        ]);
+        const chunks = [];
+        let outputBytes = 0;
+        let stderr = '';
+        let settled = false;
+        const fail = error => {
+            if (settled) return;
+            settled = true;
+            reject(error);
+        };
+        ffmpeg.stdout.on('data', chunk => {
+            outputBytes += chunk.length;
+            if (outputBytes > MAX_VOICE_BYTES) {
+                ffmpeg.kill('SIGKILL');
+                fail(new Error('Converted voice note exceeds the 16 MB limit'));
+                return;
+            }
+            chunks.push(chunk);
+        });
+        ffmpeg.stderr.on('data', chunk => {
+            if (stderr.length < 8000) stderr += chunk.toString().slice(0, 8000 - stderr.length);
+        });
+        ffmpeg.on('error', error => fail(new Error(`FFmpeg could not start: ${error.message}`)));
+        ffmpeg.on('close', code => {
+            if (settled) return;
+            if (code !== 0) return fail(new Error(`Audio conversion failed: ${stderr.trim() || `FFmpeg exited ${code}`}`));
+            const output = Buffer.concat(chunks);
+            if (!output.length) return fail(new Error('Audio conversion produced an empty voice note'));
+            settled = true;
+            resolve(output);
+        });
+        ffmpeg.stdin.on('error', error => {
+            if (error.code !== 'EPIPE') fail(error);
+        });
+        ffmpeg.stdin.end(inputBuffer);
+    });
+}
+
 module.exports = {
     name:      'mention',
     alias:     ['tagme', 'owntag'],
@@ -211,12 +261,19 @@ module.exports = {
             const stream = await downloadContentFromMessage(quotedAudio, 'audio');
             const chunks = [];
             for await (const chunk of stream) chunks.push(chunk);
-            const audio = Buffer.concat(chunks);
-            if (!audio.length) return reply('Could not read that audio. Please try another voice note.');
+            const sourceAudio = Buffer.concat(chunks);
+            if (!sourceAudio.length) return reply('Could not read that audio. Please try another voice note.');
+            let audio;
+            try {
+                audio = await convertToVoiceNote(sourceAudio);
+            } catch (error) {
+                console.error('[MENTION VOICE CONVERSION]', error?.message || error);
+                return reply(`Could not convert that audio to a voice note: ${error?.message || 'unknown conversion error'}`);
+            }
             fs.mkdirSync(path.dirname(MENTION_VOICE_FILE), { recursive: true });
             fs.writeFileSync(MENTION_VOICE_FILE, audio);
             mentionConfig.voice = MENTION_VOICE_FILE;
-            mentionConfig.voiceMime = quotedAudio.mimetype || 'audio/ogg; codecs=opus';
+            mentionConfig.voiceMime = 'audio/ogg; codecs=opus';
             mentionConfig.voicePtt = true;
             mentionConfig.active = true;
             mentionConfig.action = 'voice';
@@ -269,4 +326,5 @@ module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
 module.exports.sendMentionSticker = sendMentionSticker;
 module.exports.sendMentionVoice = sendMentionVoice;
+module.exports.convertToVoiceNote = convertToVoiceNote;
 module.exports.norm = norm;
