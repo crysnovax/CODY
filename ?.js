@@ -569,6 +569,7 @@ try {
             // message, and a deleted message can no longer be downloaded.
             try { await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(sock, m, mek); } catch (err) { console.error('[AUTOVV ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek); } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
+            try { await require('./src/Commands/Admin/antiimage.js').handleAntiImage?.(sock, m, mek); } catch (err) { console.error('[ANTIIMAGE ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antivideo.js').handleAntiVideo?.(sock, m, mek); } catch (err) { console.error('[ANTIVIDEO ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antiaudio.js').handleAntiAudio?.(sock, m, mek); } catch (err) { console.error('[ANTIAUDIO ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antilocation.js').handleAntiLocation?.(sock, m, mek); } catch (err) { console.error('[ANTILOCATION ERROR]', err.message); }
@@ -799,6 +800,7 @@ try {
   if (!moderated) continue;
   const editAntiHandlers = [
   ['antivv.js', 'handleAntiVV'],
+  ['antiimage.js', 'handleAntiImage'],
   ['antivideo.js', 'handleAntiVideo'],
   ['antiaudio.js', 'handleAntiAudio'],
   ['antilocation.js', 'handleAntiLocation'],

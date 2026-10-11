@@ -4,6 +4,7 @@ const { isForwardedMessage } = require('../src/Commands/Admin/antiforward');
 const antilink = require('../src/Commands/Admin/antilink');
 const vv = require('../src/Commands/Converter/view-once');
 const antivv = require('../src/Commands/Admin/antivv');
+const antiimage = require('../src/Commands/Admin/antiimage');
 const antigroupstatus = require('../src/Commands/Admin/antigroupstatus');
 const antigm = require('../src/Commands/Admin/antigm');
 const antibug = require('../src/Commands/Admin/antibug');
@@ -49,6 +50,7 @@ test('antisystems ignore violations that exist only in a quoted reply', () => {
 });
 
 test('media antisystems detect their own media and ignore quoted media', () => {
+  const ownImage = { imageMessage: { mimetype: 'image/jpeg' } };
   const ownVideo = { videoMessage: { mimetype: 'video/mp4' } };
   const ownAudio = { audioMessage: { mimetype: 'audio/ogg' } };
   const ownSticker = { stickerMessage: { mimetype: 'image/webp' } };
@@ -59,10 +61,12 @@ test('media antisystems detect their own media and ignore quoted media', () => {
     }
   };
 
+  assert.equal(antiimage.hasMessageType(ownImage), true);
   assert.equal(antivideo.hasMessageType(ownVideo), true);
   assert.equal(antiaudio.hasMessageType(ownAudio), true);
   assert.equal(nosticker.hasMessageType(ownSticker), true);
   const ownReplyContent = stripQuotedDeep(replyToMedia);
+  assert.equal(antiimage.hasMessageType(ownReplyContent), false);
   assert.equal(antivideo.hasMessageType(ownReplyContent), false);
   assert.equal(antiaudio.hasMessageType(ownReplyContent), false);
   assert.equal(nosticker.hasMessageType(ownReplyContent), false);

@@ -8,7 +8,7 @@ const ROOT_FEATURES = [
   ['antilink', 'antilink.json'], ['antigm', 'antigm.json'], ['antibot', 'antibot.json'],
   ['antiforward', 'antiforward.json'], ['antigroupstatus', 'antigroupstatus.json'],
   ['antiword', 'antiword.json'], ['antitag', 'antitag.json'], ['antispam', 'antispam.json'],
-  ['antivv', 'antivv.json'], ['antivideo', 'antivideo.json'], ['antiaudio', 'antiaudio.json'],
+  ['antivv', 'antivv.json'], ['antiimage', 'antiimage.json'], ['antivideo', 'antivideo.json'], ['antiaudio', 'antiaudio.json'],
   ['antivoice', 'antivoice.json'], ['antidoc', 'antidoc.json'], ['antipoll', 'antipoll.json'],
   ['antievent', 'antievent.json'], ['antinewcomer', 'antinewcomer.json'],
   ['antiraid', 'antiraid.json'], ['antilocation', 'antilocation.json'],

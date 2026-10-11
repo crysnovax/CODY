@@ -45,6 +45,7 @@ module.exports = {
         const antiBot = readGroupConfig('antibot.json');
         const antiForward = readGroupConfig('antiforward.json');
         const antiGroupStatus = readGroupConfig('antigroupstatus.json');
+        const antiImage = readGroupConfig('antiimage.json');
         const antiVideo = readGroupConfig('antivideo.json');
         const antiAudio = readGroupConfig('antiaudio.json');
         const antiVoice = readGroupConfig('antivoice.json');
@@ -81,6 +82,7 @@ module.exports = {
             `• AntiSpam: ${status(antiSpam, m.chat)} (${action(antiSpam, m.chat)})\n` +
             `• AntiVV: ${status(antiVV, m.chat)} (${action(antiVV, m.chat)})\n` +
             `• AntiBug: ${status(antiBug.groups || {}, m.chat)} (${action(antiBug.groups || {}, m.chat)})\n` +
+            `• AntiImage: ${status(antiImage, m.chat)} (${action(antiImage, m.chat)})\n` +
             `• AntiVideo: ${status(antiVideo, m.chat)} (${action(antiVideo, m.chat)})\n` +
             `• AntiAudio: ${status(antiAudio, m.chat)} (${action(antiAudio, m.chat)})\n` +
             `• AntiVoice: ${status(antiVoice, m.chat)} (${action(antiVoice, m.chat)})\n` +

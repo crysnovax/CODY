@@ -97,6 +97,7 @@ module.exports = {
         text += row('Anti GM', anti('antigm.json'));
         text += row('Anti Link', anti('antilink.json'));
         text += row('Anti Spam', anti('antispam.json'));
+        text += row('Anti Image', anti('antiimage.json'));
         text += row('Anti Video', anti('antivideo.json'));
         text += row('Anti Audio', anti('antiaudio.json'));
         text += row('No Sticker', anti('nosticker.json'));
