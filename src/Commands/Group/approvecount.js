@@ -1,6 +1,6 @@
 'use strict';
 
-const MAX_APPROVALS_PER_COMMAND = 100;
+const MAX_APPROVALS_PER_COMMAND = 1000;
 
 function parseCountryCode(value) {
     if (value == null || value === '') return null;
@@ -30,7 +30,7 @@ module.exports = {
     category: 'Group',
     groupOnly: true,
     adminOnly: true,
-    usage: '.approvecount <amount 1-100> [country-code, e.g. +234]',
+    usage: '.approvecount <amount 1-1000> [country-code, e.g. +234]',
     execute: async (sock, m, { args = [], reply, prefix = '.' }) => {
         const amount = Number(args[0]);
         const countryCode = parseCountryCode(args[1]);

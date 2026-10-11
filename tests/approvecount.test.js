@@ -60,7 +60,7 @@ test('country filtering does not interpret LID digits as phone country codes', a
 });
 
 test('invalid limits and country codes are rejected without approving requests', async () => {
-    for (const args of [['0'], ['101'], ['2', '+1234'], ['2', 'country']]) {
+    for (const args of [['0'], ['1001'], ['2', '+1234'], ['2', 'country']]) {
         const sock = socket();
         const replies = [];
         await command.execute(sock, message(), { args, prefix: '.', reply: async text => replies.push(text) });
@@ -73,4 +73,32 @@ test('unfiltered approvecount approves only the first requested number', async (
     const sock = socket();
     await command.execute(sock, message(), { args: ['2'], reply: async () => {} });
     assert.deepEqual(sock.approved[0].jids, [requests[0].jid, requests[1].jid]);
+});
+
+test('approvecount accepts the requested 300 unfiltered and 500 country-filtered batches', async () => {
+    const countryRequests = Array.from({ length: 505 }, (_, index) => ({
+        jid: `234${String(index).padStart(10, '0')}@s.whatsapp.net`,
+    }));
+    const otherCountryRequests = Array.from({ length: 20 }, (_, index) => ({
+        jid: `1555${String(index).padStart(9, '0')}@s.whatsapp.net`,
+    }));
+    const pending = [...otherCountryRequests, ...countryRequests];
+
+    const unfiltered = socket(pending);
+    await command.execute(unfiltered, message(), { args: ['300'], reply: async () => {} });
+    assert.equal(unfiltered.approved[0].jids.length, 300);
+
+    const filtered = socket(pending);
+    await command.execute(filtered, message(), { args: ['500', '+234'], reply: async () => {} });
+    assert.equal(filtered.approved[0].jids.length, 500);
+    assert.ok(filtered.approved[0].jids.every(jid => jid.startsWith('234')));
+});
+
+test('approvecount accepts the configured maximum of 1,000 requests', async () => {
+    const pending = Array.from({ length: 1001 }, (_, index) => ({
+        jid: `234${String(index).padStart(10, '0')}@s.whatsapp.net`,
+    }));
+    const sock = socket(pending);
+    await command.execute(sock, message(), { args: ['1000'], reply: async () => {} });
+    assert.equal(sock.approved[0].jids.length, 1000);
 });
