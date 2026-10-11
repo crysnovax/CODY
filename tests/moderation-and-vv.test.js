@@ -171,6 +171,31 @@ test('AutoVV ignores a reply that merely quotes a view-once message', async () =
   vv.setAutoVV(chat, false);
 });
 
+test('AntiVV ignores a quoted view-once but detects a view-once in the sent message', () => {
+  const quotedViewOnce = {
+    viewOnceMessageV2: { message: { imageMessage: { mimetype: 'image/jpeg' } } }
+  };
+  const ordinaryReply = {
+    extendedTextMessage: {
+      text: 'Y',
+      contextInfo: { stanzaId: 'view-once-id', quotedMessage: quotedViewOnce }
+    }
+  };
+  const sanitizedReply = stripQuotedDeep(ordinaryReply);
+  const replyPayload = {
+    raw: sanitizedReply,
+    message: sanitizedReply,
+    msg: sanitizedReply.extendedTextMessage,
+    serialized: stripQuotedDeep({ message: ordinaryReply, quoted: quotedViewOnce })
+  };
+  assert.equal(antivv.isViewOnceMessage(replyPayload), false);
+
+  const actualViewOnce = {
+    viewOnceMessageV2: { message: { imageMessage: { mimetype: 'image/jpeg' } } }
+  };
+  assert.equal(antivv.isViewOnceMessage({ raw: actualViewOnce, message: actualViewOnce, msg: {}, serialized: {} }), true);
+});
+
 test('wallpaper command loads without an undefined prefix reference', () => {
   const wallpaper = require('../src/Commands/Search/WP');
   assert.equal(wallpaper.usage, '.wallpaper <query>');

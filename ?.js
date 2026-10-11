@@ -529,10 +529,15 @@ try {
             try { await require('./src/Commands/Admin/antigroupstatus.js').handleAntiGroupStatus?.(sock, m, mek); } catch (err) { console.error('[ANTIGROUPSTATUS ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antibug.js').handleAntiBug?.(sock, m, mek); } catch (err) { console.error('[ANTIBUG ERROR]', err?.stack || err?.message || String(err)); }
             try { await require('./src/Commands/Admin/antibot.js').handleAntiBot?.(sock, m, mek); } catch (err) { console.error('[ANTIBOT ERROR]', err?.stack || err?.message || String(err)); }
-            // AutoVV must run before AntiVV: AntiVV deletes the view-once
-            // message, and a deleted message can no longer be downloaded.
-            try { await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(sock, m, mek); } catch (err) { console.error('[AUTOVV ERROR]', err.message); }
-            try { await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek); } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
+            // AntiVV must get the original envelope first. AutoVV may delete
+            // the group message while forwarding it, which can make AntiVV's
+            // later delete fail and suppress its configured warning/action.
+            // Only let AutoVV handle the message when AntiVV did not consume it.
+            let antiVVHandled = false;
+            try { antiVVHandled = await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, m, mek) || false; } catch (err) { console.error('[ANTIVV ERROR]', err.message); }
+            if (!antiVVHandled) {
+                try { await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(sock, m, mek); } catch (err) { console.error('[AUTOVV ERROR]', err.message); }
+            }
             try { await require('./src/Commands/Admin/antiimage.js').handleAntiImage?.(sock, m, mek); } catch (err) { console.error('[ANTIIMAGE ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antivideo.js').handleAntiVideo?.(sock, m, mek); } catch (err) { console.error('[ANTIVIDEO ERROR]', err.message); }
             try { await require('./src/Commands/Admin/antiaudio.js').handleAntiAudio?.(sock, m, mek); } catch (err) { console.error('[ANTIAUDIO ERROR]', err.message); }
