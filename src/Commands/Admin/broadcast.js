@@ -1,14 +1,18 @@
 'use strict';
+const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 module.exports = {
     name: 'broadcast',
     alias: ['bc', 'broadcastall'],
     desc: 'Broadcast a quoted message or text to every participating group',
     category: 'Admin',
-    groupOnly: true,
-    adminOnly: true,
+    groupOnly: false,
+    adminOnly: false,
     reactions: { start: '📢', success: '✅' },
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply, isOwner, isDual, isAdmin, isGroupAdmin }) => {
+        if (!canRunBroadcast(m, { isOwner, isDual, isAdmin, isGroupAdmin })) {
+            return reply(broadcastAccessMessage(m));
+        }
         if (typeof sock.groupFetchAllParticipating !== 'function') return reply('Unable to fetch groups right now.');
         const source = m.quoted?.fakeObj || null;
         const text = args.join(' ').trim();

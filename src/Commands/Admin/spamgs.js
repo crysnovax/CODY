@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
 const { proto } = require('plogme');
+const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
 const DB_PATH = path.join(process.cwd(), 'database', 'spamgs-schedules.json');
 let schedules = [];
 const jobs = new Map();
@@ -54,11 +55,14 @@ module.exports = {
     alias: ['groupstatusspam', 'statusspam'],
     desc: 'Post a quoted message as group status repeatedly or daily',
     category: 'Admin',
-    groupOnly: true,
-    adminOnly: true,
+    groupOnly: false,
+    adminOnly: false,
     reactions: { start: '📣', success: '✅' },
     setupSpamSchedules,
-    execute: async (sock, m, { args, reply, prefix }) => {
+    execute: async (sock, m, { args, reply, prefix, isOwner, isDual, isAdmin, isGroupAdmin }) => {
+        if (!canRunBroadcast(m, { isOwner, isDual, isAdmin, isGroupAdmin })) {
+            return reply(broadcastAccessMessage(m));
+        }
         const sub = String(args[0] || '').toLowerCase();
         if (sub === 'list') {
             if (!schedules.length) return reply('No daily spamgs schedules are active.');
