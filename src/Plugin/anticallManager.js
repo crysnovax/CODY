@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { identityVariants, isPhoneJid } = require('./identityUtils');
 
 const CONFIG_PATH = path.join(process.cwd(), 'database', 'anticall.json');
 
@@ -59,6 +60,16 @@ function isInWhitelist(jid, whitelist) {
     return whitelist.some(item => normalizeJid(item) === norm);
 }
 
+async function isIdentityInList(sock, jid, list = []) {
+    if (!jid || !Array.isArray(list) || !list.length) return false;
+    const callerIds = await identityVariants(sock, normalizeJid(jid));
+    for (const item of list) {
+        const itemIds = await identityVariants(sock, normalizeJid(item));
+        if ([...callerIds].some(id => itemIds.has(id))) return true;
+    }
+    return false;
+}
+
 function isWithinSchedule(schedule) {
     if (!schedule.enabled) return true;
     const now = new Date();
@@ -98,6 +109,96 @@ function isWithinSchedule(schedule) {
     return true;
 }
 
+async function sendCallRejection(sock, call, reason) {
+    let rejected = false;
+    try {
+        if (typeof sock.rejectCall === 'function') {
+            await sock.rejectCall(call.id, call.from);
+            rejected = true;
+        }
+    } catch (error) {
+        console.error('[ANTICALL REJECT ERROR]', error?.message || error);
+    }
+
+    const candidates = [call?.from, call?.fromAlt].filter(Boolean);
+    const recipients = new Set();
+    for (const candidate of candidates) {
+        recipients.add(normalizeJid(candidate));
+        for (const variant of await identityVariants(sock, normalizeJid(candidate))) {
+            recipients.add(normalizeJid(variant));
+        }
+    }
+    const orderedRecipients = [...recipients].filter(jid =>
+        jid.endsWith('@s.whatsapp.net') || jid.endsWith('@c.us') || jid.endsWith('@lid')
+    ).sort((left, right) => Number(isPhoneJid(right)) - Number(isPhoneJid(left)));
+
+    let reasonSent = false;
+    let lastError = null;
+    for (const recipient of orderedRecipients) {
+        try {
+            await sock.sendMessage(recipient, { text: String(reason) });
+            reasonSent = true;
+            break;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    if (!reasonSent && lastError) {
+        console.error('[ANTICALL REASON SEND ERROR]', lastError?.message || lastError);
+    }
+    return { rejected, reasonSent };
+}
+
+async function handleIncomingCall(sock, call, config) {
+    if (!call || call.status !== 'offer' || !call.from) return { blocked: false };
+    if (!Array.isArray(config.whitelist)) config.whitelist = [];
+    if (!Array.isArray(config.blacklist)) config.blacklist = [];
+    if (!Array.isArray(config.pendingPhoneReject)) config.pendingPhoneReject = [];
+
+    const callerJid = normalizeJid(call.from);
+    if (await isIdentityInList(sock, callerJid, config.whitelist)) {
+        return { blocked: false, whitelisted: true, callerJid };
+    }
+
+    const callerVariants = await identityVariants(sock, callerJid);
+    const callerPhoneJid = [...callerVariants].find(isPhoneJid);
+    const callerPhone = callerPhoneJid?.split('@')[0] || null;
+    const pendingIndex = callerPhone
+        ? config.pendingPhoneReject.findIndex(value => String(value).replace(/\D/g, '') === callerPhone)
+        : -1;
+
+    // A pending phone entry is already an explicit reject-list decision.
+    // Upgrade it to a canonical JID before consulting the unknown-caller
+    // switch, so its configured reason is never replaced by unknownReason.
+    if (pendingIndex >= 0) {
+        config.pendingPhoneReject.splice(pendingIndex, 1);
+        for (const jid of [callerPhoneJid, callerJid]) {
+            if (jid && !config.blacklist.some(item => normalizeJid(item) === normalizeJid(jid))) {
+                config.blacklist.push(normalizeJid(jid));
+            }
+        }
+        saveConfig(config);
+        const reason = config.reason || defaultConfig.reason;
+        const delivery = await sendCallRejection(sock, call, reason);
+        return { blocked: true, unknown: false, callerJid, reason, ...delivery };
+    }
+
+    if (await isIdentityInList(sock, callerJid, config.blacklist)) {
+        const reason = config.reason || defaultConfig.reason;
+        const delivery = await sendCallRejection(sock, call, reason);
+        return { blocked: true, unknown: false, callerJid, reason, ...delivery };
+    }
+
+    if (!config.enabled) return { blocked: false, callerJid };
+    if (!isWithinSchedule(config.schedule || defaultConfig.schedule)) {
+        return { blocked: false, callerJid, outsideSchedule: true };
+    }
+
+    const reason = config.unknownReason || config.reason || defaultConfig.reason;
+    const delivery = await sendCallRejection(sock, call, reason);
+    return { blocked: true, unknown: true, callerJid, reason, ...delivery };
+}
+
 function findLidForPhone(phone) {
     const sessionsDir = path.join(process.cwd(), 'sessions');
     try {
@@ -120,6 +221,8 @@ module.exports = {
     isWithinSchedule,
     isInBlacklist,
     isInWhitelist,
+    isIdentityInList,
+    handleIncomingCall,
     normalizeJid,
     findLidForPhone,
     defaultConfig

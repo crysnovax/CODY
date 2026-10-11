@@ -11,6 +11,7 @@ module.exports = {
     alias: ['ac', 'callblock'],
     desc: 'Manage anti‑call settings (whitelist/blacklist always active)',
     category: 'Owner',
+    ownerOnly: true,
 
     execute: async (sock, m, { args, reply }) => {
         console.log('[ANTICALL CMD] args:', args);

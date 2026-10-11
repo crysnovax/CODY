@@ -203,62 +203,20 @@ setupPromotionGuard(sock);
                 }
             }
 
-            const {
-                loadConfig, saveConfig, isWithinSchedule,
-                isInBlacklist, isInWhitelist, normalizeJid
-            } = require('./src/Plugin/anticallManager');
-
+            const { loadConfig, handleIncomingCall } = require('./src/Plugin/anticallManager');
             const config = loadConfig();
-
-            // Whitelist & blacklist are ALWAYS active (as documented) — the
-            // global switch only gates unknown callers, so `.anticall reason`
-            // works even when global block-unknowns is off.
-            // (@crysnovax—FIX08-07-26)
-            if (!config.pendingPhoneReject) config.pendingPhoneReject = [];
-
             const ownerJid = `${config.owner || process.env.OWNER_NUMBER}@s.whatsapp.net`;
 
-            for (const call of calls) {
-                if (call.status !== 'offer') continue;
-                if (blockedBySaveMode.has(call.id)) continue;
+            for (const call of calls || []) {
+                if (call.status !== 'offer' || blockedBySaveMode.has(call.id)) continue;
 
-                const callerJid = call.from;
-                const normalizedCaller = normalizeJid(callerJid);
-                const phoneMatch = normalizedCaller.match(/^(\d+)@s\.whatsapp\.net$/);
-                const callerPhone = phoneMatch ? phoneMatch[1] : null;
-
-                if (isInWhitelist(normalizedCaller, config.whitelist)) continue;
-                if (isInBlacklist(normalizedCaller, config.blacklist)) {
-                    await sock.sendMessage(callerJid, { text: config.reason }).catch(() => {});
-                    if (typeof sock.rejectCall === 'function') await sock.rejectCall(call.id, call.from).catch(() => {});
-                    continue;
-                }
-
-                // Global switch controls unknown callers only
-                if (!config.enabled) continue;
-
-                if (callerPhone && config.pendingPhoneReject.includes(callerPhone)) {
-                    config.blacklist = config.blacklist.filter(b => normalizeJid(b) !== `${callerPhone}@s.whatsapp.net`);
-                    if (!config.blacklist.includes(normalizedCaller)) config.blacklist.push(normalizedCaller);
-                    config.pendingPhoneReject = config.pendingPhoneReject.filter(p => p !== callerPhone);
-                    saveConfig(config);
-                }
-
-                if (!isWithinSchedule(config.schedule)) continue;
-
-                let reasonToSend = config.reason;
-                let isUnknown = false;
-                if (!callerPhone || !config.pendingPhoneReject.includes(callerPhone)) {
-                    isUnknown = true;
-                    reasonToSend = config.unknownReason || config.reason;
-                }
-
-                await sock.sendMessage(callerJid, { text: reasonToSend }).catch(() => {});
-                if (typeof sock.rejectCall === 'function') await sock.rejectCall(call.id, call.from).catch(() => {});
-
-                if (isUnknown) {
+                const result = await handleIncomingCall(sock, call, config);
+                if (result?.unknown) {
+                    const normalizedCaller = result.callerJid || call.from;
                     const dmMsg = `📵 *Unknown call blocked*\nCaller JID: \`${normalizedCaller}\`\n\n_To block: *.anticall reject add ${normalizedCaller}*_\n_To whitelist: *.anticall whitelist [...]`;
-                    await sock.sendMessage(ownerJid, { text: dmMsg }).catch(() => {});
+                    await sock.sendMessage(ownerJid, { text: dmMsg }).catch(err => {
+                        console.error('[ANTICALL OWNER NOTICE ERROR]', err?.message || err);
+                    });
                 }
             }
         } catch (err) {
