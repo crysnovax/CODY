@@ -62,3 +62,42 @@ test('owner can invoke both all-groups commands from a private chat', async () =
     assert.equal(replies.length, 2);
     assert.ok(replies.every(text => !/Only the bot owner/.test(text)));
 });
+
+test('broadcast forwards the complete quoted envelope instead of sending invisible text', async () => {
+    const sent = [];
+    const source = {
+        key: { remoteJid: 'source@g.us', id: 'quoted-rich-1', fromMe: false },
+        message: {
+            botForwardedMessage: {
+                message: {
+                    richResponseMessage: {
+                        messageType: 1,
+                        submessages: [{ messageType: 1, messageText: 'Testing' }],
+                    },
+                },
+            },
+        },
+    };
+    const sock = {
+        groupFetchAllParticipating: async () => ({
+            'one@g.us': {},
+            'two@g.us': {},
+        }),
+        sendMessage: async (...args) => { sent.push(args); return {}; },
+    };
+    const replies = [];
+    await broadcast.execute(sock, {
+        isGroup: true,
+        chat: 'source@g.us',
+        quoted: { fakeObj: source },
+    }, {
+        args: ['Testing', '┊', 'broadcast', '┊', '⚉'],
+        isAdmin: true,
+        reply: async text => replies.push(text),
+    });
+    assert.equal(sent.length, 2);
+    assert.ok(sent.every(([, content]) => content.forward === source));
+    assert.ok(sent.every(([, content]) => content.force === true));
+    assert.ok(sent.every(([, content]) => content.text === undefined));
+    assert.match(replies[0], /original quoted message/);
+});

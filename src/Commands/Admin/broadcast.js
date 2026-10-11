@@ -1,6 +1,27 @@
 'use strict';
 const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+async function sendBroadcastContent(sock, jid, source, text) {
+    if (source) {
+        // Use the native forward payload first. Unlike the older
+        // copyNForward helper, this preserves the complete WebMessageInfo
+        // envelope, including media, view-once wrappers, status mentions,
+        // albums, carousels, and bot/rich response messages.
+        if (typeof sock.sendMessage === 'function') {
+            try {
+                return await sock.sendMessage(jid, { forward: source, force: true });
+            } catch (error) {
+                // Some older plogme builds do not implement the native
+                // forward payload; retain compatibility with those builds.
+                if (typeof sock.copyNForward !== 'function') throw error;
+                return sock.copyNForward(jid, source, true);
+            }
+        }
+        if (typeof sock.copyNForward === 'function') return sock.copyNForward(jid, source, true);
+        throw new Error('No message-forwarding method is available');
+    }
+    return sock.sendMessage(jid, { text });
+}
 module.exports = {
     name: 'broadcast',
     alias: ['bc', 'broadcastall'],
@@ -24,11 +45,7 @@ module.exports = {
         let failed = 0;
         for (const group of groups) {
             try {
-                if (source && typeof sock.copyNForward === 'function') {
-                    await sock.copyNForward(group, source, true);
-                } else {
-                    await sock.sendMessage(group, { text });
-                }
+                await sendBroadcastContent(sock, group, source, text);
                 sent++;
                 await sleep(250);
             } catch (error) {
@@ -39,3 +56,4 @@ module.exports = {
         return reply(`📢 *Broadcast complete*\n• Sent: ${sent}\n• Failed: ${failed}\n• Content: ${source ? 'original quoted message' : 'text'}`);
     }
 };
+module.exports.sendBroadcastContent = sendBroadcastContent;
