@@ -25,6 +25,7 @@ const botFont = require('./src/Commands/Bot/botfont.js');
 const { translate } = require('./src/Commands/Core/✐.js');
 const { getLang }   = require('./src/Commands/Bot/botlang.js');
 const { setupMuteSchedules } = require('./src/Commands/Admin/Mute')
+const { setupSpamSchedules } = require('./src/Commands/Admin/spamgs')
 //setupMuteSchedules(sock)
 
 // plogme integration — internal processing AI (@crysnovax—FIX08-07-26)
@@ -274,6 +275,11 @@ setupPromotionGuard(sock);
         const muteCmd = require('./src/Commands/Admin/Mute.js');
         if (muteCmd?.setupMuteSchedules) muteCmd.setupMuteSchedules(sock);
     } catch {}
+    try {
+        setupSpamSchedules(sock);
+    } catch (error) {
+        console.error('[SPAMGS SCHEDULE RESTORE]', error?.message || error);
+    }
 
     sock.ev.on('presence.update', ({ id, presences }) => {
         if (!global.onlineUsers) global.onlineUsers = new Set();
