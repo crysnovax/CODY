@@ -22,19 +22,22 @@ module.exports = {
         const url = args[0] || m.quoted?.text || m.quoted?.caption;
         if (!url) return reply('Provide a Spotify track link.');
 
+        let stage = 'download';
         try {
-            await sock.sendPresenceUpdate('composing', m.chat);
+            await sock.sendPresenceUpdate?.('composing', m.chat);
             const track = await downloadSpotify(url);
             const title = String(track.title || 'Spotify track').slice(0, 120);
             const artist = String(track.artist || 'Unknown artist').slice(0, 100);
 
             if (track.thumbnail) {
+                stage = 'send thumbnail';
                 await sock.sendMessage(m.chat, {
                     image: { url: track.thumbnail },
                     caption: `🎧 *${title}*\n🎤 ${artist}\n\n_Your Spotify track is ready._`
                 }, { quoted: m }).catch(error => console.warn('[SPOTIFY THUMBNAIL]', error.message));
             }
 
+            stage = 'send audio';
             await sock.sendMessage(m.chat, {
                 audio: track.buffer,
                 mimetype: 'audio/mpeg',
@@ -42,10 +45,12 @@ module.exports = {
                 ptt: false
             }, { quoted: m });
         } catch (error) {
-            console.error('[SPOTIFY DOWNLOAD]', error.stack || error.message || error);
+            console.error(`[SPOTIFY ${stage.toUpperCase()}]`, error.stack || error.message || error);
             const message = error?.message === 'Use a Spotify track link to download one song.'
                 ? 'Please provide one Spotify track link.'
-                : 'Could not download this Spotify track. Check that the link is public and try again.';
+                : stage === 'download'
+                    ? 'CODY could not prepare audio from this Spotify link. The link may be fine; check the bot log for the Spotify downloader error.'
+                    : 'CODY downloaded the track, but WhatsApp could not send it. Check the bot log for the Spotify send error.';
             await reply(message);
         }
     }
