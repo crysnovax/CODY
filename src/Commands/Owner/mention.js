@@ -8,6 +8,7 @@ const { loadMentionSticker } = require('../../Plugin/mentionSticker');
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
 const MENTION_PROTOCOL_FILE = path.join(__dirname, '../../../database/mention-sticker-message.json');
+const MENTION_VOICE_FILE = path.join(__dirname, '../../../database/mention-voice.ogg');
 
 // IMPORTANT: Never reassign this object — always mutate it with Object.assign
 // so that the exported reference in handler stays valid across reloads
@@ -18,7 +19,10 @@ const mentionConfig = {
     text:   '',
     sticker: '',
     stickerKind: 'sticker',
-    stickerIsAnimated: false
+    stickerIsAnimated: false,
+    voice: '',
+    voiceMime: 'audio/ogg; codecs=opus',
+    voicePtt: true
 };
 
 const loadMentionConfig = () => {
@@ -100,6 +104,18 @@ async function sendMentionSticker(sock, jid, options = {}) {
     return sock.sendMessage(jid, { sticker: payload.buffer, isAnimated: payload.isAnimated }, options.quoted ? { quoted: options.quoted } : undefined);
 }
 
+async function sendMentionVoice(sock, jid, options = {}) {
+    const voicePath = mentionConfig.voice || MENTION_VOICE_FILE;
+    if (!fs.existsSync(voicePath)) throw new Error('Configured mention voice note is missing');
+    const audio = await fs.promises.readFile(voicePath);
+    if (!audio.length) throw new Error('Configured mention voice note is empty');
+    return sock.sendMessage(jid, {
+        audio,
+        mimetype: mentionConfig.voiceMime || 'audio/ogg; codecs=opus',
+        ptt: mentionConfig.voicePtt !== false
+    }, options.quoted ? { quoted: options.quoted } : undefined);
+}
+
 module.exports = {
     name:      'mention',
     alias:     ['tagme', 'owntag'],
@@ -128,6 +144,7 @@ module.exports = {
                 `│ ✦ Emoji  : ${mentionConfig.emoji  || '-'}\n` +
                 `│ ❏ Text   : ${mentionConfig.text   || '-'}\n` +
                 `│ 🧩 Sticker: ${mentionConfig.sticker ? 'Configured' : '-'}\n` +
+                `│ 🎙️ Voice : ${mentionConfig.voice ? 'Configured' : '-'}\n` +
                 `╰──────────────────`
             );
         }
@@ -183,6 +200,32 @@ module.exports = {
             saveMentionConfig();
             return reply(`╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : STICKER\n╰──────────────────`);
         }
+
+        // VOICE: reply to an audio message to save it as the mention response.
+        if (option === 'voice' || option === '-voice') {
+            const quotedAudio = m.quoted?.audioMessage || m.quoted?.message?.audioMessage ||
+                (m.quoted?.mtype === 'audioMessage' ? m.quoted : null);
+            if (!quotedAudio) {
+                return reply(`╭─❍ *MENTION*\n│ ✘ Reply to a voice note/audio message first\n│ ⚉ Example: ${prefix}mention -voice\n╰──────────────────`);
+            }
+            const stream = await downloadContentFromMessage(quotedAudio, 'audio');
+            const chunks = [];
+            for await (const chunk of stream) chunks.push(chunk);
+            const audio = Buffer.concat(chunks);
+            if (!audio.length) return reply('Could not read that audio. Please try another voice note.');
+            fs.mkdirSync(path.dirname(MENTION_VOICE_FILE), { recursive: true });
+            fs.writeFileSync(MENTION_VOICE_FILE, audio);
+            mentionConfig.voice = MENTION_VOICE_FILE;
+            mentionConfig.voiceMime = quotedAudio.mimetype || 'audio/ogg; codecs=opus';
+            mentionConfig.voicePtt = true;
+            mentionConfig.active = true;
+            mentionConfig.action = 'voice';
+            mentionConfig.emoji = '';
+            mentionConfig.text = '';
+            saveMentionConfig();
+            return reply('╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : VOICE NOTE\n│ 🎙️ Voice response saved\n╰──────────────────');
+        }
+
         // TEXT
         if (option === 'text' || option === '-text') {
             if (!value) {
@@ -210,6 +253,8 @@ module.exports = {
             `│   Example: ${prefix}mention -react ❤️‍🔥\n│\n` +
             `│ ➫ ${prefix}mention -sticker [url]\n` +
             `│   Reply to a sticker or provide a sticker URL\n│\n` +
+            `│ ➫ ${prefix}mention -voice\n` +
+            `│   Reply to a voice note/audio message to save the response\n│\n` +
             `│ ➫ ${prefix}mention -text <message>\n` +
             `│   Auto-reply when mentioned\n` +
             `│   Example: ${prefix}mention -text Busy, back later\n│\n` +
@@ -223,4 +268,5 @@ module.exports.loadMentionConfig = loadMentionConfig;
 module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
 module.exports.sendMentionSticker = sendMentionSticker;
+module.exports.sendMentionVoice = sendMentionVoice;
 module.exports.norm = norm;

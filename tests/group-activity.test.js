@@ -104,3 +104,25 @@ test('listinactive and listactive tag the correct users; listactive includes cou
     assert.deepEqual(sent[1][1].mentions, [higher, active]);
     assert.match(sent[1][1].text, /@5555555555 — 6 messages\n• @3333333333 — 2 messages/);
 });
+
+test('listinactive returns at most 300 members in manageable 25-member chunks', async () => {
+    const group = '400@g.us';
+    const participants = Array.from({ length: 305 }, (_, index) => ({
+        id: `${7000000000 + index}@s.whatsapp.net`,
+    }));
+    const sent = [];
+    const sock = {
+        user: { id: '9999999999@s.whatsapp.net' },
+        groupMetadata: async () => ({ participants }),
+        sendMessage: async (...args) => sent.push(args),
+    };
+    const m = { chat: group, isGroup: true, key: { id: 'cmd-300', remoteJid: group } };
+    const reply = async text => { throw new Error(`Unexpected reply: ${text}`); };
+
+    await listInactive.execute(sock, m, { reply });
+
+    assert.equal(sent.length, 12);
+    assert.equal(sent.reduce((sum, [, content]) => sum + content.mentions.length, 0), 300);
+    assert.ok(sent.every(([, content]) => content.mentions.length <= 25));
+    assert.match(sent[0][1].text, /Inactive members \(300 of 305\/305\)/);
+});

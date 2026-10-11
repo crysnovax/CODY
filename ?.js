@@ -614,6 +614,10 @@ try {
                         await mention.sendMentionSticker(sock, m.chat, { quoted: m }).catch(error => {
                             console.error('[MENTION STICKER]', error.message);
                         });
+                    } else if (mentionConfig.action === 'voice' && mentionConfig.voice) {
+                        await mention.sendMentionVoice(sock, m.chat, { quoted: m }).catch(error => {
+                            console.error('[MENTION VOICE]', error.message);
+                        });
                     }
                 }
             } catch (error) {
