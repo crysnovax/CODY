@@ -347,6 +347,12 @@ setupPromotionGuard(sock);
             const m = await smsg(sock, mek, customStore);
             if (!m) return;
 
+            try {
+                require('./src/Plugin/groupActivity').trackGroupMessage(m, mek);
+            } catch (err) {
+                console.error('[GROUP ACTIVITY TRACKER ERROR]', err?.message || err);
+            }
+
             // CODY emits its own RichMenu and richResponse messages when
             // emitOwnEvents is enabled. Those outgoing envelopes contain the
             // same CTA/table text as the menu and must never be interpreted as
