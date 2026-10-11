@@ -1,5 +1,12 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
 const CHANNEL_JID_RE = /^[0-9]+@newsletter$/i;
 const CHANNEL_LINK_RE = /https?:\/\/(?:www\.)?whatsapp\.com\/channel\/([A-Za-z0-9_-]+)/i;
 const MEDIA_TYPES = new Set([
@@ -66,6 +73,25 @@ function isAdminPublishError(error) {
         (/newsletter|channel/.test(message) && /admin|permission|privilege/.test(message));
 }
 
+async function toVoiceNote(buffer) {
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'cody-channel-'));
+    const inputPath = path.join(tempDir, 'input-audio');
+    const outputPath = path.join(tempDir, 'voice-note.ogg');
+    try {
+        await fs.promises.writeFile(inputPath, buffer);
+        await execFileAsync('ffmpeg', [
+            '-hide_banner', '-loglevel', 'error', '-y',
+            '-i', inputPath,
+            '-vn', '-c:a', 'libopus', '-b:a', '32k',
+            '-ac', '1', '-ar', '48000', '-application', 'voip',
+            outputPath
+        ], { timeout: 120000 });
+        return await fs.promises.readFile(outputPath);
+    } finally {
+        await fs.promises.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    }
+}
+
 module.exports = {
     name: 'tochannel',
     alias: ['channelpost', 'sendchannel'],
@@ -111,19 +137,21 @@ module.exports = {
                 const buffer = await m.quoted.download();
                 if (!buffer?.length) return reply('✘ Failed to download the replied media.');
                 const mediaKey = content.mediaType.replace('Message', '').toLowerCase();
+                const audioBuffer = mediaKey === 'audio' ? await toVoiceNote(buffer) : buffer;
                 payload = {
-                    [mediaKey]: buffer,
-                    ...(content.mimetype ? { mimetype: content.mimetype } : {}),
-                    ...(content.fileName ? { fileName: content.fileName } : {}),
+                    [mediaKey]: audioBuffer,
+                    ...(mediaKey === 'audio'
+                        ? { mimetype: 'audio/ogg; codecs=opus', ptt: true }
+                        : content.mimetype ? { mimetype: content.mimetype } : {}),
+                    ...(content.fileName && mediaKey !== 'audio' ? { fileName: content.fileName } : {}),
                     ...(content.caption && mediaKey !== 'audio' && mediaKey !== 'sticker' ? { caption: content.caption } : {}),
-                    ...(mediaKey === 'audio' ? { ptt: Boolean(content.ptt) } : {}),
                     ...(mediaKey === 'video' && content.gifPlayback ? { gifPlayback: true } : {})
                 };
             }
 
             await sock.sendMessage(jid, payload);
             await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } }).catch(() => {});
-            return reply(`✅ Posted to channel ${jid}.`);
+            return reply('ᯤ posted successfully');
         } catch (error) {
             console.error('[TOCHANNEL ERROR]', error);
             if (isAdminPublishError(error)) {
@@ -132,5 +160,5 @@ module.exports = {
             return reply(`✘ Could not post to the channel: ${error?.message || 'unknown error'}`);
         }
     },
-    helpers: { resolveTarget, hasExplicitNonAdminRole, getQuotedMessageContent, isAdminPublishError }
+    helpers: { resolveTarget, hasExplicitNonAdminRole, getQuotedMessageContent, isAdminPublishError, toVoiceNote }
 };
