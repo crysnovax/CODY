@@ -27,6 +27,55 @@ function normalizeButtons(grid) {
     );
 }
 
+const RICH_TABLE_RELAY_INSTALLED = Symbol.for('cody.richTableRelayInstalled');
+
+/**
+ * Route legacy CODY `sendMessage(jid, { table: [...] })` calls through
+ * plogme's rich-response relay, which sends the original envelope and the
+ * type-14 edit required by clients that initially show a download prompt.
+ * Other message shapes keep the socket's original sendMessage behavior.
+ */
+function installRichTableRelay(sock) {
+    if (!sock || typeof sock.sendMessage !== 'function' || sock[RICH_TABLE_RELAY_INSTALLED]) {
+        return false;
+    }
+
+    const sendMessage = sock.sendMessage.bind(sock);
+    const sendPlogmeMessage = typeof sock.sendPlogmeMessage === 'function'
+        ? sock.sendPlogmeMessage.bind(sock)
+        : null;
+
+    sock.sendMessage = async (jid, content, options = {}) => {
+        const isLegacyRichTable = sendPlogmeMessage
+            && !Array.isArray(jid)
+            && content
+            && typeof content === 'object'
+            && Array.isArray(content.table)
+            && !content.mimic
+            && content.crysnovax !== true
+            && !content.image
+            && !content.video
+            && !content.audio
+            && !content.document
+            && !content.sticker
+            && !content.poll
+            && !content.event;
+
+        if (!isLegacyRichTable) {
+            return sendMessage(jid, content, options);
+        }
+
+        const sendOptions = options && typeof options === 'object' ? options : {};
+        return sendPlogmeMessage(jid, content, sendOptions.quoted, {
+            ...sendOptions,
+            renderRichResponse: true,
+        });
+    };
+
+    Object.defineProperty(sock, RICH_TABLE_RELAY_INSTALLED, { value: true });
+    return true;
+}
+
 async function sendRelayRichGrid(sock, jid, grid, options = {}) {
     if (typeof sock?.sendA2UICommandMenu === 'function') {
         return sock.sendA2UICommandMenu(jid, {
@@ -45,4 +94,4 @@ async function sendRelayRichGrid(sock, jid, grid, options = {}) {
     throw new Error('No relay-backed rich menu method is available. Update plogme/crysnovax-baileys.');
 }
 
-module.exports = { sendRelayRichGrid, normalizeRows, normalizeButtons };
+module.exports = { sendRelayRichGrid, normalizeRows, normalizeButtons, installRichTableRelay };
