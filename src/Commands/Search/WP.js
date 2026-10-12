@@ -2,8 +2,8 @@ const axios = require('axios');
 const config = require('../../../settings/config');
 
 const BOT_NAME = config.botname || process.env.BOTNAME || 'CRYSNOVA';
-const PRIMARY_API = 'https://wallpaper.crysnovax.link/api/search';
-const FALLBACK_API = 'https://wallhaven.cc/api/v1/search';
+const PRIMARY_API = 'https://wallhaven.cc/api/v1/search';
+const LEGACY_API = 'https://wallpaper.crysnovax.link/api/search';
 const IMAGE_TIMEOUT = 30000;
 
 function normalizeResults(data) {
@@ -17,25 +17,36 @@ function normalizeResults(data) {
 async function searchWallpapers(query) {
     try {
         const response = await axios.get(PRIMARY_API, {
-            params: { query },
+            params: { q: query, sorting: 'relevance', order: 'desc', page: 1 },
             timeout: 20000,
             validateStatus: () => true
         });
-        if (response.status < 200 || response.status >= 300 || response.data?.status === false) {
-            throw new Error(response.data?.details || response.data?.error || `Wallpaper API HTTP ${response.status}`);
+        if (response.status < 200 || response.status >= 300) {
+            throw new Error(`Wallhaven API HTTP ${response.status}`);
         }
-        const results = normalizeResults(response.data);
-        if (results.length) return { results, source: 'CRYSNOVA Wallpaper API' };
-        throw new Error('CRYSNOVA Wallpaper API returned no results');
-    } catch (primaryError) {
-        console.warn('[WALLPAPER] Primary API unavailable:', primaryError.message);
-        const response = await axios.get(FALLBACK_API, {
-            params: { q: query, sorting: 'relevance', page: 1 },
-            timeout: 20000
-        });
-        const results = normalizeResults(response.data);
-        if (!results.length) throw new Error('No wallpapers returned by either provider');
-        return { results, source: 'Wallhaven fallback' };
+        const results = normalizeResults(response.data?.data || response.data);
+        if (results.length) return { results, source: 'Wallhaven' };
+        throw new Error('Wallhaven returned no image results');
+    } catch (wallhavenError) {
+        console.warn('[WALLPAPER] Wallhaven unavailable:', wallhavenError.message);
+        try {
+            const response = await axios.get(LEGACY_API, {
+                params: { query },
+                timeout: 20000,
+                validateStatus: () => true
+            });
+            const data = typeof response.data === 'string'
+                ? (() => {
+                    try { return JSON.parse(response.data); }
+                    catch { return null; }
+                })()
+                : response.data;
+            const results = normalizeResults(data);
+            if (results.length) return { results, source: 'CRYSNOVA Wallpaper API' };
+        } catch (legacyError) {
+            console.warn('[WALLPAPER] Legacy API unavailable:', legacyError.message);
+        }
+        throw new Error(`No wallpapers returned by Wallhaven or the legacy provider (${wallhavenError.message})`);
     }
 }
 

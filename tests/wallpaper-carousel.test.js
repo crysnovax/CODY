@@ -2,7 +2,37 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const axios = require('axios');
 const wallpaper = require('../src/Commands/Search/WP.js');
+
+test('wallpaper search uses Wallhaven data paths as direct image URLs', async () => {
+    const originalGet = axios.get;
+    const requests = [];
+    axios.get = async (url, options) => {
+        requests.push({ url, options });
+        return {
+            status: 200,
+            data: {
+                data: [{
+                    id: 'zxqkdy',
+                    path: 'https://w.wallhaven.cc/full/zx/wallhaven-zxqkdy.jpg',
+                    url: 'https://wallhaven.cc/w/zxqkdy'
+                }]
+            }
+        };
+    };
+    try {
+        const result = await wallpaper.searchWallpapers('nature');
+        assert.equal(result.source, 'Wallhaven');
+        assert.equal(result.results[0].proxy, 'https://w.wallhaven.cc/full/zx/wallhaven-zxqkdy.jpg');
+        assert.equal(requests[0].url, 'https://wallhaven.cc/api/v1/search');
+        assert.deepEqual(requests[0].options.params, {
+            q: 'nature', sorting: 'relevance', order: 'desc', page: 1
+        });
+    } finally {
+        axios.get = originalGet;
+    }
+});
 
 test('wallpaper album items keep the original URL as the full-resolution asset', () => {
     const items = wallpaper.buildAlbumItems([
