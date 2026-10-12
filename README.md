@@ -25,7 +25,7 @@
   </a>
 </p>
 
-<h1 align="center">Cody AI V2</h1>
+<h1 align="center">Cody AI</h1>
 <p align="center"><em>Powered by CRYSNOVA AI — The Most Advanced WhatsApp Self-Bot Ever Built</em></p>
 
 <div align="center">
@@ -103,7 +103,7 @@
 | 🛡️ | **24/7 Stable Connection** | Auto-reconnect, keep-alive, session persistence |
 | 👥 | **Full Group Management** | Warn system, anti-spam, anti-link, welcome/goodbye, mute, kick |
 | 🔒 | **Safe & Battle-Tested** | Zero ban reports — months of active production use |
-| 💎 | **250+ Commands** | AI · Media · Admin · Economy · Fun · Downloader · Tools |
+| 💎 | **700+ Commands** | AI · Media · Admin · Economy · Fun · Downloader · Tools |
 
 </div>
 
@@ -207,6 +207,7 @@
 - **npm** v8+
 - A WhatsApp account (self-bot — runs on your number)
 - Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
+- Cody AI Media (Mp3/Mp4 — all platforms) downloaders depends 100% on the npm package ```social-dl``` and will break completely if package is changed or missing.
 - warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
 
 ---
