@@ -69,3 +69,34 @@ test('kick still removes the sender when WhatsApp rejects only the status revoke
     }]);
     assert.match(socket.sent.at(-1).content.text, /moderation action was still applied/i);
 });
+
+test('replying to a group status does not trigger antigroupstatus or kick the replier', async () => {
+    writeConfig('kick');
+    const socket = createSocket();
+    const reply = {
+        extendedTextMessage: {
+            text: 'Replying to your status',
+            contextInfo: {
+                isGroupStatus: true,
+                quotedMessage: {
+                    groupStatusMessageV2: { message: { conversation: 'original status' } }
+                }
+            }
+        }
+    };
+    const currentMessage = {
+        ...message(),
+        key: { ...message().key, id: 'reply-1' },
+        message: reply,
+        msg: reply.extendedTextMessage
+    };
+
+    const handled = await groupStatus.handleAntiGroupStatus(socket, currentMessage, {
+        key: currentMessage.key,
+        message: reply
+    });
+
+    assert.equal(handled, false);
+    assert.deepEqual(socket.removed, []);
+    assert.deepEqual(socket.sent, []);
+});

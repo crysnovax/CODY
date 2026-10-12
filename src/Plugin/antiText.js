@@ -34,14 +34,15 @@ function stripQuotedDeep(value, seen = new WeakSet()) {
     const out = {};
     for (const [key, child] of Object.entries(value)) {
         if (QUOTED_KEYS.has(key)) continue;
-        // WhatsApp can copy forwarding metadata onto the reply context when
-        // the quoted message was forwarded. That metadata describes the
-        // quoted message, not the reply being moderated.
+        // WhatsApp can copy flags from quoted content onto the reply context
+        // (forwarding and group-status markers). They describe the quoted
+        // message, not the reply being moderated.
         if (key === 'contextInfo' && child && typeof child === 'object' &&
             (Object.prototype.hasOwnProperty.call(child, 'quotedMessage') || Object.prototype.hasOwnProperty.call(child, 'quoted'))) {
             const context = { ...child };
             delete context.isForwarded;
             delete context.forwardingScore;
+            delete context.isGroupStatus;
             out[key] = stripQuotedDeep(context, seen);
             continue;
         }

@@ -100,6 +100,26 @@ test('AntiGroupStatus finds the envelope inside the moderation payload', () => {
   assert.equal(antigroupstatus.isGroupStatusMessage({ raw: wrapped, message: {} }), true);
 });
 
+test('AntiGroupStatus ignores a quoted status and its inherited context marker', () => {
+  const reply = {
+    extendedTextMessage: {
+      text: 'Replying to the status',
+      contextInfo: {
+        isGroupStatus: true,
+        quotedMessage: {
+          groupStatusMessageV2: { message: { conversation: 'original status' } }
+        }
+      }
+    }
+  };
+  const sanitized = stripQuotedDeep(reply);
+
+  assert.equal(antigroupstatus.isGroupStatusMessage({ raw: sanitized, message: sanitized }), false);
+  assert.equal(antigroupstatus.isGroupStatusMessage({
+    raw: { extendedTextMessage: { contextInfo: { isGroupStatus: true } } }, message: {}
+  }), true);
+});
+
 // AntiGroupStatus owns group-status POSTS; status MENTIONS belong to antigm.
 test('AntiGroupStatus does not claim status mentions or ordinary messages', () => {
   assert.equal(antigroupstatus.isGroupStatusMessage({
