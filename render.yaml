@@ -1,0 +1,42 @@
+services:
+  - type: worker
+    name: cody-whatsapp-bot
+    env: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: SESSION_ID
+        sync: false
+      - key: OWNER_NUMBER
+        sync: false
+      - key: OWNER_NAME
+        value: USER
+      - key: BOT_NAME
+        value: CODY AI
+      - key: PREFIX
+        value: "."
+      - key: MODE
+        value: public
+      - key: AUTO_READ
+        value: "true"
+      - key: ALWAYS_ONLINE
+        value: "true"
+      - key: ANTI_CALL
+        value: "false"
+      - key: AUTO_STATUS_VIEW
+        value: "false"
+      - key: AUTO_STATUS_LIKE
+        value: "false"
+      - key: PLOGME_ENABLED
+        value: "false"
+      - key: AUTO_UPDATE
+        value: "false"
+      - key: TIMEZONE
+        value: Africa/Lagos
+      - key: MENTION_ACTION
+        value: "off"
+      - key: MENTION_EMOJI
+        value: "❤️‍🔥"
+      - key: MENTION_TEXT
+        value: "Busy, back later"

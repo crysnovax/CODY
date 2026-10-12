@@ -11,6 +11,27 @@ test('Railway configuration builds and runs the bot as a worker', () => {
     assert.equal(config.deploy.restartPolicyType, 'ON_FAILURE');
 });
 
-test('Render deployment configuration is absent', () => {
-    assert.equal(fs.existsSync('render.yaml'), false);
+test('Render blueprint runs CODY as a worker with the pairing-site variables', () => {
+    const config = fs.readFileSync('render.yaml', 'utf8');
+    assert.match(config, /^\s+- type: worker$/m);
+    assert.match(config, /^\s+env: node$/m);
+    assert.match(config, /^\s+plan: starter$/m);
+    assert.match(config, /^\s+buildCommand: npm ci$/m);
+    assert.match(config, /^\s+startCommand: npm start$/m);
+
+    const pairingSiteVariables = [
+        'SESSION_ID', 'OWNER_NUMBER', 'OWNER_NAME', 'BOT_NAME', 'PREFIX', 'MODE',
+        'AUTO_READ', 'ALWAYS_ONLINE', 'ANTI_CALL', 'AUTO_STATUS_VIEW',
+        'AUTO_STATUS_LIKE', 'PLOGME_ENABLED', 'AUTO_UPDATE', 'TIMEZONE',
+        'MENTION_ACTION', 'MENTION_EMOJI', 'MENTION_TEXT',
+    ];
+    const manifestVariables = Array.from(config.matchAll(/^\s+- key: ([A-Z_]+)$/gm), match => match[1]);
+    assert.deepEqual(manifestVariables, pairingSiteVariables);
+    assert.match(config, /^\s+sync: false$/m);
+});
+
+test('README has the Render one-click deploy button', () => {
+    const readme = fs.readFileSync('README.md', 'utf8');
+    assert.match(readme, /Deploy to Render/);
+    assert.match(readme, /https:\/\/render\.com\/deploy\?repo=https:\/\/github\.com\/crysnovax\/CODY/);
 });
