@@ -9,7 +9,7 @@ const formatPrice = (price, currency) => {
 };
 
 const getProductImage = (imageUrls) => {
-    return imageUrls?.original || imageUrls?.requested || null;
+    return imageUrls?.original || imageUrls?.requested || imageUrls?.url || null;
 };
 
 const getPhone = (jid) => jid?.split('@')[0]?.split(':')[0] || '';
@@ -38,21 +38,21 @@ const sendCatalog = async (sock, m, products, nextPageCursor, label, limit, { us
 
         return {
             image: imageUrl
-                ? { url: imageUrl }
-                : { url: 'https://via.placeholder.com/400x400/10b981/FFFFFF?text=No+Image' },
-            caption: [
+                ? { url: imageUrl, sourceUrl: imageUrl, imageHighResUrl: imageUrl }
+                : { url: 'https://placehold.co/400x400/10b981/FFFFFF.png?text=No+Image' },
+            body: { text: [
                 `*${p.name || 'Unnamed Product'}*`,
                 `💰 ${price}`,
                 p.description ? `📝 ${p.description}` : null,
                 `📦 ${p.availability || 'in stock'}`,
                 `🆔 ${p.id}`
-            ].filter(Boolean).join('\n'),
+            ].filter(Boolean).join('\n') },
             footer: `⚉ ${BOT_NAME} Business`,
             nativeFlow: [{
-                text: '🛒 ⊹ View Product',
+                text: '🛒 View Product',
                 url: productUrl
             }, {
-                text: '� Inquire ✆',
+                text: '✉ Inquire',
                 copy: `Hi! I'm interested in: ${p.name} (ID: ${p.id})`
             }]
         };
@@ -61,6 +61,7 @@ const sendCatalog = async (sock, m, products, nextPageCursor, label, limit, { us
     await sock.sendMessage(m.chat, {
         text: `🛒 *${label}*`,
         footer: `Found ${products.length} product${products.length > 1 ? 's' : ''}`,
+        carouselCardType: 'horizontal',
         cards
     }, { quoted: m });
 
@@ -172,3 +173,5 @@ module.exports = {
     }
 };
 
+module.exports.sendCatalog = sendCatalog;
+module.exports.getProductImage = getProductImage;

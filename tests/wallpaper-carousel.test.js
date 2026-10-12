@@ -4,29 +4,33 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const wallpaper = require('../src/Commands/Search/WP.js');
 
-test('wallpaper carousel cards use image buffers and native URL buttons', () => {
-    const cards = wallpaper.buildCarouselCards([
+test('wallpaper album items keep the original URL as the full-resolution asset', () => {
+    const items = wallpaper.buildAlbumItems([
         { proxy: 'https://cdn.example/a.jpg', buffer: Buffer.from('image'), mimetype: 'image/jpeg' }
-    ], 'nature', 'Test provider');
-    assert.equal(cards.length, 1);
-    assert.ok(Buffer.isBuffer(cards[0].image));
-    assert.equal(cards[0].nativeFlow[0].url, 'https://cdn.example/a.jpg');
-    assert.equal(cards[0].nativeFlow[1].copy, 'https://cdn.example/a.jpg');
+    ]);
+    assert.equal(items.length, 1);
+    assert.equal(items[0].type, 'image');
+    assert.equal(items[0].image.url, 'https://cdn.example/a.jpg');
+    assert.equal(items[0].image.sourceUrl, 'https://cdn.example/a.jpg');
+    assert.equal(items[0].image.imageHighResUrl, 'https://cdn.example/a.jpg');
 });
 
-test('wallpaper carousel sends cards through the standard Baileys sendMessage path', async () => {
+test('wallpaper sends all resolved images as one Baileys album', async () => {
     const calls = [];
-    const sent = await wallpaper.sendWallpaperCarousel({
-        sendMessage: async (...args) => {
+    const images = Array.from({ length: 10 }, (_, index) => ({
+        proxy: `https://cdn.example/${index}.jpg`,
+        buffer: Buffer.from(`image-${index}`),
+        mimetype: 'image/jpeg'
+    }));
+    const sent = await wallpaper.sendWallpaperAlbum({
+        sendAlbumMessage: async (...args) => {
             calls.push(args);
-            return { key: { id: 'carousel-1' } };
+            return { key: { id: 'album-1' } };
         }
-    }, 'chat@s.whatsapp.net', [
-        { proxy: 'https://cdn.example/a.jpg', buffer: Buffer.from('image'), mimetype: 'image/jpeg' }
-    ], 'nature', 'Test provider', { key: { id: 'quoted' } });
-    assert.equal(sent.key.id, 'carousel-1');
+    }, 'chat@s.whatsapp.net', images, 'nature', 'Test provider', { key: { id: 'quoted' } });
+    assert.equal(sent.key.id, 'album-1');
     assert.equal(calls.length, 1);
-    assert.equal(calls[0][1].cards.length, 1);
-    assert.ok(Buffer.isBuffer(calls[0][1].cards[0].image));
-    assert.deepEqual(calls[0][2], { quoted: { key: { id: 'quoted' } } });
+    assert.equal(calls[0][1].length, 10);
+    assert.equal(calls[0][1][9].image.imageHighResUrl, 'https://cdn.example/9.jpg');
+    assert.equal(calls[0][2].quoted.key.id, 'quoted');
 });

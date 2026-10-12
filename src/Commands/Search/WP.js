@@ -66,30 +66,27 @@ async function resolveImages(results) {
     return resolved.filter(Boolean);
 }
 
-function buildCarouselCards(images, query, source) {
-    return images.map((wallpaper, index) => ({
-        image: wallpaper.buffer,
-        mimetype: wallpaper.mimetype,
-        title: `Wallpaper ${index + 1}`,
-        caption: `🖼️ *Wallpaper ${index + 1}*\n🔍 ${query}\n⚉ ${source}`,
-        footer: `${BOT_NAME} Vault`,
-        nativeFlow: [
-            { text: '📥 Download', url: wallpaper.proxy },
-            { text: '📋 Copy URL', copy: wallpaper.proxy }
-        ]
+function buildAlbumItems(images) {
+    return images.map(wallpaper => ({
+        type: 'image',
+        image: {
+            // sendAlbumMessage intentionally uses the original URL in every image slot.
+            // This avoids the corrupted preview-only rendering seen with the old carousel.
+            url: wallpaper.proxy,
+            sourceUrl: wallpaper.proxy,
+            imageHighResUrl: wallpaper.proxy,
+            mimetype: wallpaper.mimetype
+        }
     }));
 }
 
-async function sendWallpaperCarousel(sock, jid, images, query, source, quoted) {
-    const cards = buildCarouselCards(images, query, source);
-    // Passing cards to Baileys' sendMessage path creates interactiveMessage.carouselMessage.
-    // Each card contains a Buffer, so prepareWAMessageMedia uploads it instead of putting
-    // an unreachable remote URL in the carousel header.
-    const sent = await sock.sendMessage(jid, {
-        text: `🖼️ *WALLPAPER SEARCH: ${query}*`,
-        footer: `Found ${images.length} results · ${source}`,
-        cards
-    }, { quoted });
+async function sendWallpaperAlbum(sock, jid, images, query, source, quoted) {
+    const items = buildAlbumItems(images);
+    const sent = await sock.sendAlbumMessage(jid, items, {
+        quoted,
+        text: `🖼️ WALLPAPER SEARCH: ${query}`,
+        footer: `Found ${images.length} results · ${source}`
+    });
     if (!sent?.key?.id && !sent?.message?.key?.id && !sent?.id) {
         throw new Error('carousel send returned no message key');
     }
@@ -113,22 +110,8 @@ module.exports = {
             const images = await resolveImages(results);
             if (!images.length) throw new Error('Wallpaper URLs were returned, but none could be downloaded');
 
-            let delivered = false;
-            try {
-                await sendWallpaperCarousel(sock, m.chat, images, query, source, m);
-                delivered = true;
-            } catch (error) {
-                console.warn('[WALLPAPER] Real carousel failed; using image album fallback:', error.message);
-            }
-            if (!delivered) {
-                for (const [index, wallpaper] of images.slice(0, 5).entries()) {
-                    await sock.sendMessage(m.chat, {
-                        image: wallpaper.buffer,
-                        mimetype: wallpaper.mimetype,
-                        caption: `🖼️ *Wallpaper ${index + 1}: ${query}*\n\n_⚉ ${BOT_NAME} Vault_\n${wallpaper.proxy}`
-                    }, { quoted: m });
-                }
-            }
+            if (images.length < 2) throw new Error('At least two wallpaper images are required for an album');
+            await sendWallpaperAlbum(sock, m.chat, images.slice(0, 10), query, source, m);
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
         } catch (error) {
             console.error('[WALLPAPER]', error.stack || error.message);
@@ -141,5 +124,5 @@ module.exports.normalizeResults = normalizeResults;
 module.exports.searchWallpapers = searchWallpapers;
 module.exports.downloadImageBuffer = downloadImageBuffer;
 module.exports.resolveImages = resolveImages;
-module.exports.buildCarouselCards = buildCarouselCards;
-module.exports.sendWallpaperCarousel = sendWallpaperCarousel;
+module.exports.buildAlbumItems = buildAlbumItems;
+module.exports.sendWallpaperAlbum = sendWallpaperAlbum;
