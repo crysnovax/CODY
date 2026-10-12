@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 const BACKUP_API = 'https://bak.crysnovax.link';
 const backupSession = new Map();
@@ -62,7 +63,7 @@ const backupCmd = {
                 backupSession.set(userId, session);
                 
                 if (res.data.exists) {
-                    const date = new Date(res.data.timestamp).toLocaleString();
+                    const date = formatBotDateTime(res.data.timestamp);
                     return sendTable(sock, m.chat,
                         `## ⚠️ Existing Backup Found`,
                         '📱 Phone Registered',
@@ -259,7 +260,7 @@ const restoreCmd = {
                 }
 
                 session.phone = phone;
-                const date = new Date(res.data.timestamp).toLocaleString();
+                const date = formatBotDateTime(res.data.timestamp);
                 restoreSession.set(userId, session);
                 
                 return sendTable(sock, m.chat,

@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { downloadContentFromMessage } = require('plogme');
+const { getBotDateParts } = require('../../Utils/timezone');
 
 const DB = process.env.CODY_ANTIDELETE_DB || path.join(__dirname, '../../database/antidelete.json');
 fs.mkdirSync(path.dirname(DB), { recursive: true });
@@ -21,12 +22,8 @@ const DIV = '─────────────────';
 const messageCache = new Map();
 
 function getTime(timestamp) {
-    const date = new Date(timestamp * 1000);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${day}/${month} ${hours}:${minutes}`;
+    const parts = getBotDateParts(new Date(timestamp * 1000));
+    return `${parts.day}/${parts.month} ${parts.hour}:${parts.minute}`;
 }
 
 function getDisplayName(msgObj, jid) {

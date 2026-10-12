@@ -6,6 +6,7 @@
 const { getByCategory, getAll } = require('../../Plugin/crysCmd');
 const { getVar } = require('../../Plugin/configManager');
 const os = require('os');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 // Import font lab styles
 const fontLab = require('../Core/\'.js');
@@ -182,8 +183,8 @@ module.exports = {
         const startTime = global.crysStats?.startTime || Date.now() - process.uptime() * 1000;
         const uptimeMin = Math.floor((Date.now() - startTime) / 60000);
         const now = new Date();
-        const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+        const time = formatBotDateTime(now, 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        const dayName = formatBotDateTime(now, 'en-US', { weekday: 'long' });
         const dayIcon = getDayIcon(dayName);
         const storage = getStorage();
         const chatType = getChatType(m);

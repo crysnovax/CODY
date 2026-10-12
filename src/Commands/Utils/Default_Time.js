@@ -118,13 +118,15 @@ module.exports = {
                 hour: '2-digit', 
                 minute: '2-digit', 
                 second: '2-digit', 
-                hour12: true 
+                hour12: true,
+                timeZone: timezone
             });
             const dateString = datetime.toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
                 month: 'long', 
-                day: 'numeric' 
+                day: 'numeric',
+                timeZone: timezone
             });
             const regionName = timeData.timezone?.split('/').pop().replace(/_/g, ' ') || userDefault;
 

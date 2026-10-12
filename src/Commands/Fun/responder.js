@@ -1,3 +1,5 @@
+const { formatBotTime, getBotTimezone } = require('../../Utils/timezone');
+
 module.exports = {
  name: 'Crysnova!',
  alias: ['crys', 'crysnova!', 'crys!'],
@@ -52,18 +54,17 @@ module.exports = {
 ];
  const randomReply = replies[Math.floor(Math.random() * replies.length)];
 
- // Real Nigerian time (WAT / Africa/Lagos)
+ // Display the bot's configured local time.
  const now = new Date();
- const timeStr = now.toLocaleTimeString('en-US', {
+ const timeStr = formatBotTime(now, 'en-US', {
  hour: 'numeric',
  minute: '2-digit',
  second: '2-digit',
- hour12: true,
- timeZone: 'Africa/Lagos'
+ hour12: true
  }).toLowerCase();
 
  // Final message
- const finalMsg = `${randomReply}\n\n𓄄 \`\`\`${timeStr} WAT\`\`\``;
+ const finalMsg = `${randomReply}\n\n𓄄 \`\`\`${timeStr} ${getBotTimezone()}\`\`\``;
 
  await reply(finalMsg);
 

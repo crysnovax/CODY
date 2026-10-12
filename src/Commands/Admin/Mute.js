@@ -1,5 +1,6 @@
 const core = require('../../Plugin/mute-core');
 const cron = require('node-cron');
+const { getCronOptions, getBotTimezone } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'mute',
@@ -33,7 +34,7 @@ module.exports = {
             const mine = core.schedules.filter(s => s.group === groupJid);
             if (!mine.length) return reply('✘ No active schedules for this group');
             const text = mine.map(s =>
-                `✦ ${s.action.toUpperCase()} at ${s.time} (${s.once ? 'once' : 'daily'})`
+                `✦ ${s.action.toUpperCase()} at ${s.time} (${s.once ? 'once' : 'daily'}, ${getBotTimezone()})`
             ).join('\n');
             return reply(`ᯤ *Active Schedules:*\n\n${text}`);
         }
@@ -104,7 +105,7 @@ module.exports = {
                         } catch (err) {
                             console.error('[SCHED MUTE]', err.message);
                         }
-                    });
+                    }, getCronOptions());
                     core.activeCrons[sch.id] = job;
                 } catch (err) {
                     console.error('[CRON SETUP]', err.message);
@@ -116,6 +117,7 @@ module.exports = {
                 `⊹ Mute at   : ${startTime}\n` +
                 `⊹ Unmute at : ${endTime}\n` +
                 `⊹ Repeat    : ${repeat}\n\n` +
+                `⊹ Time zone : ${getBotTimezone()}\n\n` +
                 `Use .mute cancel to remove`
             );
         }

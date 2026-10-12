@@ -2,8 +2,7 @@
  * .esports — Live & upcoming eSports matches in your timezone
  */
 
-const { getUserTimezone, getTimeData } = require('../Core/®-utils');
-const { getTimezone } = require('../Core/®.js');
+const { getUserTimezone, getTimezone } = require('../Core/®-utils');
 
 // Mock eSports schedule (replace with real API: PandaScore, Abios, etc.)
 const ESPORTS_SCHEDULE = [
@@ -15,13 +14,8 @@ const ESPORTS_SCHEDULE = [
 ];
 
 const formatMatchTime = (matchTime, userTimezone) => {
-    const date = new Date(matchTime);
-    const userDate = new Date(date.toLocaleString('en-US', { timeZone: userTimezone }));
-    
-    const now = new Date();
-    const userNow = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
-    
-    const diffMs = userDate - userNow;
+    const userDate = new Date(matchTime);
+    const diffMs = userDate.getTime() - Date.now();
     const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     
@@ -40,13 +34,15 @@ const formatMatchTime = (matchTime, userTimezone) => {
     const timeStr = userDate.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: userTimezone
     });
     
     const dateStr = userDate.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        timeZone: userTimezone
     });
     
     return { timeStr, dateStr, status, isLive: diffMs < 0 };
@@ -67,8 +63,7 @@ module.exports = {
             const userRegion = getUserTimezone(userId);
             const userTimezone = getTimezone(userRegion) || 'Africa/Lagos';
             
-            const { data } = await getTimeData(userTimezone);
-            const now = new Date(data.datetime);
+            const now = new Date();
             
             const requestedGame = args.join(' ').toLowerCase();
             
@@ -90,7 +85,7 @@ module.exports = {
             
             let response = `╭─❍ *ESPORTS* 🎮\n`;
             response += `│ 📍 ${userRegion} Time\n`;
-            response += `│ 🕐 ${now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true})}\n`;
+            response += `│ 🕐 ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTimezone })}\n`;
             response += `│\n`;
             
             let liveCount = 0;

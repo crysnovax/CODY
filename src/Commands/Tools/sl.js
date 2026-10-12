@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 module.exports = [{
     name: 'short',
@@ -54,7 +55,7 @@ module.exports = [{
             
             if (password) caption += `🔒 *Protected:* Yes\n`;
             if (data.expiresAt) {
-                caption += `⏰ *Expires:* ${new Date(data.expiresAt).toLocaleString()}\n`;
+                caption += `⏰ *Expires:* ${formatBotDateTime(data.expiresAt)}\n`;
             }
             
             caption += `\n_♧ Short · sl.crysnovax.link_`;
@@ -100,9 +101,9 @@ module.exports = [{
             caption += `📋 *Slug:* \`${data.slug}\`\n`;
             caption += `🔗 *Original:* ${data.originalUrl.slice(0, 60)}...\n`;
             caption += `👁️ *Clicks:* ${data.clicks}\n`;
-            caption += `📅 *Created:* ${new Date(data.created).toLocaleString()}\n`;
+            caption += `📅 *Created:* ${formatBotDateTime(data.created)}\n`;
             if (data.hasPassword) caption += `🔒 *Protected:* Yes\n`;
-            if (data.expiresAt) caption += `⏰ *Expires:* ${new Date(data.expiresAt).toLocaleString()}\n`;
+            if (data.expiresAt) caption += `⏰ *Expires:* ${formatBotDateTime(data.expiresAt)}\n`;
             caption += `\n_♧ Short · sl.crysnovax.link_`;
 
             await sock.sendMessage(m.chat, {

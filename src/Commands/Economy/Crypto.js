@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 const POPULAR_COINS = ['bitcoin', 'ethereum', 'bnb', 'solana', 'ripple', 'cardano', 'dogecoin', 'tron'];
 
@@ -114,7 +115,7 @@ module.exports = {
                     ['📈 24h High', `$${coin.high_24h?.toLocaleString() || 'N/A'}`],
                     ['📉 24h Low', `$${coin.low_24h?.toLocaleString() || 'N/A'}`],
                     ['🔖 Total Volume', `$${coin.total_volume?.toLocaleString() || 'N/A'}`],
-                    ['📅 Last Updated', new Date(coin.last_updated).toLocaleString()]
+                    ['📅 Last Updated', formatBotDateTime(coin.last_updated)]
                 ],
                 footerText: '💡 SWIPE ⇆ • Live from CoinGecko'
             }, { quoted: m });

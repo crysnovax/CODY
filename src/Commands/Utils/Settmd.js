@@ -57,7 +57,7 @@ module.exports = {
             const res = await axios.get(`https://worldtimeapi.org/api/timezone/${encodeURIComponent(timezone)}`, { timeout: 8000 });
             const data = res.data;
             const datetime = new Date(data.datetime);
-            const timeString = datetime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const timeString = datetime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: timezone });
 
             const db = getDB();
             db[userId] = region;

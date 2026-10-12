@@ -1,4 +1,5 @@
 const { pluginsDB } = require('./plugin.js');
+const { formatBotDate } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'plugins',
@@ -20,7 +21,7 @@ module.exports = {
         let msg = `╭─❍ *PLUGINS* (${entries.length})\n│\n`;
         
         entries.forEach(([url, info], i) => {
-            const date = new Date(info.installedAt).toLocaleDateString();
+            const date = formatBotDate(info.installedAt);
             msg += `│ ${i + 1}. *${info.name}*\n`;
             msg += `│ ⎔ ${info.category}*\n`;
             msg += `| 📅 ${date}\n`;

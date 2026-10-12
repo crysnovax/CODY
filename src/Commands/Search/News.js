@@ -5,6 +5,7 @@
 const { getLunaResponse } = require('../Core/!!!.js');
 const { getUserTimezone, getTimeData } = require('../Core/®-utils');
 const { getTimezone } = require('../Core/®.js');
+const { formatBotDate } = require('../../Utils/timezone');
 
 // Cache for 15 minutes
 let newsCache = {
@@ -115,7 +116,7 @@ const formatArticle = (headline, source, story, category) => {
     const emoji = emojis[category] || '📰';
     
     let text = `${emoji} *${headline}*\n\n`;
-    text += `📡 ${source} | ${new Date().toLocaleDateString()} | ${category.toUpperCase()}\n\n`;
+    text += `📡 ${source} | ${formatBotDate(new Date())} | ${category.toUpperCase()}\n\n`;
     
     // Clean story - remove markdown headers and format markers
     let cleanStory = story
@@ -218,7 +219,7 @@ module.exports = {
             }
             
             let response = `*📰 LATEST ${category.toUpperCase()} NEWS*\n`;
-            response += `◈ ${userRegion} • ${now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true})}\n`;
+            response += `◈ ${userRegion} • ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userTimezone })}\n`;
             response += `✨ AI-Generated • CRYSNOVA Luna\n\n`;
             response += `*Type .news 1-5 for full article*\n\n`;
             

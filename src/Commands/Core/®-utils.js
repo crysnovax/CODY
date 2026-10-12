@@ -3,6 +3,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const moment = require('moment-timezone');
 
 const ENV_PATH = path.join(__dirname, '../.env');
 const DB_PATH = path.join(__dirname, '../database/timezones.json');
@@ -57,7 +58,7 @@ const TIME_PROVIDERS = [
                 timezone: response.data.timezone,
                 utc_offset: response.data.utc_offset,
                 dst: response.data.dst,
-                day_of_week: new Date(response.data.datetime).getDay(),
+                day_of_week: moment(response.data.datetime).tz(timezone).day(),
                 source: 'WorldTimeAPI'
             };
         }
@@ -66,22 +67,17 @@ const TIME_PROVIDERS = [
 
 // ── LOCAL FALLBACK (when all APIs fail) ─────────────────────────────────
 const getLocalFallback = (timezone) => {
-    const now = new Date();
-    const offsets = {
-        'Africa/Lagos': '+01:00',
-        'Europe/London': '+00:00',
-        'Asia/Tokyo': '+09:00',
-        'America/New_York': '-05:00',
-        'Asia/Dubai': '+04:00',
-        'Europe/Paris': '+01:00'
-    };
-    
+    if (!moment.tz.zone(timezone)) throw new RangeError(`Invalid IANA time zone: ${timezone}`);
+    const now = moment.tz(timezone);
     return {
         datetime: now.toISOString(),
         timezone: timezone,
-        utc_offset: offsets[timezone] || '+00:00',
-        dst: false,
-        day_of_week: now.getDay(),
+        utc_offset: now.format('Z'),
+        dst: now.isDST(),
+        day_of_week: now.day(),
+        day_of_year: now.dayOfYear(),
+        week_number: now.isoWeek(),
+        abbreviation: now.zoneAbbr(),
         source: 'Local Fallback'
     };
 };

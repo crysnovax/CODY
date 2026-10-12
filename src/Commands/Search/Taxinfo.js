@@ -97,7 +97,7 @@ module.exports = {
             try {
                 const res = await axios.get(`https://worldtimeapi.org/api/timezone/${encodeURIComponent(tax.timezone)}`, { timeout: 8000 });
                 const dt = new Date(res.data.datetime);
-                currentTime = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                currentTime = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tax.timezone });
             } catch {}
 
             await sock.sendMessage(m.chat, {

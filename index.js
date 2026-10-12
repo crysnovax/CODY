@@ -12,6 +12,9 @@ require('dotenv').config({ path: path.join(__dirname, '.env'), override: false }
 require('./redirect.js');
 // ─────────────────────────────────────────────────────────────────
 
+// Validate the bot's configured wall-clock timezone once at startup.
+require('./src/Utils/timezone');
+
 const fs = require('fs');
 const chalk = require('chalk');
 

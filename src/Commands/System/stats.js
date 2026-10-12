@@ -4,6 +4,7 @@ const { getVar, allVars } = require('../../Plugin/configManager');
 const { getFont } = require('../Bot/botfont.js');
 const path = require('path');
 const fs = require('fs');
+const { getBotTimezone } = require('../../Utils/timezone');
 
 const readDb = (name) => {
     try {
@@ -50,7 +51,7 @@ module.exports = {
         const chat = m.chat;
         const font = getFont(chat) || 'default';
         const prefix = getVar('PREFIX', '.');
-        const tz = getVar('TIMEZONE', 'Africa/Lagos');
+        const tz = getBotTimezone();
         const lang = getVar('BOT_LANG', getVar('BOTLANG', 'en')) || 'en';
         const cfg = require('../../../settings/config');
         const botName = cfg.settings?.title || 'CODY AI';

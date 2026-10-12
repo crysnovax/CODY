@@ -573,10 +573,10 @@ CODY/
 | `AUTO_REACT` | `true` | React to commands |
 | `ANTI_CALL` | `true` | Auto-reject calls |
 | `MENU_STYLE` | `0` | Menu design (0–6) |
-| `TIMEZONE` | `Africa/Lagos` | Your timezone |
+| `TIMEZONE` | `Africa/Lagos` | IANA timezone for bot-local display and wall-clock schedules (e.g. `America/Toronto`) |
 | `BOT_LANG` | `en` | Bot language |
 
-> All values can be changed live with `.setvar KEY VALUE` — no restart needed.
+> Most values can be changed live with `.setvar KEY VALUE`. A TIMEZONE change immediately affects formatted output and new schedules; restart the bot to apply it to already-registered cron jobs.
 
 ### Railway deployment
 
