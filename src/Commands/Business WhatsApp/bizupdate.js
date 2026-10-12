@@ -1,5 +1,6 @@
 // ── bizupdate.js ─────────────────────────────────────────────────
 const config = require('../../../settings/config');
+const { getBotTimezone } = require('../../Utils/timezone');
 
 const BOT_NAME = config.botname || process.env.BOTNAME || 'CRYSNOVA';
 
@@ -50,7 +51,9 @@ const USAGE = `\`\`\`۞ BUSINESS UPDATE\`\`\`
 ❒ • *.bizupdate email [email]*
 ❒ • *.bizupdate website [url]*
 ❒ • *.bizupdate address [address]*
-❒ • *.bizupdate hours mon,open_24h;tue,10:00-22:00*`;
+❒ • *.bizupdate hours mon,open_24h;tue,10:00-22:00*
+
+Business hours use the bot's TIMEZONE setting (default: Africa/Lagos).`;
 
 module.exports = {
     name: 'bizupdate',
@@ -87,7 +90,7 @@ module.exports = {
                     break;
                 case 'hours': {
                     const days = value.split(';').map(entry => parseDay(entry.trim()));
-                    updates.hours = { timezone: 'Africa/Lagos', days };
+                    updates.hours = { timezone: getBotTimezone(), days };
                     break;
                 }
                 default:
@@ -113,4 +116,3 @@ module.exports = {
         }
     }
 };
-
