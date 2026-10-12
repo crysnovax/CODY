@@ -4,6 +4,7 @@ const path = require('path');
 const cron = require('node-cron');
 const { proto } = require('plogme');
 const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
+const { getCronOptions, getBotTimezone } = require('../../Utils/timezone');
 const DB_PATH = path.join(process.cwd(), 'database', 'spamgs-schedules.json');
 let schedules = [];
 const jobs = new Map();
@@ -56,7 +57,7 @@ async function runSchedule(sock, schedule) {
 function stopJob(id) { try { jobs.get(id)?.stop(); } catch {} jobs.delete(id); }
 function startJob(sock, schedule) {
     stopJob(schedule.id);
-    const job = cron.schedule(schedule.cron, () => runSchedule(sock, schedule));
+    const job = cron.schedule(schedule.cron, () => runSchedule(sock, schedule), getCronOptions());
     jobs.set(schedule.id, job);
 }
 function setupSpamSchedules(sock) { for (const schedule of schedules) if (schedule?.cron) startJob(sock, schedule); }
@@ -76,7 +77,7 @@ module.exports = {
         const sub = String(args[0] || '').toLowerCase();
         if (sub === 'list') {
             if (!schedules.length) return reply('No daily spamgs schedules are active.');
-            return reply(`*SpamGS schedules*\n${schedules.map(s => `• ${s.id}: ${s.time}, ${s.repeat}x every ${s.delay}`).join('\n')}`);
+            return reply(`*SpamGS schedules (${getBotTimezone()})*\n${schedules.map(s => `• ${s.id}: ${s.time}, ${s.repeat}x every ${s.delay}`).join('\n')}`);
         }
         if (sub === 'cancel') {
             const removed = schedules.length;
@@ -103,7 +104,7 @@ module.exports = {
             schedules.push(schedule);
             save();
             startJob(sock, schedule);
-            return reply(`📅 Daily spamgs schedule saved at ${dailyTime}: ${repeat}x with ${args[1]} delay.`);
+            return reply(`📅 Daily spamgs schedule saved at ${dailyTime} (${getBotTimezone()}): ${repeat}x with ${args[1]} delay.`);
         }
         const total = await runSchedule(sock, { repeat, delayMs, source });
         return reply(`📣 Group status posted ${repeat} time(s) to ${total / repeat} group(s).`);

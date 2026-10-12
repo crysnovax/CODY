@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'user_warns.json');
 
@@ -138,7 +139,7 @@ module.exports = [
             const record = loadWarns()[`${m.chat}_${target.num}`];
             if (!record?.count) return reply(`@${target.num} has no active manual warnings.`, { mentions: [target.jid] });
             const reasons = (record.reasons || []).slice(-5).map(item => {
-                const timestamp = item.time ? new Date(item.time).toLocaleString('en-GB') : 'unknown time';
+                const timestamp = item.time ? formatBotDateTime(item.time, 'en-GB') : 'unknown time';
                 return `• ${timestamp}: ${String(item.reason || 'No reason').slice(0, 160)}`;
             });
             return reply(`*Warnings for @${target.num}*\n• Active count: ${record.count}/3\n${reasons.join('\n') || '• No reason history available.'}`, { mentions: [target.jid] });

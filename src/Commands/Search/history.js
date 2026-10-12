@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { getBotDateParts } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'history',
@@ -17,9 +18,9 @@ module.exports = {
                 month = splitDate[0].padStart(2, '0');
                 day = splitDate[1].padStart(2, '0');
             } else {
-                const today = new Date();
-                month = String(today.getMonth() + 1).padStart(2, '0');
-                day = String(today.getDate()).padStart(2, '0');
+                const today = getBotDateParts(new Date());
+                month = today.month;
+                day = today.day;
             }
 
             if (parseInt(month) > 12 || parseInt(day) > 31) {

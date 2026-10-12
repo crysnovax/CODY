@@ -1,6 +1,7 @@
 const axios = require('axios');
 const config = require('../../../settings/config');
 const { resolvePhoneJid, resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
+const { formatBotDateTime } = require('../../Utils/timezone');
 const ECO_DEFAULT = 'https://econ.crysnovax.link';
 const ECO_API = process.env.ECO_API_URL || config.api?.economy || ECO_DEFAULT;
 
@@ -433,7 +434,7 @@ cmds.push({
             };
             const rows = [['📅 Time', '📝 Alert']];
             alerts.slice(-10).reverse().forEach(a => {
-                const time = new Date(a.time).toLocaleString();
+                const time = formatBotDateTime(a.time);
                 const icon = typeIcons[a.type] || '📢';
                 rows.push([time, `${icon} ${a.message}`]);
             });

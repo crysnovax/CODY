@@ -4,6 +4,7 @@ const {
     getTrackingStartedAt,
     isBotParticipant,
 } = require('../../Plugin/groupActivity');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 const CHUNK_SIZE = 25;
 
@@ -39,7 +40,7 @@ module.exports = {
 
         const startedAt = getTrackingStartedAt(m.chat);
         const trackingNote = startedAt
-            ? `Tracking began ${new Date(startedAt).toLocaleString()}. Earlier messages are not available.`
+            ? `Tracking began ${formatBotDateTime(startedAt)}. Earlier messages are not available.`
             : 'No group messages have been tracked yet.';
         for (let offset = 0; offset < active.length; offset += CHUNK_SIZE) {
             const chunk = active.slice(offset, offset + CHUNK_SIZE);

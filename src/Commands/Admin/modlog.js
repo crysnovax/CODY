@@ -1,6 +1,7 @@
 'use strict';
 const { readDB, writeDB, prune } = require('../../Plugin/modLog');
 const { DB_PATH, MAX_ENTRIES } = require('../../Plugin/modLog');
+const { formatBotDateTime, getBotTimezone } = require('../../Utils/timezone');
 const plugin = {
     name: 'modlog',
     alias: ['moderationlog'],
@@ -46,11 +47,11 @@ const plugin = {
             const entries = config.entries.slice(-count).reverse();
             if (!entries.length) return reply('No moderation events in the log. Turn it on with .modlog on.');
             const lines = entries.map(entry => {
-                const time = new Date(entry.timestamp).toLocaleString('en-GB', { timeZone: 'UTC' });
+                const time = formatBotDateTime(entry.timestamp, 'en-GB');
                 const actor = entry.actor ? `@${entry.actor.split('@')[0]}` : 'unknown';
                 const target = entry.target ? ` → @${entry.target.split('@')[0]}` : '';
                 const detail = entry.action ? ` (${entry.action})` : '';
-                return `• ${time} UTC — ${entry.command || entry.kind}${detail} — ${actor}${target}`;
+                return `• ${time} ${getBotTimezone()} — ${entry.command || entry.kind}${detail} — ${actor}${target}`;
             });
             return sock.sendMessage(m.chat, { text: `*Recent moderation events*\n${lines.join('\n')}` }, { quoted: m });
         }

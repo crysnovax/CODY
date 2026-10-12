@@ -5,6 +5,7 @@
 //
 // No API key is required, so this command no longer reads BARON0_API_KEY.
 const API_BASE = 'https://kyuux-r.indevs.in';
+const { getBotDateParts } = require('../../Utils/timezone');
 
 async function checkNumber(number) {
     const res = await fetch(`${API_BASE}/api/check-whatsapp?phone=${encodeURIComponent(number)}`);
@@ -46,8 +47,8 @@ function formatDateTime(value) {
     try {
         const d = new Date(value);
         if (isNaN(d.getTime())) return String(value);
-        const pad = n => String(n).padStart(2, '0');
-        return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        const parts = getBotDateParts(d);
+        return `${parts.day}.${parts.month}.${parts.year} ${parts.hour}:${parts.minute}`;
     } catch { return String(value); }
 }
 
@@ -58,8 +59,8 @@ function formatBanResult(result, requestedNumber = '') {
     const device = result?.info?.device || 'Unknown';
     const email = result?.info?.email || 'Unknown';
     const checkedAt = formatDateTime(result?.checkedAt || new Date());
-    const now = new Date();
-    const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const now = getBotDateParts(new Date());
+    const ts = `${now.hour}:${now.minute}:${now.second}`;
 
     const accentColor = banned ? '#ff3e3e' : '#00ff88';
     const accentGlow = banned ? 'rgba(255,62,62,0.4)' : 'rgba(0,255,136,0.4)';

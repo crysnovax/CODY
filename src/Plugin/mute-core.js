@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
+const { getCronOptions } = require('../Utils/timezone');
 
 const SCHEDULE_FILE = path.join(process.cwd(), 'database', 'mute-schedules.json');
 
@@ -79,7 +80,7 @@ function setupMuteSchedules(sock) {
                 } catch (err) {
                     console.error('[SCHED MUTE]', err.message);
                 }
-            });
+            }, getCronOptions());
             activeCrons[sch.id] = job;
         } catch (err) {
             console.error('[CRON SETUP]', sch.id, err.message);

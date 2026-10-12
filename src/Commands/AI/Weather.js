@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('../../../settings/config');
+const { formatBotTime } = require('../../Utils/timezone');
 
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY || config.api?.weather || '';
 
@@ -55,8 +56,8 @@ module.exports = {
             const { data } = await axios.get(url, { timeout: 15000 });
 
             const emoji = getWeatherEmoji(data.weather[0].main);
-            const sunrise = new Date(data.sys.sunrise * 1000).toLocaleTimeString();
-            const sunset = new Date(data.sys.sunset * 1000).toLocaleTimeString();
+            const sunrise = formatBotTime(new Date(data.sys.sunrise * 1000));
+            const sunset = formatBotTime(new Date(data.sys.sunset * 1000));
             const visibility = (data.visibility / 1000).toFixed(1);
 
             await sock.sendMessage(m.chat, {

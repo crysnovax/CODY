@@ -2,6 +2,7 @@
 // (verified live — no auth needed for public user data, 60 req/hr limit).
 // @crysnovax—FIX14-08-26
 const axios = require('axios');
+const { formatBotDate } = require('../../Utils/timezone');
 
 const API = 'https://api.github.com';
 const HEADERS = { Accept: 'application/json', 'User-Agent': 'CRYSNOVA-Bot' };
@@ -66,7 +67,7 @@ module.exports = {
                 .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0))
                 .slice(0, 3);
 
-            const joined = new Date(user.created_at).toLocaleDateString('en-GB', {
+            const joined = formatBotDate(user.created_at, 'en-GB', {
                 day: '2-digit', month: 'short', year: 'numeric'
             });
 

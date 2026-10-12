@@ -2,6 +2,7 @@
 // @crysnovax—FIX06-08-26
 const core = require('../../Plugin/mute-core');
 const cron = require('node-cron');
+const { getCronOptions, getBotTimezone } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'mutesch',
@@ -31,7 +32,7 @@ module.exports = {
             const mine = core.schedules.filter(s => s.group === groupJid);
             if (!mine.length) return reply('_✘ No active schedules in this group_');
             const text = mine.map(s =>
-                `✦ ${s.action.toUpperCase()} at ${s.time} (${s.once ? 'once' : 'daily'})`
+                `✦ ${s.action.toUpperCase()} at ${s.time} (${s.once ? 'once' : 'daily'}, ${getBotTimezone()})`
             ).join('\n');
             return reply(`🕒 *Active Schedules:*\n\n${text}`);
         }
@@ -89,7 +90,7 @@ module.exports = {
                     } catch (err) {
                         console.error('[MUTESCH]', err.message);
                     }
-                });
+                }, getCronOptions());
                 core.activeCrons[sch.id] = job;
             } catch (err) {
                 console.error('[MUTESCH CRON]', err.message);
@@ -101,6 +102,7 @@ module.exports = {
             `✦ Mute at   : ${startTime}\n` +
             `✦ Unmute at : ${endTime}\n` +
             `✦ Repeat    : ${repeat}\n\n` +
+            `✦ Timezone  : ${getBotTimezone()}\n\n` +
             `${prefix}mutesch cancel to remove`
         );
     }

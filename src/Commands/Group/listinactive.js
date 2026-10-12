@@ -4,6 +4,7 @@ const {
     getTrackingStartedAt,
     isBotParticipant,
 } = require('../../Plugin/groupActivity');
+const { formatBotDateTime } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'listinactive',
@@ -27,7 +28,7 @@ module.exports = {
         if (!allInactive.length) return reply('No inactive members found; every listed member has sent at least one tracked message.');
         const startedAt = getTrackingStartedAt(m.chat);
         const trackingNote = startedAt
-            ? `Tracking began ${new Date(startedAt).toLocaleString()}. Earlier messages are not available.`
+            ? `Tracking began ${formatBotDateTime(startedAt)}. Earlier messages are not available.`
             : 'No group messages have been tracked yet. Tracking begins when the next member message arrives.';
         const heading = `*Inactive members (${allInactive.length}/${members.length})*\n${trackingNote}\n\n`;
         const lines = allInactive.map(row => `• @${row.jid.split('@')[0]}`).join('\n');

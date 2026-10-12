@@ -42,8 +42,9 @@ async function getTimeData(timezone) {
     } catch (e) {
         // Fallback to Core
         try {
-            const core = require('../Core/®.js');
-            return await core.getTimeData(timezone);
+            const core = require('../Core/®-utils.js');
+            const data = await core.getTimeData(timezone);
+            return { source: data.source || 'local-fallback', data };
         } catch (e2) {
             throw new Error('All time sources failed');
         }
@@ -80,8 +81,8 @@ module.exports = {
             const { source, data } = await getTimeData(timezone);
             
             const datetime = new Date(data.datetime);
-            const timeString = datetime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-            const dateString = datetime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeString = datetime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: timezone });
+            const dateString = datetime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone });
             const regionName = (data.timezone || timezone).split('/').pop().replace(/_/g, ' ');
             const sourceNote = source !== 'worldtimeapi' ? ` (via ${source})` : '';
 

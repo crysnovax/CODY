@@ -7,6 +7,7 @@
 
 const { _internals: { buildSponsorPayload } } = require('./sponsor');
 const { sendRelayRichGrid } = require('../../Plugin/richRelay');
+const { formatBotDate } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'repo',
@@ -52,7 +53,7 @@ module.exports = {
             `│ ◈ sl.crysnovax.link/designs\n\n` +
             
             `━━━━━━━━━━━━━━━━━━━━━━\n` +
-            `_𓄄  C⚇DY V2  |  crysnovax  |  ${new Date().toLocaleDateString()}_`;
+            `_𓄄  C⚇DY V2  |  crysnovax  |  ${formatBotDate(new Date())}_`;
 
         try {
             await sock.sendMessage(m.key.remoteJid, {

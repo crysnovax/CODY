@@ -1,4 +1,4 @@
-const { getTimezone, getTimeData } = require('../Core/®.js');
+const { formatBotTime, getBotTimezone } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'uptime',
@@ -9,28 +9,10 @@ module.exports = {
 
     execute: async (sock, m, { reply }) => {
         try {
-            // Get current time with timezone support
-            const timezone = getTimezone('Africa/Lagos') || 'Africa/Lagos';
-            let currentTime;
-            
-            try {
-                const { data } = await getTimeData(timezone);
-                const time = new Date(data.datetime);
-                // Subtract 1 hour to correct API time offset
-                time.setHours(time.getHours() - 1);
-                currentTime = time.toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true,
-                    timeZone: timezone
-                });
-            } catch (e) {
-                currentTime = new Date().toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            }
+            const timezone = getBotTimezone();
+            const currentTime = formatBotTime(new Date(), 'en-US', {
+                hour: 'numeric', minute: '2-digit', hour12: true,
+            });
 
             // Calculate uptime using process.uptime() in seconds
             const uptimeSeconds = Math.floor(process.uptime());
