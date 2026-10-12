@@ -26,13 +26,23 @@ async function groupsOf(sock) {
     return Object.keys(all || {}).filter(jid => jid.endsWith('@g.us'));
 }
 async function postStatus(sock, source, groups) {
-    if (!groups.length) return 0;
-    if (source && typeof sock.copyNForward === 'function') {
-        await sock.copyNForward('status@broadcast', source, true, { statusJidList: groups });
-    } else {
-        await sock.sendMessage('status@broadcast', source, { statusJidList: groups });
+    let sent = 0;
+    for (const group of groups) {
+        try {
+            // Group JIDs are not valid statusJidList recipients. Send the
+            // message directly to each group and mark it as a native group
+            // status so WhatsApp renders it in that group's status surface.
+            await sock.sendMessage(group, {
+                forward: source,
+                force: true,
+                groupStatus: true,
+            });
+            sent += 1;
+        } catch (error) {
+            console.error('[SPAMGS]', group, error?.message || error);
+        }
     }
-    return groups.length;
+    return sent;
 }
 async function runSchedule(sock, schedule) {
     const groups = await groupsOf(sock);

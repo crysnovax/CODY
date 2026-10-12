@@ -13,6 +13,7 @@ const antidoc = require(path.join(originalCwd, 'src/Commands/Admin/antidoc.js'))
 const antipoll = require(path.join(originalCwd, 'src/Commands/Admin/antipoll.js'));
 const antievent = require(path.join(originalCwd, 'src/Commands/Admin/antievent.js'));
 const antinewcomer = require(path.join(originalCwd, 'src/Commands/Admin/antinewcomer.js'));
+const antivv = require(path.join(originalCwd, 'src/Commands/Admin/antivv.js'));
 const GROUP = '120363000000000000@g.us';
 const SENDER = '15550001@s.whatsapp.net';
 const BOT = '15559999@s.whatsapp.net';
@@ -107,6 +108,7 @@ test('new moderation detectors ignore violations that exist only in a quote', ()
     assert.equal(media.hasMessageType(reply, 'eventMessage'), false);
     assert.equal(antivoice.hasVoiceNote(reply), false);
     assert.equal(antidoc.shouldBlockDocument(reply, { allowedExtensions: [] }), false);
+    assert.equal(antivv.isViewOnceMessage(reply), false);
 });
 
 test('antinewcomer duration parsing accepts supported units and bounds invalid values', () => {
@@ -152,12 +154,13 @@ test('antinewcomer ignores ordinary messages and removes join records on leave',
     assert.equal(saved[GROUP].joined[SENDER], undefined);
 });
 
-test('all four shared-engine protections delete violating messages when enabled', async () => {
+test('shared-engine protections delete violating messages when enabled', async () => {
     const cases = [
         [antivoice, 'antivoice.json', { audioMessage: { ptt: true } }],
         [antidoc, 'antidoc.json', { documentMessage: { fileName: 'blocked.pdf' } }],
         [antipoll, 'antipoll.json', { pollCreationMessageV3: {} }],
         [antievent, 'antievent.json', { eventMessage: {} }],
+        [antivv, 'antivv.json', { viewOnceMessageV2: { message: { imageMessage: {} } } }],
     ];
     for (const [plugin, file, content] of cases) {
         const config = { enabled: true, action: 'delete' };

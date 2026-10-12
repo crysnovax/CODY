@@ -101,3 +101,36 @@ test('broadcast forwards the complete quoted envelope instead of sending invisib
     assert.ok(sent.every(([, content]) => content.text === undefined));
     assert.match(replies[0], /original quoted message/);
 });
+
+test('spamgs sends quoted content as a native group status to every group', async () => {
+    const sent = [];
+    const source = {
+        key: { remoteJid: 'source@g.us', id: 'quoted-status-1', fromMe: false },
+        message: { imageMessage: { caption: 'scheduled image' } },
+    };
+    const sock = {
+        groupFetchAllParticipating: async () => ({
+            'one@g.us': {},
+            'two@g.us': {},
+            'not-a-group@s.whatsapp.net': {},
+        }),
+        sendMessage: async (...args) => { sent.push(args); return {}; },
+    };
+    const replies = [];
+    await spamgs.execute(sock, {
+        isGroup: true,
+        chat: 'source@g.us',
+        quoted: { fakeObj: source },
+    }, {
+        args: ['1', '1s'],
+        isAdmin: true,
+        prefix: '.',
+        reply: async text => replies.push(text),
+    });
+    assert.equal(sent.length, 2);
+    assert.deepEqual(sent.map(([jid]) => jid), ['one@g.us', 'two@g.us']);
+    assert.ok(sent.every(([, content]) => content.forward === source));
+    assert.ok(sent.every(([, content]) => content.force === true));
+    assert.ok(sent.every(([, content]) => content.groupStatus === true));
+    assert.match(replies[0], /posted 1 time\(s\) to 2 group\(s\)/);
+});
