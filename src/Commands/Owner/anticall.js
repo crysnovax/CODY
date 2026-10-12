@@ -1,6 +1,7 @@
 const {
     loadConfig,
     saveConfig,
+    isIdentityInList,
     normalizeJid,
     findLidForPhone,
     defaultConfig
@@ -13,24 +14,31 @@ module.exports = {
     category: 'Owner',
     ownerOnly: true,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply, prefix = '.' }) => {
         console.log('[ANTICALL CMD] args:', args);
-        const sub = args[0]?.toLowerCase();
+        const rawSub = args[0]?.toLowerCase();
+        const sub = rawSub === 'block' ? 'reject' : rawSub;
         const config = loadConfig();
 
         if (!config.pendingPhoneReject) config.pendingPhoneReject = [];
 
+        const getPhoneDigits = input => {
+            const candidate = String(input || '').trim();
+            return /^\+?[\d\s().-]+$/.test(candidate) ? candidate.replace(/\D/g, '') : '';
+        };
+
         const toJid = (input) => {
             if (!input) return '';
             const trimmed = input.trim();
-            if (/^\d+$/.test(trimmed)) {
-                const lid = findLidForPhone(trimmed);
+            const digits = getPhoneDigits(trimmed);
+            if (digits) {
+                const lid = findLidForPhone(digits);
                 if (lid) {
-                    console.log(`[ANTICALL] Found LID for ${trimmed}: ${lid}`);
+                    console.log(`[ANTICALL] Found LID for provided phone: ${lid}`);
                     return lid;
                 }
-                console.log(`[ANTICALL] No LID found for ${trimmed}, using phone JID.`);
-                return `${trimmed}@s.whatsapp.net`;
+                console.log('[ANTICALL] No LID found; using the normalized phone JID.');
+                return `${digits}@s.whatsapp.net`;
             }
             return trimmed;
         };
@@ -49,6 +57,8 @@ module.exports = {
                 `.anticall schedule always <start HH:MM> <end HH:MM> [days] [dates] [months]\n` +
                 `.anticall schedule off\n` +
                 `.anticall reject add/remove/list <number or JID>\n` +
+                `.anticall block add/remove/list <number or JID>\n` +
+                `.anticall block <number>\n` +
                 `.anticall whitelist add/remove/list <number or JID>\n` +
                 `.anticall status\n` +
                 `${prefix}anticall reset`
@@ -132,8 +142,13 @@ module.exports = {
 
         // --- REJECT (blacklist) ---
         if (sub === 'reject') {
-            const action = args[1]?.toLowerCase();
-            const target = args.slice(2).join(' ').trim();
+            const actionToken = args[1]?.toLowerCase();
+            const action = rawSub === 'block'
+                ? (['add', 'remove', 'list'].includes(actionToken) ? actionToken : 'add')
+                : actionToken;
+            const target = rawSub === 'block'
+                ? (['add', 'remove', 'list'].includes(actionToken) ? args.slice(2).join(' ').trim() : args.slice(1).join(' ').trim())
+                : args.slice(2).join(' ').trim();
 
             if (action === 'add') {
                 const jid = toJid(target);
@@ -141,9 +156,10 @@ module.exports = {
                 if (!config.blacklist.includes(jid)) {
                     config.blacklist.push(jid);
                 }
-                if (/^\d+$/.test(target) && !jid.includes('@lid')) {
-                    if (!config.pendingPhoneReject.includes(target)) {
-                        config.pendingPhoneReject.push(target);
+                const phoneDigits = getPhoneDigits(target);
+                if (phoneDigits && !jid.includes('@lid')) {
+                    if (!config.pendingPhoneReject.includes(phoneDigits)) {
+                        config.pendingPhoneReject.push(phoneDigits);
                     }
                     saveConfig(config);
                     return reply(
@@ -158,10 +174,15 @@ module.exports = {
             if (action === 'remove') {
                 const jid = toJid(target);
                 if (!jid) return reply('_Provide a phone number or JID._');
-                config.blacklist = config.blacklist.filter(b => normalizeJid(b) !== normalizeJid(jid));
-                if (/^\d+$/.test(target)) {
-                    config.pendingPhoneReject = config.pendingPhoneReject.filter(p => p !== target);
+                const retained = [];
+                for (const entry of config.blacklist) {
+                    if (normalizeJid(entry) === normalizeJid(jid)) continue;
+                    if (await isIdentityInList(sock, entry, [jid])) continue;
+                    retained.push(entry);
                 }
+                config.blacklist = retained;
+                const phoneDigits = getPhoneDigits(target);
+                if (phoneDigits) config.pendingPhoneReject = config.pendingPhoneReject.filter(p => String(p).replace(/\D/g, '') !== phoneDigits);
                 saveConfig(config);
                 return reply(`Removed ${jid} from reject list.`);
             }
@@ -175,7 +196,7 @@ module.exports = {
                 );
             }
 
-            return reply('_Usage: .anticall reject add/remove/list <number or JID>_');
+            return reply('_Usage: .anticall block add/remove/list <number or JID> (or .anticall block <number>)_');
         }
 
         // --- WHITELIST ---

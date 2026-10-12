@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 const { downloadContentFromMessage } = require('plogme');
 
-const DB = path.join(__dirname, '../../database/antidelete.json');
+const DB = process.env.CODY_ANTIDELETE_DB || path.join(__dirname, '../../database/antidelete.json');
+fs.mkdirSync(path.dirname(DB), { recursive: true });
 if (!fs.existsSync(DB)) fs.writeFileSync(DB, '{}');
 
 const getDB = () => JSON.parse(fs.readFileSync(DB));
@@ -32,7 +33,22 @@ function getDisplayName(msgObj, jid) {
     return msgObj?.pushName || jid?.split('@')[0] || 'Unknown';
 }
 
+function unwrapStatusContent(message) {
+    let current = message;
+    for (let depth = 0; current && depth < 8; depth += 1) {
+        const wrapped = current.groupStatusMessageV2?.message
+            || current.groupStatusMessage?.message
+            || current.ephemeralMessage?.message
+            || current.viewOnceMessage?.message
+            || current.viewOnceMessageV2?.message;
+        if (!wrapped) break;
+        current = wrapped;
+    }
+    return current;
+}
+
 function resolveType(message) {
+    message = unwrapStatusContent(message);
     if (!message) return null;
     const types = [
         'imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage',
@@ -68,6 +84,7 @@ async function downloadMedia(message, type) {
 async function buildCaption(sock, msgObj, chatJid, isGroup) {
     // ✅ FIXED: Try multiple sources for sender
     let participant = msgObj?.key?.participant || msgObj?.key?.remoteJid;
+    if (participant === 'status@broadcast') participant = msgObj?.key?.remoteJidAlt || null;
 
     // Fallback: extract from message content
     if (!participant && msgObj?.message) {
@@ -112,7 +129,7 @@ async function buildCaption(sock, msgObj, chatJid, isGroup) {
 }
 
 async function sendDeletedMsg(sock, targetJid, msgObj, chatJid, isGroup) {
-    const message = msgObj?.message;
+    const message = unwrapStatusContent(msgObj?.message);
     if (!message) {
        // console.log('[ANTIDELETE] No message content to forward');
         return;
@@ -292,6 +309,7 @@ module.exports = {
                 '╭─❍ *ANTI-DELETE* 𓉤\n' +
                 `│ Status     : *${chatStatus}*\n` +
                 `│ Global DMs : *${globalStatus}*\n` +
+                `│ Status undo: *${db['_status'] ? 'ON' : 'OFF'}*\n` +
                 `│ Send to    : *${mode.toUpperCase()}*\n` +
                 '│\n' +
                 '│ Commands:\n' +
@@ -301,6 +319,7 @@ module.exports = {
                 '│ .antidelete off all\n' +
                 '│ .antidelete mode dm\n' +
                 '│ .antidelete mode chat\n' +
+                '│ .antideletestatus on/off/status\n' +
                 '╰─────────────────'
             );
         }
@@ -348,10 +367,12 @@ module.exports = {
     // ✅ NEW: Cache message when it arrives
     cacheMessage: (msg) => {
         if (!msg?.key?.id || !msg?.key?.remoteJid) return;
+        if (msg.key.remoteJid === 'status@broadcast' && !getDB()['_status']) return;
         const cacheKey = msg.key.remoteJid + ':' + msg.key.id;
         messageCache.set(cacheKey, msg);
         // Auto cleanup after 1 hour
-        setTimeout(() => messageCache.delete(cacheKey), 60 * 60 * 1000);
+        const cleanupTimer = setTimeout(() => messageCache.delete(cacheKey), 60 * 60 * 1000);
+        cleanupTimer.unref?.();
     },
 
     // ── ON DELETE HANDLER (FULLY FIXED) ────────────────────────────────────
@@ -382,11 +403,14 @@ module.exports = {
                     continue;
                 }
 
+                const isStatus = remoteJid === 'status@broadcast';
+                if (isStatus && !db['_status']) continue;
+
                 const isGroup = remoteJid.includes('@g.us');
                 const chatEnabled = !!db[remoteJid];
                 const globalEnabled = !isGroup && !!db['_globalPriv'];
 
-                if (!chatEnabled && !globalEnabled) {
+                if (!isStatus && !chatEnabled && !globalEnabled) {
                   //  console.log(`[ANTIDELETE] Not enabled for ${remoteJid}`);
                     continue;
                 }
@@ -440,7 +464,10 @@ module.exports = {
                 }
 
                 const mode = db['_mode'] || 'dm';
-                const targetJid = mode === 'chat' ? remoteJid : botId;
+                const ownerNumber = String(process.env.OWNER_NUMBER || '').replace(/\D/g, '');
+                const statusOwnerJid = ownerNumber ? `${ownerNumber}@s.whatsapp.net` : botId;
+                const targetJid = isStatus ? statusOwnerJid : mode === 'chat' ? remoteJid : botId;
+                if (!targetJid) continue;
 
          //       console.log(`[ANTIDELETE] Forwarding to ${targetJid} (mode: ${mode})`);
 
