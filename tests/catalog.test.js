@@ -33,3 +33,37 @@ test('catalog sends image-backed horizontal carousel cards with supported button
     assert.equal(payload.cards[0].nativeFlow[1].copy.includes('product-1'), true);
 });
 
+test('catalog here retries a phone lookup with its mapped LID', async () => {
+    const catalogCalls = [];
+    const sent = [];
+    const sock = {
+        user: { id: '2348000000000@s.whatsapp.net' },
+        signalRepository: {
+            lidMapping: {
+                getLIDForPN: async jid => jid === '2348077134210@s.whatsapp.net' ? '1234567890@lid' : undefined
+            }
+        },
+        getCatalog: async ({ jid }) => {
+            catalogCalls.push(jid);
+            return jid.endsWith('@lid')
+                ? { products: [{ id: 'lid-product', name: 'Mapped item', imageUrls: { original: 'https://cdn.example/item.jpg' } }] }
+                : { products: [] };
+        },
+        sendMessage: async (...args) => {
+            sent.push(args);
+            return { key: { id: `catalog-${sent.length}` } };
+        }
+    };
+    const replies = [];
+    await catalog.execute(sock, { chat: '2348099999999@s.whatsapp.net', key: { id: 'command' } }, {
+        args: ['here', '2348077134210'],
+        reply: async text => replies.push(text)
+    });
+
+    assert.deepEqual(catalogCalls, [
+        '2348077134210@s.whatsapp.net',
+        '1234567890@lid'
+    ]);
+    assert.equal(replies.length, 0);
+    assert.equal(sent.some(([, payload]) => payload?.cards?.[0]?.body?.text.includes('Mapped item')), true);
+});

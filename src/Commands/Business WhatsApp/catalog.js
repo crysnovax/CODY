@@ -1,4 +1,5 @@
 const config = require('../../../settings/config');
+const { identityVariants } = require('../../Plugin/identityUtils');
 
 const BOT_NAME = config.botname || process.env.BOTNAME || 'CRYSNOVA';
 const MY_NUMBER = config.ownernumber || process.env.OWNER_NUMBER || process.env.OWNER_NUMBERS || '';
@@ -18,13 +19,17 @@ const isPhone = (val) => /^[0-9]{6,15}$/.test(val);
 const isLimit = (val) => /^[0-9]{1,3}$/.test(val);
 
 const fetchCatalog = async (sock, jid, limit) => {
-    try {
-        const result = await sock.getCatalog({ jid, limit });
-        if (!Array.isArray(result.products) || result.products.length === 0) return null;
-        return result;
-    } catch {
-        return null;
+    // WhatsApp can address the same account by PN or LID. Query the supplied
+    // identity first, then its mapped counterpart so phone-based lookups also
+    // work for LID-first business accounts.
+    const candidates = [...await identityVariants(sock, jid)];
+    for (const candidate of candidates.length ? candidates : [jid]) {
+        try {
+            const result = await sock.getCatalog({ jid: candidate, limit });
+            if (Array.isArray(result?.products) && result.products.length > 0) return result;
+        } catch {}
     }
+    return null;
 };
 
 const sendCatalog = async (sock, m, products, nextPageCursor, label, limit, { useEnvPhone = false, ownerPhone = '' } = {}) => {
