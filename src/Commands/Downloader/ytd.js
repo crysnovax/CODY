@@ -15,11 +15,11 @@ function fileNameFor(ext, title = 'YouTube Media') {
 }
 
 async function sendFromSocialDl(sock, m, url, asAudio = false) {
-    const { buffer, mimetype } = await socialDl.downloadYouTube(url, { audioOnly: asAudio });
+    const { buffer, mimetype, extension } = await socialDl.downloadYouTube(url, { audioOnly: asAudio });
     await sock.sendMessage(m.chat, {
         [asAudio ? 'audio' : 'video']: buffer,
         mimetype,
-        fileName: fileNameFor(asAudio ? 'm4a' : 'mp4')
+        fileName: fileNameFor(extension || (asAudio ? 'mp3' : 'mp4'))
     }, { quoted: m });
     return true;
 }

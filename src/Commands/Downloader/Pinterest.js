@@ -1,6 +1,6 @@
 'use strict';
 
-const { downloadUniversal } = require('../../Plugin/socialDl');
+const { downloadUniversal, sendDownloadedMedia } = require('../../Plugin/socialDl');
 
 function findUrl(text) {
     return String(text || '').match(/https?:\/\/(?:www\.)?(?:pinterest\.com|pin\.it)\/[^\s]+/i)?.[0]?.replace(/[)\]>.,;!?]+$/, '') || null;
@@ -24,13 +24,9 @@ module.exports = {
 
         await reply('_*✪ Downloading Pinterest media...*_');
         try {
-            const { buffer, mimetype } = await downloadUniversal(url);
-            const media = /^image\//i.test(mimetype || '') ? { image: buffer } : { video: buffer };
-            await sock.sendMessage(m.chat, {
-                ...media,
-                mimetype,
-                caption: '⬇️ *Pinterest Downloader*'
-            }, { quoted: m });
+            const media = await downloadUniversal(url);
+            const result = await sendDownloadedMedia(sock, m, media, '⬇️ *Pinterest Downloader*');
+            if (result.failed) await reply(`Sent ${result.sent} of ${result.total} carousel images; ${result.failed} could not be sent.`);
         } catch (error) {
             console.error('[PINTEREST DOWNLOAD]', error.message || error);
             return reply(`✘ Pinterest download failed: ${error.message || error}`);

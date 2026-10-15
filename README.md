@@ -155,6 +155,8 @@
 
 - YouTube (audio + video), Spotify, TikTok
 - Facebook, Instagram, Pinterest
+- Apple Music, Threads, RedNote/Xiaohongshu, Audiomack
+- TikTok photo carousels, Pinterest images, Threads photo posts/carousels, and RedNote/Xiaohongshu photo carousels are delivered as images; multi-image posts use a WhatsApp album when supported, with individual-image fallback.
 - APK downloader, Mediafire, direct links
 - Shazam song recognition + download
 
@@ -207,7 +209,8 @@
 - **npm** v8+
 - A WhatsApp account (self-bot — runs on your number)
 - Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
-- Cody AI Media (Mp3/Mp4 — all platforms) downloaders depends 100% on the npm package ```social-dl``` and will break completely if package is changed or missing.
+- CODY social-media downloaders use the `social-dl` npm package; the lockfile now resolves the current 1.3.7 release.
+- Use `.applemusic <URL>`, `.threads <URL>`, `.rednote <URL>`, and `.audiomack <URL>` to download those platforms. Apple Music requires a strict external match and falls back to Apple's official preview when no confident match is available. Apple Music catalog search remains available as `.amsearch <query>`.
 - warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
 
 ---

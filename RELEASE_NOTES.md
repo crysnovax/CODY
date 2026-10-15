@@ -1,5 +1,13 @@
 # CODY AI — Sponsor Button and Reliability Release Notes
 
+## Social downloader integrations
+
+- Updated `social-dl` to the latest published release, 1.3.7.
+- Added `.applemusic`, `.threads`, `.rednote`, and `.audiomack` downloader commands. The existing Apple Music catalog search command is now `.amsearch`.
+- Added shared image downloading and multi-image delivery for photo results. TikTok, Pinterest, Threads, and RedNote carousels use a WhatsApp image album when available, with individual-image fallback so no item is silently treated as a video.
+- Updated the generic downloader and TikTok/Pinterest delivery flows to handle image, audio, and video result types correctly.
+- Added regression tests for command URL parsing, command delivery, preview fallback labels, and multi-image sending.
+
 > **Project:** CODY AI  
 > **Repository:** [`crysnovax/CODY`](https://github.com/crysnovax/CODY)  
 > **Related PR:** [#98 — Restore CODY sponsor button](https://github.com/crysnovax/CODY/pull/98)  

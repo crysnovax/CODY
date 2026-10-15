@@ -1,6 +1,6 @@
 'use strict';
 
-const { downloadUniversal } = require('../../Plugin/socialDl');
+const { downloadUniversal, sendDownloadedMedia } = require('../../Plugin/socialDl');
 
 function extractUrl(text) {
     return String(text || '').match(/https?:\/\/\S+/i)?.[0]?.replace(/[)\]>.,;!?]+$/, '') || null;
@@ -61,12 +61,9 @@ module.exports = {
         if (!url) return reply('Usage: .unidownload <url>');
         await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
         try {
-            const { buffer, mimetype } = await downloadUniversal(url);
-            await sock.sendMessage(m.chat, {
-                video: buffer,
-                mimetype,
-                caption: '🌐 *Social Downloader*'
-            }, { quoted: m });
+            const media = await downloadUniversal(url);
+            const result = await sendDownloadedMedia(sock, m, media, `🌐 *${media.platform || 'Social'} Downloader*`);
+            if (result.failed) await reply(`Sent ${result.sent} of ${result.total} carousel images; ${result.failed} could not be sent.`);
             await sock.sendMessage(m.chat, { react: { text: '❤️‍🩹', key: m.key } });
         } catch (error) {
             console.error('[UNIDOWNLOAD ERROR]', error.message || error);

@@ -33,16 +33,12 @@ module.exports = {
 
         try {
             await updateProgress(25, 'Downloading with social-dl...');
-            const { buffer, mimetype } = await socialDl.downloadTikTok(url);
-            await updateProgress(90, 'Processing video...');
+            const media = await socialDl.downloadTikTok(url);
+            await updateProgress(90, media.mediaType === 'photo' ? 'Preparing photo carousel...' : 'Processing media...');
             await updateProgress(100, 'Done!');
             await sock.sendMessage(m.chat, { delete: progressMsg.key });
-            await sock.sendMessage(m.chat, {
-                video: buffer,
-                mimetype,
-                caption: '🎵 *TikTok Downloader*\n\nDownloaded by CODY',
-                fileName: 'tiktok-video.mp4'
-            }, { quoted: m });
+            const result = await socialDl.sendDownloadedMedia(sock, m, media, '🎵 *TikTok Downloader*\n\nDownloaded by CODY');
+            if (result.failed) await reply(`Sent ${result.sent} of ${result.total} carousel images; ${result.failed} could not be sent.`);
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
         } catch (error) {
             console.error('[TIKTOK SOCIAL-DL]', error.message || error);

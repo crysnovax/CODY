@@ -26,10 +26,11 @@ module.exports = {
         const progressMsg = await sock.sendMessage(m.chat, { text: '🎵 *Fetching TikTok...*\n\n🔍 Resolving URL...' });
         try {
             await sock.sendMessage(m.chat, { text: '🎵 *Fetching TikTok...*\n\n▰▰▰▱▱▱▱▱▱▱ 30%\n\n🔍 Downloading with social-dl...', edit: progressMsg.key });
-            const { buffer, mimetype } = await socialDl.downloadTikTok(url);
+            const media = await socialDl.downloadTikTok(url);
             await sock.sendMessage(m.chat, { text: '🎵 *Fetching TikTok...*\n\n▰▰▰▰▰▰▰▰▰▰ 100%\n\n🔍 Done!', edit: progressMsg.key });
             await sock.sendMessage(m.chat, { delete: progressMsg.key });
-            await sock.sendMessage(m.chat, { video: buffer, mimetype, caption: '🎵 *TikTok Downloader*' }, { quoted: m });
+            const result = await socialDl.sendDownloadedMedia(sock, m, media, '🎵 *TikTok Downloader*');
+            if (result.failed) await reply(`Sent ${result.sent} of ${result.total} carousel images; ${result.failed} could not be sent.`);
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
         } catch (error) {
             console.error('[TTLD SOCIAL-DL]', error.message || error);
