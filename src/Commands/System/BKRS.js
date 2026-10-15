@@ -4,8 +4,34 @@ const axios = require('axios');
 const { formatBotDateTime } = require('../../Utils/timezone');
 
 const BACKUP_API = 'https://bak.crysnovax.link';
+const BACKUP_REQUEST_TIMEOUT = 30000;
+const BACKUP_RETRY_LIMIT = 3;
 const backupSession = new Map();
 const restoreSession = new Map();
+
+function isRetryableBackupError(err) {
+    const status = err.response?.status;
+    const message = String(err.response?.data?.error || err.message || '').toLowerCase();
+    return status >= 500 || message.includes('encryption') || message.includes('encryptions failed');
+}
+
+async function saveBackup(payload) {
+    let lastError;
+    for (let attempt = 1; attempt <= BACKUP_RETRY_LIMIT; attempt++) {
+        try {
+            return await axios.post(`${BACKUP_API}/backup/save`, payload, {
+                timeout: BACKUP_REQUEST_TIMEOUT,
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity
+            });
+        } catch (err) {
+            lastError = err;
+            if (attempt === BACKUP_RETRY_LIMIT || !isRetryableBackupError(err)) throw err;
+            await new Promise(resolve => setTimeout(resolve, attempt * 500));
+        }
+    }
+    throw lastError;
+}
 
 // Helper: Send premium table
 async function sendTable(sock, chat, header, title, rows, footer) {
@@ -122,8 +148,9 @@ const backupCmd = {
                     const files = fs.readdirSync(dbDir);
                     for (const file of files) {
                         if (file.endsWith('.json')) {
-                            const content = fs.readFileSync(path.join(dbDir, file), 'utf8');
-                            try { dbFiles[file] = JSON.parse(content); } catch (e) { dbFiles[file] = content; }
+                            // Keep the original JSON text. The restore path already accepts
+                            // strings, and this avoids changing data while the API encrypts it.
+                            dbFiles[file] = fs.readFileSync(path.join(dbDir, file), 'utf8');
                         }
                     }
                 }
@@ -131,11 +158,11 @@ const backupCmd = {
                 const envPath = path.join(process.cwd(), '.env');
                 if (fs.existsSync(envPath)) envContent = fs.readFileSync(envPath, 'utf8');
                 const backupData = { database: dbFiles, env: envContent, timestamp: Date.now() };
-                const saveRes = await axios.post(`${BACKUP_API}/backup/save`, {
+                const saveRes = await saveBackup({
                     phone: session.phone,
                     password: session.password,
                     data: backupData
-                }, { timeout: 30000 });
+                });
 
                 await sendTable(sock, m.chat,
                     `## ✅ Backup Saved!`,
