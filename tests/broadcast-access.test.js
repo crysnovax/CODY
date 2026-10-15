@@ -102,6 +102,32 @@ test('broadcast forwards the complete quoted envelope instead of sending invisib
     assert.match(replies[0], /original quoted message/);
 });
 
+test('broadcast reconstructs quoted polls as native poll messages', async () => {
+    const sent = [];
+    const source = {
+        key: { remoteJid: 'source@g.us', id: 'poll-1' },
+        message: {
+            pollCreationMessageV3: {
+                name: 'Choose one',
+                options: [{ optionName: 'A' }, { optionName: 'B' }],
+                selectableOptionsCount: 1
+            }
+        }
+    };
+    const sock = {
+        groupFetchAllParticipating: async () => ({ 'one@g.us': {} }),
+        sendMessage: async (...args) => { sent.push(args); return {}; }
+    };
+
+    await broadcast.execute(sock, { isGroup: true, chat: 'source@g.us', quoted: { fakeObj: source } }, {
+        args: [], isAdmin: true, reply: async () => {}
+    });
+
+    assert.deepEqual(sent[0][1], {
+        poll: { name: 'Choose one', values: ['A', 'B'], selectableCount: 1 }
+    });
+});
+
 test('spamgs sends quoted content as a native group status to every group', async () => {
     const sent = [];
     const source = {

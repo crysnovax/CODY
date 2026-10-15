@@ -1,8 +1,45 @@
 'use strict';
 const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+function findPollCreation(message, seen = new WeakSet()) {
+    if (!message || typeof message !== 'object') return null;
+    if (seen.has(message)) return null;
+    seen.add(message);
+
+    for (const [key, value] of Object.entries(message)) {
+        if (/^pollCreationMessage(?:V\d+)?$/.test(key) && value && typeof value === 'object') {
+            return value;
+        }
+        const found = findPollCreation(value, seen);
+        if (found) return found;
+    }
+    return null;
+}
+
+function getPollPayload(source) {
+    const poll = findPollCreation(source?.message || source);
+    if (!poll?.name || !Array.isArray(poll.options) || !poll.options.length) return null;
+
+    const values = poll.options
+        .map(option => typeof option === 'string' ? option : option?.optionName)
+        .filter(Boolean);
+    if (!values.length) return null;
+
+    return {
+        poll: {
+            name: poll.name,
+            values,
+            selectableCount: Number(poll.selectableOptionsCount || poll.selectableCount || 1)
+        }
+    };
+}
+
 async function sendBroadcastContent(sock, jid, source, text) {
     if (source) {
+        const pollPayload = getPollPayload(source);
+        if (pollPayload) return sock.sendMessage(jid, pollPayload);
+
         // Use the native forward payload first. Unlike the older
         // copyNForward helper, this preserves the complete WebMessageInfo
         // envelope, including media, view-once wrappers, status mentions,
@@ -57,3 +94,4 @@ module.exports = {
     }
 };
 module.exports.sendBroadcastContent = sendBroadcastContent;
+module.exports.getPollPayload = getPollPayload;

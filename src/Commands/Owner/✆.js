@@ -1,3 +1,5 @@
+const { sendBroadcastContent } = require('../Admin/broadcast');
+
 module.exports = {
     name: 'resend',
     alias: ['repost'],
@@ -44,85 +46,13 @@ module.exports = {
         }
 
         const q = m.quoted;
-        const mtype = q.mtype || '';
-
-        const text = q.text || q.caption || q.body || q.conversation || '';
-
-        // ── Download media if needed ────────────────────────────
-        let media = null;
-        const hasMedia = /image|video|audio|sticker|document/.test(mtype);
-
-        if (hasMedia) {
-            try {
-                media = await sock.downloadMediaMessage(q);
-            } catch (e) {
-                return reply('⊘ Failed to download media.');
-            }
-
-            if (!media || !media.length) {
-                return reply('⊘ Media download returned empty buffer.');
-            }
-        }
-
-        // ── Send ────────────────────────────────────────────────
         try {
-            if (mtype === 'imageMessage') {
-                await sock.sendMessage(target, {
-                    image: media,
-                    caption: q.caption || ''
-                });
-            //    return reply('🔁 Reposted image');
-            }
-
-            if (mtype === 'videoMessage') {
-                await sock.sendMessage(target, {
-                    video: media,
-                    caption: q.caption || ''
-                });
-            //    return reply('🔁 Reposted video');
-            }
-
-            if (mtype === 'audioMessage') {
-                // Keep the ORIGINAL mimetype + ptt flag so the reposted audio
-                // actually plays — a missing/wrong mimetype makes WhatsApp
-                // say the audio cannot be played. (@crysnovax—FIX14-08-26)
-                await sock.sendMessage(target, {
-                    audio: media,
-                    ptt: q.ptt || false,
-                    mimetype: q.mimetype || 'audio/ogg; codecs=opus',
-                    ...(q.seconds ? { seconds: q.seconds } : {})
-                });
-            }
-
-            if (mtype === 'stickerMessage') {
-                // Auto-upgrade stickers to premium 💎
-                await sock.sendMessage(target, {
-                    sticker: media,
-                    premium: 1
-                });
-     //           return reply('🔁 Reposted sticker 💎');
-            }
-
-            if (mtype === 'documentMessage') {
-                await sock.sendMessage(target, {
-                    document: media,
-                    mimetype: q.mimetype || 'application/octet-stream',
-                    fileName: q.fileName || 'repost-file'
-                });
-              //  return reply('🔁 Reposted document');
-            }
-
-            // TEXT ONLY
-            if (text) {
-                await sock.sendMessage(target, { text });
-              //  return reply('🔁 Reposted text');
-            }
-
-          //  return reply('⊘ Unsupported message type.');
+            const source = q.fakeObj || q;
+            await sendBroadcastContent(sock, target, source, '');
 
         } catch (e) {
             console.error('REPOST ERROR:', e);
-            return reply(`${prefix}⊘ Failed to repost: ${e?.message || e}`);
+            return reply(`⊘ Failed to repost: ${e?.message || e}`);
         }
     }
 };
