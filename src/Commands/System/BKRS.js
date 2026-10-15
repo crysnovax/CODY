@@ -115,22 +115,7 @@ const backupCmd = {
 
             await sock.sendMessage(m.chat, { react: { text: '💾', key: m.key } });
 
-            const progressMsg = await sock.sendMessage(m.chat, {
-                text: `💾 *Uploading Backup...*\n\n▰▱▱▱▱▱▱▱▱▱ 0%\n\n📂 Reading files...`
-            });
-
             try {
-                const updateProgress = async (pct, phase) => {
-                    const filled = Math.round(pct / 10);
-                    const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
-                    await sock.sendMessage(m.chat, {
-                        text: `💾 *Uploading Backup...*\n\n${bar} ${pct}%\n\n📂 ${phase}`,
-                        edit: progressMsg.key
-                    });
-                };
-
-                await updateProgress(10, 'Reading database...');
-
                 const dbDir = path.join(process.cwd(), 'database');
                 const dbFiles = {};
                 if (fs.existsSync(dbDir)) {
@@ -142,25 +127,15 @@ const backupCmd = {
                         }
                     }
                 }
-
-                await updateProgress(40, 'Reading .env...');
                 let envContent = '';
                 const envPath = path.join(process.cwd(), '.env');
                 if (fs.existsSync(envPath)) envContent = fs.readFileSync(envPath, 'utf8');
-
-                await updateProgress(60, 'Encrypting...');
                 const backupData = { database: dbFiles, env: envContent, timestamp: Date.now() };
-
-                await updateProgress(80, 'Uploading...');
                 const saveRes = await axios.post(`${BACKUP_API}/backup/save`, {
                     phone: session.phone,
                     password: session.password,
                     data: backupData
                 }, { timeout: 30000 });
-
-                await updateProgress(100, 'Done!');
-
-                await sock.sendMessage(m.chat, { delete: progressMsg.key });
 
                 await sendTable(sock, m.chat,
                     `## ✅ Backup Saved!`,
@@ -181,8 +156,7 @@ const backupCmd = {
                 console.error('[BACKUP]', err.message);
                 await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
                 await sock.sendMessage(m.chat, {
-                    text: `❌ *Failed*\n\n${err.response?.data?.error || err.message}`,
-                    edit: progressMsg.key
+                    text: `❌ *Failed*\n\n${err.response?.data?.error || err.message}`
                 });
             }
 
@@ -305,22 +279,7 @@ const restoreCmd = {
 
             await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
 
-            const progressMsg = await sock.sendMessage(m.chat, {
-                text: `📥 *Restoring Backup...*\n\n▰▱▱▱▱▱▱▱▱▱ 0%\n\n🔓 Decrypting...`
-            });
-
             try {
-                const updateProgress = async (pct, phase) => {
-                    const filled = Math.round(pct / 10);
-                    const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
-                    await sock.sendMessage(m.chat, {
-                        text: `📥 *Restoring Backup...*\n\n${bar} ${pct}%\n\n🔓 ${phase}`,
-                        edit: progressMsg.key
-                    });
-                };
-
-                await updateProgress(20, 'Downloading...');
-
                 const loadRes = await axios.post(`${BACKUP_API}/backup/load`, {
                     phone: session.phone,
                     password: session.password
@@ -329,8 +288,6 @@ const restoreCmd = {
                 if (!loadRes.data.data) throw new Error('No data received');
 
                 const backupData = loadRes.data.data;
-
-                await updateProgress(50, 'Restoring database...');
 
                 let dbCount = 0;
                 if (backupData.database) {
@@ -345,15 +302,9 @@ const restoreCmd = {
                     }
                 }
 
-                await updateProgress(75, 'Restoring .env...');
-
                 if (backupData.env) {
                     fs.writeFileSync(path.join(process.cwd(), '.env'), backupData.env, 'utf8');
                 }
-
-                await updateProgress(100, 'Done! Restarting...');
-
-                await sock.sendMessage(m.chat, { delete: progressMsg.key });
 
                 await sendTable(sock, m.chat,
                     `## ✅ Restore Complete!`,
@@ -376,7 +327,7 @@ const restoreCmd = {
                 await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
                 
                 const msg = err.response?.status === 400 ? '🔐 Wrong password!' : err.message;
-                await sock.sendMessage(m.chat, { text: `❌ *Failed*\n\n${msg}`, edit: progressMsg.key });
+                await sock.sendMessage(m.chat, { text: `❌ *Failed*\n\n${msg}` });
             }
 
             restoreSession.delete(userId);
