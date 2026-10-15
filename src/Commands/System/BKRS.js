@@ -33,6 +33,13 @@ async function saveBackup(payload) {
     throw lastError;
 }
 
+async function getBackupStatus(phone) {
+    const response = await axios.post(`${BACKUP_API}/backup/exists`, { phone }, {
+        timeout: BACKUP_REQUEST_TIMEOUT
+    });
+    return response.data;
+}
+
 // Helper: Send premium table
 async function sendTable(sock, chat, header, title, rows, footer) {
     await sock.sendMessage(chat, {
@@ -182,6 +189,25 @@ const backupCmd = {
             } catch (err) {
                 console.error('[BACKUP]', err.message);
                 await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
+
+                // Some API failures happen after the encrypted record is written.
+                // Verify before telling the owner that the backup is definitely lost.
+                try {
+                    const status = await getBackupStatus(session.phone);
+                    if (status.exists) {
+                        const date = formatBotDateTime(status.timestamp);
+                        return await sock.sendMessage(m.chat, {
+                            text: `⚠️ *Backup response was unclear*\n\n` +
+                                `The cloud still has a backup for this number.\n` +
+                                `📅 Last saved: ${date}\n` +
+                                `📏 Size: ${status.sizeFormatted || 'N/A'}\n\n` +
+                                `Your previous backup was preserved. Please check the date above before retrying.`
+                        });
+                    }
+                } catch (verifyError) {
+                    console.error('[BACKUP VERIFY]', verifyError.message);
+                }
+
                 await sock.sendMessage(m.chat, {
                     text: `❌ *Failed*\n\n${err.response?.data?.error || err.message}`
                 });
