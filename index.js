@@ -88,6 +88,9 @@ if (CODY_API_KEY) {
     // 5. Load and start the main bot
     // -------------------------------------------------------------------
     console.log(chalk.cyan('🔖 [CRYSNOVA] —͟͟͞͞𖣘❚ Loading main bot...'));
+    // The recovery plan lives outside the bot directory, so it survives a
+    // redeploy wipe. The worker restores it once the new WhatsApp socket opens.
+    require('./src/Plugin/redeployRecovery');
     require('./⚉.js');
 })();
 
