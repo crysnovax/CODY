@@ -97,7 +97,7 @@ const USAGE = `\`\`\`🏷️ LABELS\`\`\`
 
 module.exports = {
     name: 'labels',
-    alias: ['label', 'tag'],
+    alias: ['label'],
     desc: 'Manage WhatsApp Business labels / Lists',
     category: 'Business',
     usage: '.labels [list|sync|add|remove|msg|unmsg]',
