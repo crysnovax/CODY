@@ -89,8 +89,15 @@ if (CODY_API_KEY) {
     // -------------------------------------------------------------------
     console.log(chalk.cyan('🔖 [CRYSNOVA] —͟͟͞͞𖣘❚ Loading main bot...'));
     // The recovery plan lives outside the bot directory, so it survives a
-    // redeploy wipe. The worker restores it once the new WhatsApp socket opens.
-    require('./src/Plugin/redeployRecovery');
+    // redeploy wipe. Restore it before loading any bot module; otherwise the
+    // bot can cache the freshly cloned database and miss the restored state.
+    const recovery = require('./src/Plugin/redeployRecovery');
+    const recoveryResult = await recovery.restorePendingPlan();
+    if (recoveryResult?.error) {
+        console.error(chalk.red('✘ [REDEPLOY] Backup restore failed; the recovery plan was preserved for retry.'));
+    } else if (recoveryResult) {
+        console.log(chalk.green(`✓ [REDEPLOY] Restored ${recoveryResult.restored} database files before startup.`));
+    }
     require('./⚉.js');
 })();
 

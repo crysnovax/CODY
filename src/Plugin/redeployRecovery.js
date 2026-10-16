@@ -3,9 +3,6 @@ const path = require('path');
 const axios = require('axios');
 
 const BACKUP_API = 'https://bak.crysnovax.link';
-const MAX_ATTEMPTS = 30;
-const WAIT_MS = 5000;
-let started = false;
 
 function safeDatabaseName(name) {
     return typeof name === 'string' && /^[^/\\]+\.json$/.test(name);
@@ -36,8 +33,32 @@ async function restorePlan(planFile) {
     }
     if (typeof data.env === 'string' && data.env.trim()) {
         fs.writeFileSync(path.join(botDir, '.env'), data.env, 'utf8');
+        // index.js has already loaded dotenv by the time this preflight runs.
+        // Apply the restored values to this process as well, so every module
+        // loaded afterward sees the restored configuration.
+        const dotenv = require('dotenv');
+        Object.assign(process.env, dotenv.parse(data.env));
     }
     return { restored, env: Boolean(data.env) };
+}
+
+async function restorePendingPlan() {
+    const planFile = process.env.CODY_REDEPLOY_PLAN;
+    if (!planFile) return null;
+    const resolvedPlan = path.resolve(planFile);
+    if (!fs.existsSync(resolvedPlan)) {
+        console.warn('[REDEPLOY RECOVERY] Plan file was not found:', resolvedPlan);
+        return null;
+    }
+    try {
+        const result = await restorePlan(resolvedPlan);
+        fs.rmSync(resolvedPlan, { force: true });
+        console.log(`[REDEPLOY RECOVERY] Restored ${result.restored} database files before bot startup`);
+        return result;
+    } catch (error) {
+        console.error('[REDEPLOY RECOVERY] Restore failed before startup:', error.response?.data?.error || error.message);
+        return { error };
+    }
 }
 
 function jidFor(sock, plan) {
@@ -71,25 +92,4 @@ async function runRecovery(sock, planFile) {
     }
 }
 
-function start() {
-    if (started || !process.env.CODY_REDEPLOY_PLAN) return;
-    started = true;
-    const planFile = path.resolve(process.env.CODY_REDEPLOY_PLAN);
-    let attempts = 0;
-    const timer = setInterval(() => {
-        attempts++;
-        const sockets = global.botInstances instanceof Map ? [...global.botInstances.values()] : [];
-        const sock = sockets.find(candidate => candidate?.user?.id && candidate?.ev);
-        if (sock) {
-            clearInterval(timer);
-            runRecovery(sock, planFile).catch(error => console.error('[REDEPLOY RECOVERY]', error));
-        } else if (attempts >= MAX_ATTEMPTS) {
-            clearInterval(timer);
-            console.error('[REDEPLOY RECOVERY] Timed out waiting for WhatsApp connection; plan preserved');
-        }
-    }, WAIT_MS);
-    timer.unref?.();
-}
-
-start();
-module.exports = { start, restorePlan, safeDatabaseName };
+module.exports = { restorePendingPlan, restorePlan, safeDatabaseName, runRecovery };
