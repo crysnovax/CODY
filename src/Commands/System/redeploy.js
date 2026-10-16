@@ -1,39 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
-const axios = require('axios');
 const { spawn } = require('child_process');
-
-const BACKUP_API = 'https://bak.crysnovax.link';
-const TIMEOUT = 30000;
-const RETRIES = 3;
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const cleanNumber = value => String(value || '').replace(/[^0-9]/g, '');
-
-function isRetryable(error) {
-    const status = error.response?.status;
-    const message = String(error.response?.data?.error || error.message || '').toLowerCase();
-    return status >= 500 || message.includes('encryption') || message.includes('encryptions failed');
-}
-
-async function saveBackup(payload) {
-    let lastError;
-    for (let attempt = 1; attempt <= RETRIES; attempt++) {
-        try {
-            return await axios.post(`${BACKUP_API}/backup/save`, payload, {
-                timeout: TIMEOUT,
-                maxBodyLength: Infinity,
-                maxContentLength: Infinity
-            });
-        } catch (error) {
-            lastError = error;
-            if (attempt === RETRIES || !isRetryable(error)) throw error;
-            await sleep(attempt * 750);
-        }
-    }
-    throw lastError;
-}
 
 function collectBackupData(root) {
     const database = {};
@@ -69,10 +39,17 @@ function findBootstrap(root) {
     return null;
 }
 
-function writePlan(file, plan) {
+function writeLocalPlan(file, plan) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
     const temporary = `${file}.${process.pid}.tmp`;
     fs.writeFileSync(temporary, JSON.stringify(plan, null, 2), { mode: 0o600 });
+    fs.chmodSync(temporary, 0o600);
     fs.renameSync(temporary, file);
+    // Verify the cache is readable and complete before deleting anything.
+    const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (saved.version !== 2 || saved.botDir !== plan.botDir || !saved.data) {
+        throw new Error('Local redeploy cache verification failed');
+    }
 }
 
 function removeBotCheckout(root, bootstrap) {
@@ -87,7 +64,7 @@ function removeBotCheckout(root, bootstrap) {
 const redeployCmd = {
     name: 'redeploy',
     alias: ['reinstall', 'freshdeploy'],
-    desc: 'Backup, rebuild, and restore the bot deployment',
+    desc: 'Back up locally, rebuild, and restore the bot deployment',
     category: 'Owner',
     ownerOnly: true,
     usage: '.redeploy',
@@ -97,42 +74,40 @@ const redeployCmd = {
         const root = path.resolve(process.cwd());
         const ownerNumber = cleanNumber(process.env.OWNER_NUMBER);
         const bootstrap = findBootstrap(root);
+        const planFile = path.resolve(root, '..', '.cody-redeploy-local.json');
         if (!ownerNumber) return reply('`❌ OWNER_NUMBER is not configured.`');
         if (!bootstrap) {
             return reply('`❌ Redeploy is unavailable in this layout. The outer pairing-site index.js was not found, so no files were changed.`');
         }
 
         await sock.sendMessage(m.chat, { react: { text: '♻️', key: m.key } }).catch(() => {});
-        const password = `CODY-${crypto.randomBytes(18).toString('base64url')}`;
-        const planFile = path.resolve(root, '..', '.cody-redeploy.json');
         const data = collectBackupData(root);
+        let cleanupStarted = false;
 
         try {
-            const result = await saveBackup({ phone: ownerNumber, password, data });
-            if (!result.data || result.data.success === false) {
-                throw new Error(result.data?.error || 'Backup service did not confirm the backup');
-            }
-
-            writePlan(planFile, {
-                version: 1,
+            // This cache is local to the deployment filesystem. No remote
+            // backup request is made and no remote password is generated.
+            writeLocalPlan(planFile, {
+                version: 2,
+                type: 'local-redeploy',
                 createdAt: Date.now(),
                 phone: ownerNumber,
-                password,
                 botDir: root,
                 bootstrap,
-                attempts: 0
+                data
             });
 
             await reply(
-                '✅ *Backup verified. Redeploy is starting.*\n\n' +
+                '✅ *Local recovery cache verified. Redeploy is starting.*\n\n' +
                 `📦 Database files: ${Object.keys(data.database).length}\n` +
                 `📝 Settings: ${data.env ? 'included' : 'none found'}\n` +
-                '🔄 The deployment will rebuild, reconnect, and restore automatically.\n' +
+                '💾 Backup location: local deployment storage\n' +
+                '🔄 The deployment will rebuild and restore before startup.\n' +
                 '_Please do not restart the host during this process._'
             );
 
-            // Give WhatsApp time to receive the status before the socket disappears.
             await sleep(1200);
+            cleanupStarted = true;
             removeBotCheckout(root, bootstrap);
             const child = spawn(process.execPath, [bootstrap], {
                 cwd: path.dirname(bootstrap),
@@ -143,14 +118,20 @@ const redeployCmd = {
             child.unref();
             setTimeout(() => process.exit(0), 250);
         } catch (error) {
-            try { fs.rmSync(planFile, { force: true }); } catch {}
+            // Before cleanup, remove the incomplete cache. After cleanup, keep
+            // it so the rebuilt deployment can retry recovery safely.
+            if (!cleanupStarted) {
+                try { fs.rmSync(planFile, { force: true }); } catch {}
+            }
             console.error('[REDEPLOY]', error);
             await sock.sendMessage(m.chat, {
-                text: `❌ *Redeploy cancelled.*\n\nBackup was not confirmed, so no files were deleted.\n${error.response?.data?.error || error.message}`
+                text: cleanupStarted
+                    ? `⚠️ *Redeploy handoff failed.*\n\nThe local recovery cache was preserved at the deployment parent for retry.\n${error.message}`
+                    : `❌ *Redeploy cancelled.*\n\nNo files were deleted because the local recovery cache was not verified.\n${error.message}`
             }).catch(() => {});
         }
     }
 };
 
 module.exports = redeployCmd;
-module.exports._test = { collectBackupData, findBootstrap, removeBotCheckout };
+module.exports._test = { collectBackupData, findBootstrap, removeBotCheckout, writeLocalPlan };
