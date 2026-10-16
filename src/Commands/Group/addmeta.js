@@ -31,7 +31,7 @@ module.exports = {
             }
 
             await sock.aiGroupAddBot(groupJid);
-            return reply(`✅ Meta AI added to ${groupJid}`);
+            return reply(`Meta AI ┊ invoked`);
         } catch (error) {
             console.error('[ADDMETA ERROR]', error);
             return reply(`\`✘ ${error.message || 'Unable to add Meta AI to that group'}\``);
