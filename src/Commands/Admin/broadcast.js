@@ -20,6 +20,10 @@ function findPollCreation(message, seen = new WeakSet()) {
 function getPollPayload(source) {
     const poll = findPollCreation(source?.message || source);
     if (!poll?.name || !Array.isArray(poll.options) || !poll.options.length) return null;
+    // Photo-poll option media is carried in associated child messages, not in
+    // PollCreationMessage.options. Rebuilding this as a plain poll drops images.
+    // Let the native forward path preserve the original message envelope instead.
+    if (poll.pollContentType === 2 || poll.pollContentType === 'IMAGE') return null;
 
     const values = poll.options
         .map(option => typeof option === 'string' ? option : option?.optionName)

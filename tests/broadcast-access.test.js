@@ -128,6 +128,33 @@ test('broadcast reconstructs quoted polls as native poll messages', async () => 
     });
 });
 
+test('broadcast uses native forwarding for image polls instead of rebuilding a text-only poll', async () => {
+    const sent = [];
+    const source = {
+        key: { remoteJid: 'channel@newsletter', id: 'photo-poll-1' },
+        message: {
+            pollCreationMessageV6: {
+                name: 'Choose a cover',
+                options: [{ optionName: 'Purple', optionHash: 'a'.repeat(64) }],
+                selectableOptionsCount: 1,
+                pollContentType: 2
+            }
+        }
+    };
+    const sock = {
+        groupFetchAllParticipating: async () => ({ 'one@g.us': {} }),
+        sendMessage: async (...args) => { sent.push(args); return {}; }
+    };
+
+    await broadcast.execute(sock, { isGroup: true, chat: 'source@g.us', quoted: { fakeObj: source } }, {
+        args: [], isAdmin: true, reply: async () => {}
+    });
+
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0][0], 'one@g.us');
+    assert.deepEqual(sent[0][1], { forward: source, force: true });
+});
+
 test('spamgs sends quoted content as a native group status to every group', async () => {
     const sent = [];
     const source = {
