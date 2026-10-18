@@ -5,7 +5,7 @@ const { execSync, exec } = require('child_process');
 
 module.exports = {
     name: 'eval',
-    alias: ['#', '>'],
+    alias: ['>'],
     desc: 'Execute JavaScript code or shell commands',
     category: 'Owner',
     ownerOnly: true,
@@ -144,14 +144,14 @@ module.exports = {
             // Handle result
             const isSendResponse = !wantsRaw && isWhatsAppSendResponse(result);
             
-            if (isSendResponse) {
+           // if (isSendResponse) {
                 // Do not hide successful protocol-only sends (for example
                 // chatTheme/colorSchemeId).  They return a normal WA message
                 // key but have no visible message body, so report the key.
-                if (!consoleOutput) {
-                    const messageId = result.key?.id || 'unknown';
-                    output = `Sent successfully (message id: ${messageId})`;
-                }
+              //  if (!consoleOutput) {
+             //       const messageId = result.key?.id || 'unknown';
+             //       output = `Sent successfully (message id: ${messageId})`;
+           //     }
             } else if (result !== undefined) {
                 // Show result normally (including m.quoted, m.isGroup, etc.)
                 let resultStr;
@@ -184,7 +184,7 @@ module.exports = {
             // Send response if there's output
             if (output && output.trim() && output.trim() !== 'undefined') {
                 const finalOutput = output.slice(0, 4000);
-                await reply(`*✆ Result* _(${timeTaken}ms)_\n\`\`\`\n${finalOutput}\n\`\`\``);
+                await reply(`*⚉ Result* _(${timeTaken}ms)_\n\`\`\`\n${finalOutput}\n\`\`\``);
             } else if (!consoleOutput && (result === undefined || isSendResponse)) {
                 // Silent operation
                 if (!isSendResponse) {
