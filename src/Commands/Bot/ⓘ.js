@@ -13,6 +13,9 @@ const fontLab = require('../Core/\'.js');
 
 const DIVIDER = '─────────────';
 const READMORE = '\u200E'.repeat(625);
+const DEFAULT_LIVE_PHOTO_IMAGE = 'https://cdn.crysnova.qzz.io/files/1792339436073-e78b7f21-c069-42ca-a834-0dcc0ce0e56a.jpeg';
+const DEFAULT_LIVE_PHOTO_VIDEO = 'https://cdn.crysnova.qzz.io/files/1792194636345-a2540a87-30cf-414e-806a-fddb13079e19.mp4';
+const MEDIA_MODES = new Set(['live', 'livephoto', 'motion', 'gif', 'image']);
 
 const CATEGORY_ICONS = {
     'ai': 'ಠ_ಠ',
@@ -192,8 +195,15 @@ module.exports = {
         // Get categories and commands
         let categories = getByCategory() || {};
 
+        // `.menu` defaults to the configured live photo. Explicit `gif` and
+        // `image` modes preserve the previous menu media behavior; a category
+        // can still be supplied as the second argument (for example, `.menu gif Media`).
+        const requestedMode = String(args?.[0] || '').trim().toLowerCase();
+        const mediaMode = MEDIA_MODES.has(requestedMode) ? requestedMode : 'livephoto';
         // .menu <category> — only show that category (@crysnovax—FIX12-08-26)
-        const catFilter = (args && args[0]) ? String(args[0]).trim().toLowerCase() : '';
+        const catFilter = args?.[0] && !MEDIA_MODES.has(requestedMode)
+            ? String(args[0]).trim().toLowerCase()
+            : (args?.[1] ? String(args[1]).trim().toLowerCase() : '');
         if (catFilter) {
             const matched = {};
             for (const [cat, cmds] of Object.entries(categories)) {
@@ -259,10 +269,22 @@ module.exports = {
         
         // MENU_URL via setvar applies instantly — read runtime first, config as fallback (@crysnovax—FIX06-08-26)
         const freshConfig = require('../../../settings/config');
-        const thumbUrl = getVar('MENU_URL') || getVar('THUMB_URL') || freshConfig.thumbUrl || 'https://cdn.crysnovax.link/files/1778529162616-eca99707-7b11-453a-802a-e85a9d1c2395.jpeg';
-        
-        // Detect if thumbUrl is a GIF/video by file extension
-        const isGif = /\.(mp4|gif|webm|mov)$/i.test(thumbUrl);
+        const configuredMediaUrl = getVar('MENU_URL') || getVar('THUMB_URL') || freshConfig.thumbUrl || '';
+        const isAnimatedMedia = url => /\.(mp4|gif|webm|mov)(?:[?#].*)?$/i.test(String(url || ''));
+
+        if (mediaMode === 'live' || mediaMode === 'livephoto' || mediaMode === 'motion') {
+            return sock.sendPhotoLive(m.chat, {
+                video: DEFAULT_LIVE_PHOTO_VIDEO,
+                thumbnail: DEFAULT_LIVE_PHOTO_IMAGE,
+                caption: text,
+            }, m);
+        }
+
+        const thumbUrl = mediaMode === 'image'
+            ? (isAnimatedMedia(configuredMediaUrl) ? DEFAULT_LIVE_PHOTO_IMAGE : (configuredMediaUrl || DEFAULT_LIVE_PHOTO_IMAGE))
+            : (configuredMediaUrl || DEFAULT_LIVE_PHOTO_VIDEO);
+        // Preserve the existing GIF/video-or-image behavior for explicit GIF mode.
+        const isGif = isAnimatedMedia(thumbUrl);
         
         const messagePayload = {
             caption: text,
