@@ -21,11 +21,7 @@ module.exports = {
             const fileName = `eval_${Date.now()}.json`;
             const filePath = path.join(os.tmpdir(), fileName);
             fs.writeFileSync(filePath, typeof content === 'string' ? content : util.inspect(content, {depth: 10}), 'utf8');
-            await sock.sendMessage(m.chat, {
-                document: fs.readFileSync(filePath),
-                fileName,
-                mimetype: 'application/json'
-            }, { quoted: m });
+            await sock.sendMessage(m.chat, { document: fs.readFileSync(filePath), fileName, mimetype: 'application/json' }, { quoted: m });
             try { fs.unlinkSync(filePath); } catch {}
         };
 
@@ -50,6 +46,23 @@ module.exports = {
         const originalWarn = console.warn;
         const capture = (p) => (...a) => { consoleOutput += p + a.map(x => typeof x === 'object' ? util.inspect(x,{depth:5,colors:false}) : String(x)).join(' ') + '\n'; };
         console.log = capture(''); console.error = capture('❌ '); console.warn = capture('⚠️ ');
+
+        // ── track if a send happened ──
+        let didSend = false;
+        let lastSent = null;
+        const originals = {};
+        const methodsToTrack = ['sendMessage','sendPlogmeMessage','sendRichAIResponse','sendNewRichMedia','sendAlbumMessage'];
+        for (const k of methodsToTrack) {
+            if (typeof sock[k] === 'function') {
+                originals[k] = sock[k].bind(sock);
+                sock[k] = async (...a) => {
+                    const r = await originals[k](...a);
+                    didSend = true;
+                    lastSent = r;
+                    return r;
+                };
+            }
+        }
 
         try {
             const sendImage = (source, caption='') => {
@@ -78,31 +91,25 @@ module.exports = {
             let result = await eval(wrappedCode);
 
             console.log = originalLog; console.error = originalError; console.warn = originalWarn;
+            for (const k in originals) sock[k] = originals[k];
             const timeTaken = Date.now() - startTime;
 
-            // ── THIS IS THE FIX ── detect ANY WhatsApp send response, including rich media
-            function isWASendResponse(r) {
-                if (!r || typeof r !== 'object') return false;
-                // Baileys WAMessage structure
-                if (r.key?.id && r.key?.remoteJid) return true;
-                if (r.message?.botForwardedMessage) return true;
-                if (r.message?.messageContextInfo?.botMetadata) return true;
-                if (Array.isArray(r.messageStubParameters) && r.userReceipt !== undefined) return true;
-                if (r.message?.reactionMessage) return true;
-                return false;
-            }
-
-            const isSendResponse = isWASendResponse(result);
-
-            // If it's a successful send and you didn't console.log anything, stay silent
-            if (isSendResponse && !consoleOutput.trim()) {
-                await sock.sendMessage(m.chat, { react: { text: '🐾', key: m.key } }).catch(()=>{});
-                return; // <-- NO Result message
+            // ── FIXED LOGIC ──
+            // Only suppress if result IS the sent message itself, or undefined after a send
+            if (!consoleOutput.trim()) {
+                if (didSend && result === undefined) {
+                    await sock.sendMessage(m.chat, { react: { text: '🐾', key: m.key } }).catch(()=>{});
+                    return;
+                }
+                if (didSend && lastSent && result === lastSent) {
+                    await sock.sendMessage(m.chat, { react: { text: '🐾', key: m.key } }).catch(()=>{});
+                    return;
+                }
             }
 
             let output = '';
             if (consoleOutput) output += consoleOutput.trimEnd();
-            if (result !== undefined && !isSendResponse) {
+            if (result !== undefined) {
                 let resultStr;
                 if (Buffer.isBuffer(result)) resultStr = `<Buffer ${result.length} bytes>`;
                 else if (typeof result === 'function') resultStr = `[Function: ${result.name||'anonymous'}]`;
@@ -114,12 +121,13 @@ module.exports = {
             if (output && output.trim() && output.trim() !== 'undefined') {
                 if (output.length > MAX_INLINE) return await sendAsFile(output, timeTaken);
                 await reply(`*⚉ Result* _(${timeTaken}ms)_\n\`\`\`\n${output}\n\`\`\``);
-            } else if (!isSendResponse) {
+            } else if (result === undefined && !consoleOutput) {
                 await sock.sendMessage(m.chat, { react: { text: '🐾', key: m.key } }).catch(()=>{});
             }
 
         } catch (err) {
             console.log = originalLog; console.error = originalError; console.warn = originalWarn;
+            for (const k in originals) sock[k] = originals[k];
             const timeTaken = Date.now() - startTime;
             let errMsg = err.message || String(err);
             if (consoleOutput) errMsg = consoleOutput.trimEnd() + '\n' + errMsg;
