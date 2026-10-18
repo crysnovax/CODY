@@ -4,6 +4,7 @@ const path = require('path');
 const { normalizeJid, resolvePhoneJid } = require('../../Plugin/identityUtils');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { getMessageText, hasLink } = require('./antilink');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antinewcomer.json');
 function readDB() {
@@ -92,6 +93,7 @@ const plugin = {
             const candidates = [m.key?.participantAlt, mek?.key?.participantAlt, m.sender, m.key?.participant].filter(Boolean);
             const resolved = await resolvePhoneJid(sock, candidates);
             if (resolved) candidates.push(resolved);
+            if (await isAntiPermitted(sock, m.chat, candidates)) return false;
             const joined = config.joined || {};
             const timestamps = [...new Set(candidates.map(normalizeJid))]
                 .map(jid => joined[jid])

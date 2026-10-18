@@ -5,6 +5,7 @@ const path = require('path');
 const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('../../Plugin/identityUtils');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 const CONFIG_FILE = path.join(process.cwd(), 'database', 'antibug.json');
 const WARN_FILE = path.join(process.cwd(), 'database', 'antibug_warns.json');
@@ -205,6 +206,7 @@ const plugin = {
         if (!metadata?.participants) return false;
       }
       const sender = await resolveSender(sock, m, mek, metadata);
+      if (await isAntiPermitted(sock, m.chat, [sender.jid, ...sender.candidates, m.sender])) return false;
       if (sender.record && isAdminRecord(sender.record)) return false;
       const botRecord = metadata?.participants?.find(participant =>
         [participant.id, participant.jid, participant.lid].filter(Boolean).map(normalize)

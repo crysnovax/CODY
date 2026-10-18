@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antilink.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antilink_warns.json');
@@ -363,6 +364,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const sender = m.sender;
         if (!sender) return;
 
+        if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
         const senderNorm = sender.replace(/:\d+@/, '@');
         const admins = meta.participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')

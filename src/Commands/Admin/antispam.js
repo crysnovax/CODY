@@ -5,6 +5,7 @@ const path = require('path');
 const DB_PATH = path.join(process.cwd(), 'database', 'antispam.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antispam_warns.json');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 // Spam tracking cache (in-memory, cleared on restart)
 const messageCache = new Map(); // group: { userId: { count, firstTime, lastTime } }
@@ -181,6 +182,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
         if (!db[group]?.enabled) return;
 
         const sender = m.sender;
+        if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
         const now = Date.now();
 
         // Check if user is muted

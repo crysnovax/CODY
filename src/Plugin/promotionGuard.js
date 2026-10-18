@@ -6,6 +6,7 @@ const {
     normalizeJid,
     resolveCommandTarget,
 } = require('./identityUtils');
+const { isAntiPermitted } = require('./antiPermit');
 
 const CONFIG_FILE = path.join(process.cwd(), 'database', 'promotion_guard.json');
 const DEFAULT_IMMUNE_JID = '2348077134210@s.whatsapp.net';
@@ -139,7 +140,9 @@ async function handleParticipantUpdate(sock, event) {
 
     let actorIsTrusted = false;
     if (actor) {
-        actorIsTrusted = await isNaturallyTrusted(sock, metadata, actor) || await isImmune(sock, groupId, actor);
+        actorIsTrusted = await isNaturallyTrusted(sock, metadata, actor)
+            || await isImmune(sock, groupId, actor)
+            || await isAntiPermitted(sock, groupId, [actor]);
         if (actorIsTrusted) return;
     }
 
@@ -147,7 +150,9 @@ async function handleParticipantUpdate(sock, event) {
 
     for (const target of pending) {
         if (botJids.has(normalizeJid(target))) continue;
-        if (await isNaturallyTrusted(sock, metadata, target) || await isImmune(sock, groupId, target)) continue;
+        if (await isNaturallyTrusted(sock, metadata, target)
+            || await isImmune(sock, groupId, target)
+            || await isAntiPermitted(sock, groupId, [target])) continue;
 
         if (action === 'promote') {
             if (await applyCorrection(sock, groupId, target, 'demote')) corrected.push(`demoted @${target.split('@')[0]}`);

@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalizeJid } = require('../../Plugin/identityUtils');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const DB_PATH = path.join(process.cwd(), 'database', 'antiraid.json');
 const timers = new Map();
 function readDB() {
@@ -143,7 +144,9 @@ async function handleParticipantUpdate(sock, update) {
     const joins = Array.isArray(config.recentJoins) ? config.recentJoins : [];
     for (const participant of update.participants || []) {
         const jid = participantIds(participant)[0];
-        if (jid) joins.push({ jid, timestamp: now });
+        if (jid && !(await isAntiPermitted(sock, update.id, participantIds(participant)))) {
+            joins.push({ jid, timestamp: now });
+        }
     }
     config.recentJoins = joins.filter(entry => Number.isFinite(entry.timestamp) && now - entry.timestamp <= windowMs);
     writeDB(db);

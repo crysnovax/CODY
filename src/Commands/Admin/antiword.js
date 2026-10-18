@@ -2,6 +2,7 @@ const fs   = require('fs');
 const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antiword.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antiword_warns.json');
@@ -208,6 +209,7 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
         if (!meta) return;
 
         const sender = m.sender;
+        if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
         const admins = meta.participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));

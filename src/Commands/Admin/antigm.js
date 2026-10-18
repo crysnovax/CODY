@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antigm.json');
@@ -164,6 +165,7 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
         const senderNorm = (m.sender || '').replace(/:\d+@/, '@');
+        if (await isAntiPermitted(sock, group, [m.sender, m.key?.participant, m.key?.participantAlt])) return;
         if (admins.includes(senderNorm)) return;
 
         const sender = m.sender;

@@ -3,6 +3,7 @@ const path = require('path');
 const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('./identityUtils');
 const { stripBotMarkerDeep, stripQuotedDeep } = require('./antiText');
 const { isModerationEnabled } = require('./moderationControl');
+const { isAntiPermitted } = require('./antiPermit');
 
 function readJson(filePath) {
     if (!fs.existsSync(filePath)) return {};
@@ -123,6 +124,7 @@ function createAntiMessageModeration({
             const senderIdentity = normalizeJid(m.sender || m.key?.participant || senderJid || '');
             if (!senderJid || !senderIdentity) return false;
 
+            if (await isAntiPermitted(sock, m.chat, [senderJid, senderIdentity, ...senderCandidates])) return false;
             if (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin') return false;
 
             const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);

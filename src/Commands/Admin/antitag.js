@@ -3,6 +3,7 @@ const fs   = require('fs');
 const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
+const { isAntiPermitted } = require('../../Plugin/antiPermit');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antitag.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antitag_warns.json');
@@ -209,6 +210,7 @@ module.exports.handleAntiTag = async function(sock, m) {
 
         // Admin exemption - admins are safe
         const senderCandidates = [m.sender, m.key?.participant, m.key?.participantAlt].filter(Boolean);
+        if (await isAntiPermitted(sock, group, senderCandidates)) return;
         const senderRecord = meta.participants.find(participant => {
             const identities = [participant.id, participant.jid, participant.lid, participant.phoneNumber].filter(Boolean);
             return identities.some(identity => senderCandidates.some(sender => sameIdentity(identity, sender)));
