@@ -68,16 +68,16 @@ const redeployCmd = {
     category: 'Owner',
     ownerOnly: true,
     usage: '.redeploy',
-    reactions: { start: '♻️', success: '✅', error: '❌' },
+    reactions: { start: '♻️', success: '💨', error: '🚧' },
 
     execute: async (sock, m, { reply }) => {
         const root = path.resolve(process.cwd());
         const ownerNumber = cleanNumber(process.env.OWNER_NUMBER);
         const bootstrap = findBootstrap(root);
         const planFile = path.resolve(root, '..', '.cody-redeploy-local.json');
-        if (!ownerNumber) return reply('`❌ OWNER_NUMBER is not configured.`');
-        if (!bootstrap) {
-            return reply('`❌ Redeploy is unavailable in this layout. The outer pairing-site index.js was not found, so no files were changed.`');
+        if (!ownerNumber) return reply('`✘ OWNER_NUMBER is not configured.`');
+        if (!bootstrap) 
+            return reply('`✘ Redeploy is unavailable in this layout. The outer pairing-site index.js was not found, so no files were changed.`');
         }
 
         await sock.sendMessage(m.chat, { react: { text: '♻️', key: m.key } }).catch(() => {});
@@ -98,11 +98,11 @@ const redeployCmd = {
             });
 
             await reply(
-                '✅ *Local recovery cache verified. Redeploy is starting.*\n\n' +
-                `📦 Database files: ${Object.keys(data.database).length}\n` +
-                `📝 Settings: ${data.env ? 'included' : 'none found'}\n` +
-                '💾 Backup location: local deployment storage\n' +
-                '🔄 The deployment will rebuild and restore before startup.\n' +
+                '⚉ *Local recovery cache verified. Redeploy is starting.*\n\n' +
+                `Database files: ${Object.keys(data.database).length}\n` +
+                `Settings: ${data.env ? 'included' : 'none found'}\n` +
+                'Backup location: local deployment storage\n' +
+                'The deployment will rebuild and restore before startup.\n' +
                 '_Please do not restart the host during this process._'
             );
 
@@ -126,8 +126,8 @@ const redeployCmd = {
             console.error('[REDEPLOY]', error);
             await sock.sendMessage(m.chat, {
                 text: cleanupStarted
-                    ? `⚠️ *Redeploy handoff failed.*\n\nThe local recovery cache was preserved at the deployment parent for retry.\n${error.message}`
-                    : `❌ *Redeploy cancelled.*\n\nNo files were deleted because the local recovery cache was not verified.\n${error.message}`
+                    ? `✘ *Redeploy handoff failed.*\n\nThe local recovery cache was preserved at the deployment parent for retry.\n${error.message}`
+                    : `✘ *Redeploy cancelled.*\n\nNo files were deleted because the local recovery cache was not verified.\n${error.message}`
             }).catch(() => {});
         }
     }
