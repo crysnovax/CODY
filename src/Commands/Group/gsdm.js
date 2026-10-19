@@ -1,6 +1,7 @@
 'use strict';
 
-const gstatus = require('./⤷.js');
+const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
+const { sendNativeGroupStatus } = require('../../Utils/groupStatus');
 
 function extractInviteCode(value = '') {
     const match = String(value).trim().match(/(?:chat\.whatsapp\.com|wa\.me)\/([A-Za-z0-9_-]+)/i);
@@ -23,52 +24,34 @@ async function resolveGroupTarget(sock, value) {
 
 module.exports = {
     name: 'gsdm',
-    alias: ['gstatusdm'],
-    desc: 'Post a group status from a private chat',
+    alias: ['gsd', 'gstatusdm'],
+    desc: 'Send a native group status from a private chat or group command',
     category: 'Group',
     groupOnly: false,
-    usage: '.gsdm <group link|group JID> <text or quoted media>',
-    execute: async (sock, m, { args = [], text = '', reply }) => {
+    usage: '.gsd <group link|group JID> <image URL and caption> (or reply to media/text)',
+    execute: async (sock, m, { args = [], reply, isOwner, isDual, isAdmin, isGroupAdmin }) => {
+        if (!canRunBroadcast(m, { isOwner, isDual, isAdmin, isGroupAdmin })) {
+            return reply(broadcastAccessMessage(m));
+        }
+
         const targetInput = args[0];
         if (!targetInput) {
-            return reply('`✘ Usage: .gsdm <group link|group JID> <text or quoted media>`');
+            return reply('Usage: .gsd <group link|group JID> <image URL and caption> (or reply to media/text)');
         }
 
         try {
             const targetJid = await resolveGroupTarget(sock, targetInput);
-            if (!targetJid) return reply('`✘ Provide a valid WhatsApp group link or group JID`');
+            if (!targetJid) return reply('Provide a valid WhatsApp group link or group JID.');
             if (typeof sock.groupMetadata === 'function') await sock.groupMetadata(targetJid);
 
-            const contentArgs = args.slice(1);
-            const contentText = contentArgs.join(' ').trim();
-            const originalChat = m.chat;
-            const originalKey = m.key;
-            const statusMessageApi = new Proxy(sock, {
-                get(target, property) {
-                    if (property !== 'sendMessage') return target[property];
-                    return (chat, content, options) => {
-                        // Keep command reactions in the DM; the actual status is
-                        // still relayed to the resolved group by gstatus.
-                        if (content?.react) return target.sendMessage(originalChat, content, { ...options, quoted: m });
-                        return target.sendMessage(chat, content, options);
-                    };
-                }
-            });
-            const statusMessage = {
-                ...m,
-                chat: targetJid,
-                key: { ...originalKey, remoteJid: targetJid }
-            };
-            const statusReply = message => reply(message);
-            return gstatus.execute(statusMessageApi, statusMessage, {
-                text: contentText,
-                args: contentArgs,
-                command: 'gstatus',
-                reply: statusReply
-            });
+            const contentText = args.slice(1).join(' ').trim();
+            const source = m.quoted || contentText;
+            const caption = m.quoted ? contentText : '';
+            await sendNativeGroupStatus(sock, targetJid, source, caption);
+            return reply(`Native group status sent to ${targetJid}.`);
         } catch (error) {
-            console.error('[GSDM ERROR]', error);
-            return reply(`\`✘ ${error.message || 'Unable to post group status'}\``);
+            console.error('[GSDM ERROR]', error?.stack || error?.message || error);
+            return reply(`${error?.message || 'Unable to post group status'}`);
         }
     }
 };

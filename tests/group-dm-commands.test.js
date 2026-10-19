@@ -32,14 +32,11 @@ test('gsdm resolves group JIDs and WhatsApp invite links', async () => {
     assert.equal(await gsdm.resolveGroupTarget(sock, 'https://chat.whatsapp.com/InviteCode'), GROUP);
 });
 
-test('gsdm delegates content to gstatus while keeping the confirmation in the DM', async () => {
-    const sent = [];
+test('gsdm sends a native group status and keeps the confirmation in the DM', async () => {
     const relayed = [];
     const replies = [];
     const sock = {
-        user: { id: 'bot@s.whatsapp.net' },
         groupMetadata: async () => ({ participants: [] }),
-        sendMessage: async (chat, content) => sent.push({ chat, content }),
         sendGroupStatus: async (jid, content) => {
             relayed.push({ jid, content });
             return { key: { id: 'status-id' } };
@@ -49,17 +46,23 @@ test('gsdm delegates content to gstatus while keeping the confirmation in the DM
         chat: '15550000000@s.whatsapp.net',
         sender: '15550000000@s.whatsapp.net',
         key: { remoteJid: '15550000000@s.whatsapp.net', id: 'dm-message' },
-        quoted: {}
     };
     await gsdm.execute(sock, message, {
         args: [GROUP, 'hello', 'from', 'DM'],
         text: `${GROUP} hello from DM`,
+        isOwner: true,
+        isDual: false,
+        isAdmin: false,
+        isGroupAdmin: false,
         reply: value => replies.push(value)
     });
     assert.equal(relayed[0].jid, GROUP);
-    assert.deepEqual(relayed[0].content, { text: 'hello from DM' });
-    assert.equal(sent[0].chat, message.chat);
-    assert.match(replies.at(-1), /Posted successfully/);
+    assert.deepEqual(relayed[0].content, {
+        text: 'hello from DM',
+        private: { name: 'Cody AI', emoji: '🔥' }
+    });
+    assert(gsdm.alias.includes('gsd') && gsdm.alias.includes('gstatusdm'));
+    assert.match(replies.at(-1), /Native group status sent/);
 });
 
 test('addmeta supports here, group JIDs, and invite links', async () => {

@@ -2,8 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
-const { proto } = require('plogme');
 const { canRunBroadcast, broadcastAccessMessage } = require('../../Plugin/broadcastAccess');
+const { createGroupStatusPayload } = require('../../Utils/groupStatus');
 const { getCronOptions, getBotTimezone } = require('../../Utils/timezone');
 const DB_PATH = path.join(process.cwd(), 'database', 'spamgs-schedules.json');
 let schedules = [];
@@ -26,18 +26,15 @@ async function groupsOf(sock) {
     const all = await sock.groupFetchAllParticipating().catch(() => null);
     return Object.keys(all || {}).filter(jid => jid.endsWith('@g.us'));
 }
-async function postStatus(sock, source, groups) {
+async function postStatus(sock, source, groups, caption = '') {
+    if (typeof sock.sendGroupStatus !== 'function') {
+        throw new Error('sendGroupStatus is unavailable; CODY requires plogme 2.2.0 or newer.');
+    }
+    const payload = await createGroupStatusPayload(source, caption);
     let sent = 0;
     for (const group of groups) {
         try {
-            // Group JIDs are not valid statusJidList recipients. Send the
-            // message directly to each group and mark it as a native group
-            // status so WhatsApp renders it in that group's status surface.
-            await sock.sendMessage(group, {
-                forward: source,
-                force: true,
-                groupStatus: true,
-            });
+            await sock.sendGroupStatus(group, payload);
             sent += 1;
         } catch (error) {
             console.error('[SPAMGS]', group, error?.message || error);
@@ -49,10 +46,11 @@ async function runSchedule(sock, schedule) {
     const groups = await groupsOf(sock);
     let total = 0;
     for (let i = 0; i < schedule.repeat; i++) {
-        try { total += await postStatus(sock, schedule.source, groups); } catch (error) { console.error('[SPAMGS]', error?.message || error); }
+        try { total += await postStatus(sock, schedule.source, groups, schedule.caption || ''); }
+        catch (error) { console.error('[SPAMGS]', error?.message || error); }
         if (i + 1 < schedule.repeat) await new Promise(resolve => setTimeout(resolve, schedule.delayMs));
     }
-    return total;
+    return { total, groupCount: groups.length };
 }
 function stopJob(id) { try { jobs.get(id)?.stop(); } catch {} jobs.delete(id); }
 function startJob(sock, schedule) {
@@ -61,16 +59,19 @@ function startJob(sock, schedule) {
     jobs.set(schedule.id, job);
 }
 function setupSpamSchedules(sock) { for (const schedule of schedules) if (schedule?.cron) startJob(sock, schedule); }
+function usage(prefix) {
+    return `Usage: ${prefix}spamgs [repeat] [delay] [daily HH:MM] <image-URL and caption>\nReply to an image or text to use it instead. Example: ${prefix}spamgs https://example.com/photo.jpg My caption`;
+}
 module.exports = {
     name: 'spamgs',
     alias: ['groupstatusspam', 'statusspam'],
-    desc: 'Post a quoted message as group status repeatedly or daily',
+    desc: 'Send native group statuses repeatedly or on a daily schedule',
     category: 'Admin',
     groupOnly: false,
     adminOnly: false,
     reactions: { start: '📣', success: '✅' },
     setupSpamSchedules,
-    execute: async (sock, m, { args, reply, prefix, isOwner, isDual, isAdmin, isGroupAdmin }) => {
+    execute: async (sock, m, { args = [], reply, prefix = '.', isOwner, isDual, isAdmin, isGroupAdmin }) => {
         if (!canRunBroadcast(m, { isOwner, isDual, isAdmin, isGroupAdmin })) {
             return reply(broadcastAccessMessage(m));
         }
@@ -86,27 +87,50 @@ module.exports = {
             save();
             return reply(`Cancelled ${removed} spamgs schedule(s).`);
         }
-        const repeat = Number(args[0] || 1);
-        const delayMs = duration(args[1] || '1s');
-        const isDaily = String(args[2] || '').toLowerCase() === 'daily';
-        const dailyTime = args[3];
-        const textStart = isDaily ? 4 : 2;
-        const statusText = args.slice(textStart).join(' ').trim();
-        const source = m.quoted?.fakeObj || (statusText ? proto.WebMessageInfo.fromObject({ key: { remoteJid: m.chat, fromMe: true, id: `SPAMGS-${Date.now()}` }, message: { conversation: statusText } }) : null);
-        if (!Number.isInteger(repeat) || repeat < 1 || repeat > 20 || !delayMs || !source) {
-            return reply(`Usage: ${prefix}spamgs <repeat> <delay> [daily HH:MM]\nReply to any message, e.g. ${prefix}spamgs 3 5s or ${prefix}spamgs 2 10s daily 18:30`);
+
+        let repeat = 1;
+        let delay = '1s';
+        let delayMs = duration(delay);
+        let isDaily = false;
+        let dailyTime;
+        let contentStart = 0;
+        const firstIsCount = /^\d+$/.test(String(args[0] || ''));
+        if (firstIsCount && (args.length === 1 || duration(args[1]) || String(args[2] || '').toLowerCase() === 'daily')) {
+            repeat = Number(args[0]);
+            delay = args[1] || '1s';
+            delayMs = duration(delay);
+            contentStart = args[1] ? 2 : 1;
+            if (String(args[2] || '').toLowerCase() === 'daily') {
+                isDaily = true;
+                dailyTime = args[3];
+                contentStart = 4;
+            }
+            if (!Number.isInteger(repeat) || repeat < 1 || repeat > 20 || !delayMs) {
+                return reply(usage(prefix));
+            }
         }
+
+        const contentText = args.slice(contentStart).join(' ').trim();
+        const source = m.quoted || contentText;
+        const storedSource = m.quoted?.fakeObj || contentText;
+        const caption = m.quoted ? contentText : '';
+        if (!source) return reply(usage(prefix));
+        if (typeof sock.sendGroupStatus !== 'function') {
+            return reply('This command requires plogme 2.2.0 or newer with sendGroupStatus support.');
+        }
+
         if (isDaily) {
             const cronExpr = timeCron(dailyTime);
             if (!cronExpr) return reply('Invalid daily time. Use 24-hour HH:MM, for example 18:30.');
             const id = `${m.chat}-${Date.now()}`;
-            const schedule = { id, cron: cronExpr, time: dailyTime, repeat, delayMs, delay: args[1], source };
+            const schedule = { id, cron: cronExpr, time: dailyTime, repeat, delayMs, delay, source: storedSource, caption };
             schedules.push(schedule);
             save();
             startJob(sock, schedule);
-            return reply(`📅 Daily spamgs schedule saved at ${dailyTime} (${getBotTimezone()}): ${repeat}x with ${args[1]} delay.`);
+            return reply(`📅 Daily native group-status schedule saved at ${dailyTime} (${getBotTimezone()}): ${repeat}x with ${delay} delay.`);
         }
-        const total = await runSchedule(sock, { repeat, delayMs, source });
-        return reply(`📣 Group status posted ${repeat} time(s) to ${total / repeat} group(s).`);
+
+        const result = await runSchedule(sock, { repeat, delayMs, source, caption });
+        return reply(`📣 Native group status posted ${repeat} time(s) to ${result.groupCount} group(s); ${result.total} successful post(s).`);
     }
 };

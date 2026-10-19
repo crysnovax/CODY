@@ -167,13 +167,18 @@ test('spamgs sends quoted content as a native group status to every group', asyn
             'two@g.us': {},
             'not-a-group@s.whatsapp.net': {},
         }),
-        sendMessage: async (...args) => { sent.push(args); return {}; },
+        sendGroupStatus: async (...args) => { sent.push(args); return {}; },
     };
     const replies = [];
     await spamgs.execute(sock, {
         isGroup: true,
         chat: 'source@g.us',
-        quoted: { fakeObj: source },
+        quoted: {
+            fakeObj: source,
+            mtype: 'imageMessage',
+            caption: 'scheduled image',
+            download: async () => Buffer.from('mock image')
+        },
     }, {
         args: ['1', '1s'],
         isAdmin: true,
@@ -182,8 +187,8 @@ test('spamgs sends quoted content as a native group status to every group', asyn
     });
     assert.equal(sent.length, 2);
     assert.deepEqual(sent.map(([jid]) => jid), ['one@g.us', 'two@g.us']);
-    assert.ok(sent.every(([, content]) => content.forward === source));
-    assert.ok(sent.every(([, content]) => content.force === true));
-    assert.ok(sent.every(([, content]) => content.groupStatus === true));
+    assert.ok(sent.every(([, content]) => Buffer.isBuffer(content.image)));
+    assert.ok(sent.every(([, content]) => content.caption === 'scheduled image'));
+    assert.ok(sent.every(([, content]) => content.private?.name === 'Cody AI' && content.private?.emoji === '🔥'));
     assert.match(replies[0], /posted 1 time\(s\) to 2 group\(s\)/);
 });
