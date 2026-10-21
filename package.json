@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "cdlog run --name cody --cwd . -- node index.js",
+    "start": "FORCE_COLOR=${FORCE_COLOR:-1} cdlog run --name cody --cwd . -- node index.js",
     "dev": "nodemon index.js",
     "test": "node --test tests/*.test.js",
     "postinstall": "node scripts/patch-plogme.cjs"

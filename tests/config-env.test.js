@@ -23,6 +23,11 @@ test('menu uses MENU_URL from the environment for its default live media', () =>
     assert.match(source, /thumbnail: liveThumbnailUrl/);
 });
 
+test('production start preserves child ANSI colors through cdloger', () => {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8'));
+    assert.match(packageJson.scripts.start, /^FORCE_COLOR=\$\{FORCE_COLOR:-1\} cdlog run/);
+});
+
 test('BOT_NAME and OWNER_NAME from .env reach canonical and legacy config fields', () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'cody-config-env-'));
     const envFile = path.join(temp, '.env');
