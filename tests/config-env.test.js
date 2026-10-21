@@ -16,6 +16,13 @@ test('CODY loads its .env before redirect and bot modules initialize', () => {
     assert.ok(redirectLoad > dotenvLoad, 'dotenv must load before modules that read configuration');
 });
 
+test('menu uses MENU_URL from the environment for its default live media', () => {
+    const source = fs.readFileSync(path.join(repo, 'src/Commands/Bot/ⓘ.js'), 'utf8');
+    assert.match(source, /getVar\('MENU_URL'\) \|\| process\.env\.MENU_URL/);
+    assert.match(source, /video: liveVideoUrl/);
+    assert.match(source, /thumbnail: liveThumbnailUrl/);
+});
+
 test('BOT_NAME and OWNER_NAME from .env reach canonical and legacy config fields', () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'cody-config-env-'));
     const envFile = path.join(temp, '.env');

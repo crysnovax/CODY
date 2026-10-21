@@ -8,7 +8,7 @@ const { prepareWAMessageMedia, generateWAMessageContent, generateMessageIDV2, bu
 // and `gstatus <text> | all` always skips these groups when the sender is
 // not an admin of the target group — even when broadcast from elsewhere.
 // (@crysnovax—FIX15-08-26)
-const RESTRICTED_GROUPS = new Set([
+const DEFAULT_RESTRICTED_GROUPS = new Set([
     '120363426760068896@g.us',
     '120363396903069780@g.us',
     '120363411385283733@g.us',
@@ -16,6 +16,14 @@ const RESTRICTED_GROUPS = new Set([
 ]);
 
 const normalizeJid = (jid = '') => String(jid || '').replace(/:\d+@/, '@');
+const getRestrictedGroups = () => {
+    const configured = String(process.env.GSTATUS_ADMIN_GROUPS || '')
+        .split(',')
+        .map(value => normalizeJid(value.trim()))
+        .filter(value => value.endsWith('@g.us'));
+    return configured.length ? new Set(configured) : DEFAULT_RESTRICTED_GROUPS;
+};
+const isRestrictedGroup = jid => getRestrictedGroups().has(normalizeJid(jid));
 const STATUS_COLORS = ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#845EC2', '#00C9A7'];
 const NAMED_STATUS_COLORS = { red: '#FF6B6B', blue: '#4D96FF', green: '#6BCB77', yellow: '#FFD93D', purple: '#845EC2', violet: '#845EC2', teal: '#00C9A7', cyan: '#00C9A7', orange: '#FF9671', pink: '#FF6F91', white: '#FFFFFF', black: '#000000' };
 let statusColorIndex = 0;
@@ -60,11 +68,16 @@ async function isSenderAdminOfGroup(sock, groupJid, senderJid) {
         const meta = await sock.groupMetadata(groupJid).catch(() => null);
         const adminJids = (meta?.participants || [])
             .filter(p => p.admin)
-            .map(p => normalizeJid(p.id));
-        const sender = normalizeJid(senderJid);
-        const senderPhone = sender.split('@')[0];
-        return adminJids.includes(sender)
-            || adminJids.some(j => j.split('@')[0] === senderPhone);
+            .flatMap(p => [p.id, p.jid, p.participant, p.participantAlt, p.phoneNumber]
+                .filter(Boolean)
+                .map(normalizeJid));
+        const senders = (Array.isArray(senderJid) ? senderJid : [senderJid])
+            .filter(Boolean)
+            .flatMap(value => [value, value?.id, value?.jid, value?.participant, value?.participantAlt]
+                .filter(Boolean)
+                .map(normalizeJid));
+        const senderPhones = new Set(senders.map(jid => jid.split('@')[0]).filter(Boolean));
+        return adminJids.some(admin => senders.includes(admin) || senderPhones.has(admin.split('@')[0]));
     } catch {
         return false;
     }
@@ -294,7 +307,7 @@ module.exports = {
                         // Admin-gated groups are SKIPPED by force for non-admins
                         // — the broadcast must never post there on their behalf.
                         // (@crysnovax—FIX15-08-26)
-                        if (RESTRICTED_GROUPS.has(groupId) && !(await isSenderAdminOfGroup(sock, groupId, m.sender))) {
+                        if (isRestrictedGroup(groupId) && !(await isSenderAdminOfGroup(sock, groupId, [m.sender, m.key?.participant, m.key?.participantAlt, m.participant, m.senderAlt]))) {
                             skipped++;
                             continue;
                         }
@@ -354,7 +367,7 @@ module.exports = {
             // Admin-gated groups: only admins of those groups may post status
             // there — hard rule, enforced for direct posts too.
             // (@crysnovax—FIX15-08-26)
-            if (RESTRICTED_GROUPS.has(targetJid) && !(await isSenderAdminOfGroup(sock, targetJid, m.sender))) {
+            if (isRestrictedGroup(targetJid) && !(await isSenderAdminOfGroup(sock, targetJid, [m.sender, m.key?.participant, m.key?.participantAlt, m.participant, m.senderAlt]))) {
                 return reply('`✘ This group only allows admins to post status`');
             }
 
@@ -492,3 +505,5 @@ EXAMPLES:
 module.exports.parseStatusOptions = parseStatusOptions;
 module.exports.resolveStatusTarget = resolveStatusTarget;
 module.exports.normalizeBackgroundColor = normalizeBackgroundColor;
+module.exports.isSenderAdminOfGroup = isSenderAdminOfGroup;
+module.exports.isRestrictedGroup = isRestrictedGroup;

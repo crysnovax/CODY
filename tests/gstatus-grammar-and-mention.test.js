@@ -41,6 +41,28 @@ test('gstatus recognizes gstatusall and id<JID> routing', () => {
     assert.equal(gstatus.resolveStatusTarget('gstatus', ['id120363425204601114@g.us'], '12345@g.us'), '120363425204601114@g.us');
 });
 
+test('gstatus recognizes an admin through WhatsApp LID and phone aliases', async () => {
+    const sock = {
+        groupMetadata: async () => ({
+            participants: [{ id: '15550000000@s.whatsapp.net', participantAlt: '90001@lid', admin: 'admin' }]
+        })
+    };
+    assert.equal(await gstatus.isSenderAdminOfGroup(sock, '120363426760068896@g.us', '90001@lid'), true);
+    assert.equal(await gstatus.isSenderAdminOfGroup(sock, '120363426760068896@g.us', '15550000001@s.whatsapp.net'), false);
+});
+
+test('gstatus restricted groups can be configured instead of hard-coded', () => {
+    const previous = process.env.GSTATUS_ADMIN_GROUPS;
+    process.env.GSTATUS_ADMIN_GROUPS = '999@g.us';
+    try {
+        assert.equal(gstatus.isRestrictedGroup('999@g.us'), true);
+        assert.equal(gstatus.isRestrictedGroup('120363426760068896@g.us'), false);
+    } finally {
+        if (previous === undefined) delete process.env.GSTATUS_ADMIN_GROUPS;
+        else process.env.GSTATUS_ADMIN_GROUPS = previous;
+    }
+});
+
 test('mention text configuration does not throw valueSlice', async () => {
     const replies = [];
     await mention.execute({}, { key: { fromMe: true } }, {

@@ -267,15 +267,18 @@ module.exports = {
         
         text += `\n‎ㅤ   ⚫︎  ${botName}  ⚫︎`;
         
-        // MENU_URL via setvar applies instantly — read runtime first, config as fallback (@crysnovax—FIX06-08-26)
+        // Runtime overrides apply instantly; MENU_URL from .env must also drive
+        // the default menu media instead of being bypassed by fixed URLs.
         const freshConfig = require('../../../settings/config');
-        const configuredMediaUrl = getVar('MENU_URL') || getVar('THUMB_URL') || freshConfig.thumbUrl || '';
+        const configuredMediaUrl = getVar('MENU_URL') || process.env.MENU_URL || getVar('THUMB_URL') || process.env.THUMB_URL || freshConfig.thumbUrl || '';
         const isAnimatedMedia = url => /\.(mp4|gif|webm|mov)(?:[?#].*)?$/i.test(String(url || ''));
+        const liveVideoUrl = isAnimatedMedia(configuredMediaUrl) ? configuredMediaUrl : DEFAULT_LIVE_PHOTO_VIDEO;
+        const liveThumbnailUrl = configuredMediaUrl && !isAnimatedMedia(configuredMediaUrl) ? configuredMediaUrl : DEFAULT_LIVE_PHOTO_IMAGE;
 
         if (mediaMode === 'live' || mediaMode === 'livephoto' || mediaMode === 'motion') {
             return sock.sendPhotoLive(m.chat, {
-                video: DEFAULT_LIVE_PHOTO_VIDEO,
-                thumbnail: DEFAULT_LIVE_PHOTO_IMAGE,
+                video: liveVideoUrl,
+                thumbnail: liveThumbnailUrl,
                 caption: text,
             }, m);
         }
