@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js",
+    "start": "cdlog run --name cody --cwd . -- node index.js",
     "dev": "nodemon index.js",
     "test": "node --test tests/*.test.js",
     "postinstall": "node scripts/patch-plogme.cjs"
@@ -77,7 +77,8 @@
     "uuid": "^13.0.0",
     "youtubei.js": "^16.0.1",
     "yt-search": "^2.13.1",
-    "ytdl-core": "^4.11.5"
+    "ytdl-core": "^4.11.5",
+    "cdloger": "^0.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

@@ -40,7 +40,7 @@ const appJson = `{
 }`;
 
 // Procfile
-const procfile = "web: node index.js\n";
+const procfile = "web: npm start\n";
 
 // vercel.json
 const vercelJson = `{
