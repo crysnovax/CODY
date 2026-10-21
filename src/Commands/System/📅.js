@@ -119,7 +119,7 @@ module.exports = {
             await edit(100);
 
             // Restart — carry the uptime over so updates don't reset it (@crysnovax—FIX06-08-26)
-            try { require('../../Plugin/uptime').markUpdateRestart(); } catch (e) {}
+            try { require('../../Plugin/uptime').markRestart(); } catch (e) {}
             setTimeout(() => process.exit(0), 1000);
 
         } catch (err) {

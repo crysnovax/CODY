@@ -9,7 +9,7 @@ module.exports = {
     reactions: { start: '🐾', success: '💬' },
 
     execute: async (sock, m, { args, reply }) => {
-        const current = getVar('AUTO_READ', true);
+        const current = getVar('AUTO_READ', false);
         const groupCurrent = getVar('AUTO_READ_GROUP', false);
 
         if (!args[0]) {

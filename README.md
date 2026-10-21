@@ -574,7 +574,7 @@ CODY/
 | `BOT_NAME` | `CODY AI` | Display name used by the bot |
 | `OWNER_NUMBER` | — | Your WhatsApp number |
 | `PUBLIC_MODE` | `false` | Allow all users to use commands |
-| `AUTO_READ` | `true` | Auto-read messages |
+| `AUTO_READ` | `false` | Auto-read messages |
 | `AUTO_REACT` | `true` | React to commands |
 | `ANTI_CALL` | `true` | Auto-reject calls |
 | `MENU_STYLE` | `0` | Menu design (0–6) |

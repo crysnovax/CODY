@@ -78,9 +78,12 @@ const redeployCmd = {
         if (!ownerNumber) return reply('`✘ OWNER_NUMBER is not configured.`');
         if (!bootstrap) 
             return reply('`✘ Redeploy is unavailable in this layout. The outer pairing-site index.js was not found, so no files were changed.`');
-        }
 
         await sock.sendMessage(m.chat, { react: { text: '♻️', key: m.key } }).catch(() => {});
+        // Mark before collecting the backup so uptime.json survives the checkout wipe.
+        try { require('../../Plugin/uptime').markRestart(); } catch (error) {
+            console.warn('[REDEPLOY] uptime preservation marker failed:', error.message);
+        }
         const data = collectBackupData(root);
         let cleanupStarted = false;
 

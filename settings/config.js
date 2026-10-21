@@ -152,7 +152,7 @@ const config = {
     // BOT MODE FLAGS (ZEE BOT specific)
     // ════════════════════════════════════════════
     mode: {
-        autoRead:      getBoolean('AUTO_READ', userConfig?.bot?.autoRead, true),
+        autoRead:      getBoolean('AUTO_READ', userConfig?.bot?.autoRead, false),
         autoTyping:    getBoolean('AUTO_TYPING', userConfig?.bot?.autoTyping, false),
         autoRecording: getBoolean('AUTO_RECORDING', userConfig?.bot?.autoRecording, false),
         alwaysOnline:  getBoolean('ALWAYS_ONLINE', userConfig?.bot?.alwaysOnline, true),

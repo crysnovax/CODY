@@ -113,7 +113,7 @@ async function performUpdate(options = {}) {
         log('Update completed successfully!');
 
         // uptime carries over through the update restart (@crysnovax—FIX06-08-26)
-        try { require('./uptime').markUpdateRestart(); } catch (e) {}
+        try { require('./uptime').markRestart(); } catch (e) {}
 
         return { success: true };
 
