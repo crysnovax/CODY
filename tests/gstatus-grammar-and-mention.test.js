@@ -51,16 +51,38 @@ test('gstatus recognizes an admin through WhatsApp LID and phone aliases', async
     assert.equal(await gstatus.isSenderAdminOfGroup(sock, '120363426760068896@g.us', '15550000001@s.whatsapp.net'), false);
 });
 
-test('gstatus restricted groups can be configured instead of hard-coded', () => {
-    const previous = process.env.GSTATUS_ADMIN_GROUPS;
-    process.env.GSTATUS_ADMIN_GROUPS = '999@g.us';
-    try {
-        assert.equal(gstatus.isRestrictedGroup('999@g.us'), true);
-        assert.equal(gstatus.isRestrictedGroup('120363426760068896@g.us'), false);
-    } finally {
-        if (previous === undefined) delete process.env.GSTATUS_ADMIN_GROUPS;
-        else process.env.GSTATUS_ADMIN_GROUPS = previous;
-    }
+test('gstatus keeps the intended restricted groups hard-coded', () => {
+    assert.equal(gstatus.isRestrictedGroup('120363426760068896@g.us'), true);
+    assert.equal(gstatus.isRestrictedGroup('999@g.us'), false);
+});
+
+test('gstatus allows an admin alias to post in a restricted group', async () => {
+    const calls = [];
+    const replies = [];
+    const group = '120363426760068896@g.us';
+    const sock = {
+        user: { id: '99999@s.whatsapp.net' },
+        sendMessage: async () => {},
+        groupMetadata: async () => ({
+            participants: [{ id: '15550000000@s.whatsapp.net', participantAlt: '90001@lid', admin: 'admin' }]
+        }),
+        sendGroupStatus: async (jid, content) => {
+            calls.push({ jid, content });
+            return { key: { id: 'status-admin' } };
+        }
+    };
+    await gstatus.execute(sock, {
+        chat: group,
+        sender: '90001@lid',
+        key: { id: 'admin-message', participant: '90001@lid' }
+    }, {
+        command: 'gstatus',
+        text: 'admin status',
+        args: ['admin', 'status'],
+        reply: async value => replies.push(value)
+    });
+    assert.equal(calls.length, 1);
+    assert.match(replies.at(-1), /Posted successfully/);
 });
 
 test('mention text configuration does not throw valueSlice', async () => {
