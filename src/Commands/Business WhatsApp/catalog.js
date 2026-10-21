@@ -32,43 +32,47 @@ const fetchCatalog = async (sock, jid, limit) => {
     return null;
 };
 
-const sendCatalog = async (sock, m, products, nextPageCursor, label, limit, { useEnvPhone = false, ownerPhone = '' } = {}) => {
-    const cards = products.slice(0, 10).map(p => {
-        const imageUrl = getProductImage(p.imageUrls);
-        const price = formatPrice(p.price, p.currency);
+const formatProductPrice = (value, currency) => {
+    if (value === undefined || value === null || value === '') return '';
+    if (typeof value === 'number') return formatPrice(value, currency);
+    return String(value);
+};
 
+const sendCatalog = async (sock, m, products, nextPageCursor, label, limit, { useEnvPhone = false, ownerPhone = '' } = {}) => {
+    const productCards = products.slice(0, 10).map(p => {
+        const image = getProductImage(p.imageUrls) || p.image || null;
         const productUrl = useEnvPhone
             ? `https://wa.me/p/${p.id}/${ownerPhone}`
             : (p.url || `https://wa.me/p/${p.id}/${ownerPhone}`);
+        const price = formatProductPrice(p.price, p.currency);
+        const salePrice = formatProductPrice(
+            p.sale_price ?? p.salePrice ?? p.salePriceMinor,
+            p.currency
+        );
 
         return {
-            image: imageUrl
-                ? { url: imageUrl, sourceUrl: imageUrl, imageHighResUrl: imageUrl }
-                : { url: 'https://placehold.co/400x400/10b981/FFFFFF.png?text=No+Image' },
-            body: { text: [
-                `*${p.name || 'Unnamed Product'}*`,
-                `💰 ${price}`,
-                p.description ? `📝 ${p.description}` : null,
-                `📦 ${p.availability || 'in stock'}`,
-                `🆔 ${p.id}`
-            ].filter(Boolean).join('\n') },
-            footer: `⚉ ${BOT_NAME} Business`,
-            nativeFlow: [{
-                text: '🛒 View Product',
-                url: productUrl
-            }, {
-                text: '✉ Inquire',
-                copy: `Hi! I'm interested in: ${p.name} (ID: ${p.id})`
-            }]
+            title: p.name || p.title || 'Unnamed Product',
+            brand: p.brand || BOT_NAME,
+            ...(price ? { price } : {}),
+            ...(salePrice ? { sale_price: salePrice } : {}),
+            url: productUrl,
+            ...(image ? { image } : {})
         };
     });
 
-    await sock.sendMessage(m.chat, {
-        text: `🛒 *${label}*`,
-        footer: `Found ${products.length} product${products.length > 1 ? 's' : ''}`,
-        carouselCardType: 'horizontal',
-        cards
-    }, { quoted: m });
+    if (typeof sock.sendPlogmeMessage === 'function') {
+        await sock.sendPlogmeMessage(
+            m.chat,
+            { products: productCards },
+            undefined,
+            { renderRichResponse: true }
+        );
+    } else {
+        // Keep a readable fallback for older plogme runtimes.
+        await sock.sendMessage(m.chat, {
+            text: `🛒 *${label}*\n\n${productCards.map(p => `*${p.title}*${p.price ? ` — ${p.price}` : ''}\n${p.url}`).join('\n\n')}`
+        }, { quoted: m });
+    }
 
     if (nextPageCursor) {
         await sock.sendMessage(m.chat, {

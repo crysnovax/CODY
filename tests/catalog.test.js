@@ -7,6 +7,10 @@ const catalog = require('../src/Commands/Business WhatsApp/catalog.js');
 test('catalog sends image-backed horizontal carousel cards with supported buttons', async () => {
     const calls = [];
     const sock = {
+        sendPlogmeMessage: async (...args) => {
+            calls.push(args);
+            return { key: { id: 'catalog-1' } };
+        },
         sendMessage: async (...args) => {
             calls.push(args);
             return { key: { id: 'catalog-1' } };
@@ -25,12 +29,15 @@ test('catalog sends image-backed horizontal carousel cards with supported button
     await catalog.sendCatalog(sock, message, [product], null, 'CATALOG', 10, { ownerPhone: '2348012345678' });
     assert.equal(calls.length, 1);
     const payload = calls[0][1];
-    assert.equal(payload.carouselCardType, 'horizontal');
-    assert.equal(payload.cards.length, 1);
-    assert.equal(payload.cards[0].image.imageHighResUrl, 'https://cdn.example/coffee.jpg');
-    assert.equal(payload.cards[0].body.text.includes('Coffee'), true);
-    assert.equal(payload.cards[0].nativeFlow[0].url, 'https://wa.me/p/product-1/2348012345678');
-    assert.equal(payload.cards[0].nativeFlow[1].copy.includes('product-1'), true);
+    assert.deepEqual(payload, { products: [{
+        title: 'Coffee',
+        brand: 'CRYSNOVA AI',
+        price: 'NGN 5',
+        url: 'https://wa.me/p/product-1/2348012345678',
+        image: 'https://cdn.example/coffee.jpg'
+    }] });
+    assert.equal(calls[0][2], undefined);
+    assert.deepEqual(calls[0][3], { renderRichResponse: true });
 });
 
 test('catalog here retries a phone lookup with its mapped LID', async () => {
@@ -49,6 +56,10 @@ test('catalog here retries a phone lookup with its mapped LID', async () => {
                 ? { products: [{ id: 'lid-product', name: 'Mapped item', imageUrls: { original: 'https://cdn.example/item.jpg' } }] }
                 : { products: [] };
         },
+        sendPlogmeMessage: async (...args) => {
+            sent.push(args);
+            return { key: { id: `catalog-${sent.length}` } };
+        },
         sendMessage: async (...args) => {
             sent.push(args);
             return { key: { id: `catalog-${sent.length}` } };
@@ -65,5 +76,5 @@ test('catalog here retries a phone lookup with its mapped LID', async () => {
         '1234567890@lid'
     ]);
     assert.equal(replies.length, 0);
-    assert.equal(sent.some(([, payload]) => payload?.cards?.[0]?.body?.text.includes('Mapped item')), true);
+    assert.equal(sent.some(([, payload]) => payload?.products?.[0]?.title === 'Mapped item'), true);
 });
