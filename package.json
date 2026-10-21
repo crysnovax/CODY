@@ -33,6 +33,7 @@
     "archiver": "^7.0.1",
     "axios": "^1.13.5",
     "canvas": "npm:@napi-rs/canvas@^1.0.2",
+    "cdloger": "^0.2.1",
     "chalk": "^4.1.2",
     "cheerio": "^1.2.0",
     "crypto-js": "latest",
@@ -77,8 +78,7 @@
     "uuid": "^13.0.0",
     "youtubei.js": "^16.0.1",
     "yt-search": "^2.13.1",
-    "ytdl-core": "^4.11.5",
-    "cdloger": "^0.1.0"
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
