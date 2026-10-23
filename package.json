@@ -1,16 +1,14 @@
 {
-  "name": "codymini",
+  "name": "CODY-AI",
   "version": "1.0.3",
-  "description": "CODY AI \u2014 Powered by CRYSNOVA AI V2 Technology",
+  "description": "CODY AI — Powered by CRYSNOVA AI V2 Technology",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node multi-session/server.js",
+    "start": "cdlog --color run --name cody --cwd . -- node index.js",
     "dev": "nodemon index.js",
     "test": "node --test tests/*.test.js",
-    "postinstall": "node scripts/patch-plogme.cjs",
-    "start:single": "node index.js",
-    "multi:check": "node --check multi-session/server.js && node --check multi-session/manager.js && node --check multi-session/pair-runner.js"
+    "postinstall": "node scripts/patch-plogme.cjs"
   },
   "keywords": [
     "whatsapp",
@@ -22,7 +20,7 @@
     "plogme",
     "zee-bot"
   ],
-  "author": "\ud835\udcec\ud835\udcfb\ud835\udd02\ud835\udcfc\ud835\udcf7\ud835\udcf8\ud835\udcff\ud835\udcea\ud835\udd01 \ud835\udcff\ud835\udcee\ud835\udcfb\ud835\udcf2\ud835\udcef\ud835\udcf2\ud835\udcee\ud835\udced\u200e",
+  "author": "𝓬𝓻𝔂𝓼𝓷𝓸𝓿𝓪𝔁 𝓿𝓮𝓻𝓲𝓯𝓲𝓮𝓭‎",
   "license": "MIT",
   "dependencies": {
     "@adiwajshing/keyed-db": "^0.2.4",
