@@ -3,576 +3,405 @@ const path = require('path');
 const axios = require('axios');
 const { formatBotDateTime } = require('../../Utils/timezone');
 
-const BACKUP_API = 'https://bak.crysnovax.link';
+const DEFAULT_BACKUP_API = 'https://bk.crysnovax.com';
 const BACKUP_REQUEST_TIMEOUT = 30000;
-const BACKUP_RETRY_LIMIT = 3;
 const backupSession = new Map();
 const restoreSession = new Map();
+const SENSITIVE_ENV_NAME = /(?:SESSION|AUTH|CRED|TOKEN|SECRET|PASSWORD|API.?KEY|PRIVATE.?KEY)/i;
+const SENSITIVE_OBJECT_KEY = /(?:SESSION|AUTH|CRED|TOKEN|SECRET|PASSWORD|API.?KEY|PRIVATE.?KEY)/i;
+const EXCLUDED_PATH_SEGMENTS = new Set(['session', 'sessions', 'creds', 'credentials', 'auth', 'authstate']);
+const EXCLUDED_OBJECT_KEYS = new Set([
+    'session', 'sessions', 'sessionid', 'sessiondata', 'sessionpath', 'sessionfile',
+    'sessionstate', 'sessionjson', 'sessionsjson', 'sessioncreds', 'sessioncredentials',
+    'sessionauthstate', 'authstate', 'authstatejson', 'authstatepath', 'creds',
+    'credsjson', 'credentials', 'whatsappauth', 'whatsappsession', 'baileysauth', 'baileyssession'
+]);
 
-function isRetryableBackupError(err) {
-    const status = err.response?.status;
-    const message = String(err.response?.data?.error || err.message || '').toLowerCase();
-    return status >= 500 || message.includes('encryption') || message.includes('encryptions failed');
+class BackupConfigError extends Error {}
+
+function normalizePhone(value) {
+    const phone = String(value || '').replace(/\D/g, '');
+    if (phone.length < 7 || phone.length > 15) throw new Error('Enter a phone number with 7–15 digits.');
+    return phone;
 }
 
-async function saveBackup(payload) {
-    let lastError;
-    for (let attempt = 1; attempt <= BACKUP_RETRY_LIMIT; attempt++) {
-        try {
-            return await axios.post(`${BACKUP_API}/backup/save`, payload, {
-                timeout: BACKUP_REQUEST_TIMEOUT,
-                maxBodyLength: Infinity,
-                maxContentLength: Infinity
-            });
-        } catch (err) {
-            lastError = err;
-            if (attempt === BACKUP_RETRY_LIMIT || !isRetryableBackupError(err)) throw err;
-            await new Promise(resolve => setTimeout(resolve, attempt * 500));
-        }
+function getBackupApiConfig() {
+    const baseUrl = String(process.env.BACKUP_API_URL || DEFAULT_BACKUP_API).trim().replace(/\/+$/, '');
+    const token = String(process.env.BACKUP_API_TOKEN || '').trim();
+
+    if (!token || token.length < 32) {
+        throw new BackupConfigError('Backup is not configured: set BACKUP_API_TOKEN to a random secret of at least 32 characters.');
     }
-    throw lastError;
+    let parsed;
+    try { parsed = new URL(baseUrl); } catch { throw new BackupConfigError('BACKUP_API_URL is not a valid URL.'); }
+    if (parsed.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(parsed.hostname)) {
+        throw new BackupConfigError('BACKUP_API_URL must use HTTPS.');
+    }
+    return { baseUrl, token };
 }
 
-async function getBackupStatus(phone) {
-    const response = await axios.post(`${BACKUP_API}/backup/exists`, { phone }, {
-        timeout: BACKUP_REQUEST_TIMEOUT
-    });
-    return response.data;
+function getEncryptionPassword() {
+    const password = String(process.env.BACKUP_ENCRYPTION_PASSWORD || '');
+    if (password.length < 12) {
+        throw new BackupConfigError('Backup encryption is not configured: set BACKUP_ENCRYPTION_PASSWORD to a private password of at least 12 characters.');
+    }
+    return password;
 }
 
-async function getBackupHistory(phone) {
-    const response = await axios.post(`${BACKUP_API}/backup/history`, { phone }, {
-        timeout: BACKUP_REQUEST_TIMEOUT
-    });
-    return response.data;
+function getBackupConfig() {
+    return { ...getBackupApiConfig(), password: getEncryptionPassword() };
 }
 
-async function loadHistoricalBackup(phone, password, timestamp) {
-    const response = await axios.post(`${BACKUP_API}/backup/load-history`, {
-        phone,
-        password,
-        timestamp
-    }, {
+async function backupApiPost(endpoint, payload) {
+    const { baseUrl, token } = getBackupApiConfig();
+    return axios.post(`${baseUrl}${endpoint}`, payload, {
         timeout: BACKUP_REQUEST_TIMEOUT,
         maxBodyLength: Infinity,
-        maxContentLength: Infinity
+        maxContentLength: Infinity,
+        headers: { Authorization: `Bearer ${token}` }
     });
-    return response.data;
+}
+
+function normalizedKey(value) {
+    return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isExcludedPath(relativePath) {
+    return String(relativePath).split(/[\\/]/).some(segment => EXCLUDED_PATH_SEGMENTS.has(normalizedKey(segment)));
+}
+
+function sanitizeObject(value) {
+    if (Array.isArray(value)) return value.map(sanitizeObject);
+    if (!value || typeof value !== 'object') return value;
+    const result = {};
+    for (const [key, child] of Object.entries(value)) {
+        if (!EXCLUDED_OBJECT_KEYS.has(normalizedKey(key)) && !SENSITIVE_OBJECT_KEY.test(key)) result[key] = sanitizeObject(child);
+    }
+    return result;
+}
+
+function sanitizeEnvironment(contents) {
+    return String(contents || '').split(/\r?\n/).filter(line => {
+        const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line);
+        return !match || !SENSITIVE_ENV_NAME.test(match[1]);
+    }).join('\n').trim();
+}
+
+function collectDatabaseFiles(root = process.cwd()) {
+    const databaseDir = path.join(root, 'database');
+    const database = {};
+    if (!fs.existsSync(databaseDir)) return database;
+
+    const walk = (directory, relativeDirectory = '') => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+            const relativePath = path.posix.join(relativeDirectory, entry.name);
+            const fullPath = path.join(directory, entry.name);
+            if (isExcludedPath(relativePath) || entry.isSymbolicLink()) continue;
+            if (entry.isDirectory()) {
+                walk(fullPath, relativePath);
+                continue;
+            }
+            if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.json')) continue;
+            const text = fs.readFileSync(fullPath, 'utf8');
+            try {
+                database[relativePath] = JSON.stringify(sanitizeObject(JSON.parse(text)));
+            } catch {
+                // Preserve malformed/unstructured JSON files as text; restore still verifies the write.
+                database[relativePath] = text;
+            }
+        }
+    };
+    walk(databaseDir);
+    return database;
+}
+
+function collectBackupData(root = process.cwd()) {
+    const envPath = path.join(root, '.env');
+    const env = fs.existsSync(envPath) ? sanitizeEnvironment(fs.readFileSync(envPath, 'utf8')) : '';
+    return {
+        database: collectDatabaseFiles(root),
+        env,
+        timestamp: Date.now()
+    };
 }
 
 function isSafeDatabaseFilename(filename) {
-    return typeof filename === 'string' && /^[^/\\]+\.json$/.test(filename);
+    if (typeof filename !== 'string' || !filename.toLowerCase().endsWith('.json')) return false;
+    const segments = filename.split(/[\\/]/);
+    return segments.length > 0 && segments.every(segment =>
+        segment && segment !== '.' && segment !== '..' && !EXCLUDED_PATH_SEGMENTS.has(normalizedKey(segment))
+    );
 }
 
-function restoreBackupFiles(backupData) {
-    let dbCount = 0;
-    if (backupData.database && typeof backupData.database === 'object') {
-        const dbDir = path.join(process.cwd(), 'database');
-        if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-        for (const [filename, content] of Object.entries(backupData.database)) {
-            if (!isSafeDatabaseFilename(filename)) throw new Error(`Unsafe database filename: ${filename}`);
-            const filePath = path.join(dbDir, filename);
-            const data = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-            fs.writeFileSync(filePath, data, 'utf8');
-            if (fs.readFileSync(filePath, 'utf8') !== data) throw new Error(`Verification failed for ${filename}`);
-            dbCount++;
-        }
-    }
-    if (backupData.env) {
-        const envPath = path.join(process.cwd(), '.env');
-        fs.writeFileSync(envPath, backupData.env, 'utf8');
-        if (fs.readFileSync(envPath, 'utf8') !== backupData.env) throw new Error('Verification failed for .env');
-    }
-    return { dbCount, env: Boolean(backupData.env) };
-}
-
-// Helper: Send premium table
-async function sendTable(sock, chat, header, title, rows, footer) {
-    await sock.sendMessage(chat, {
-        headerText: header,
-        contentText: '---',
-        title: title,
-        table: rows,
-        footerText: footer
+function mergeSafeEnvironment(restoredText, root = process.cwd()) {
+    const restored = sanitizeEnvironment(restoredText);
+    if (!restored) return false;
+    const envPath = path.join(root, '.env');
+    const currentLines = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8').split(/\r?\n/) : [];
+    const restoredLines = restored.split(/\r?\n/).filter(Boolean);
+    const restoredNames = new Set(restoredLines.map(line => /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1]).filter(Boolean));
+    const retained = currentLines.filter(line => {
+        const name = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1];
+        return !name || !restoredNames.has(name);
     });
+    const merged = [...retained.filter(line => line.trim()), ...restoredLines].join('\n') + '\n';
+    fs.writeFileSync(envPath, merged, 'utf8');
+    if (fs.readFileSync(envPath, 'utf8') !== merged) throw new Error('Verification failed for safe .env settings');
+    return true;
 }
 
-// ==================== BACKUP ====================
+function restoreBackupFiles(backupData, root = process.cwd()) {
+    if (!backupData || typeof backupData !== 'object' || Array.isArray(backupData)) throw new Error('Backup payload is invalid.');
+    const entries = backupData.database && typeof backupData.database === 'object' && !Array.isArray(backupData.database)
+        ? Object.entries(backupData.database)
+        : [];
+    const databaseDir = path.resolve(root, 'database');
+    const writes = entries.filter(([filename]) => !isExcludedPath(filename)).map(([filename, content]) => {
+        if (!isSafeDatabaseFilename(filename)) throw new Error(`Unsafe database filename: ${filename}`);
+        const filePath = path.resolve(databaseDir, filename);
+        if (!filePath.startsWith(`${databaseDir}${path.sep}`)) throw new Error(`Unsafe database filename: ${filename}`);
+        const original = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+        let data = original;
+        try { data = JSON.stringify(sanitizeObject(JSON.parse(original))); } catch {}
+        return { filePath, data };
+    });
+
+    for (const { filePath, data } of writes) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, data, 'utf8');
+        if (fs.readFileSync(filePath, 'utf8') !== data) throw new Error(`Verification failed for ${path.relative(databaseDir, filePath)}`);
+    }
+    const env = typeof backupData.env === 'string' ? mergeSafeEnvironment(backupData.env, root) : false;
+    return { dbCount: writes.length, env };
+}
+
+async function getBackupHistory(phone) {
+    const response = await backupApiPost('/backup/history', { phone });
+    return Array.isArray(response.data?.history) ? response.data.history : [];
+}
+
+function historyRows(history, prefix, command, phone) {
+    if (!history.length) return [];
+    return history.slice(0, 10).map((item, index) => [
+        `#${index + 1}${index === 0 ? ' (latest)' : ''}`,
+        formatBotDateTime(item.timestamp),
+        item.sizeFormatted || 'N/A',
+        item.backupId
+    ]);
+}
+
+function commandError(error) {
+    const status = error.response?.status;
+    if (error instanceof BackupConfigError) return error.message;
+    if (status === 401) return 'Backup API authorization failed. Check BACKUP_API_TOKEN in CODY and Cloudflare.';
+    if (status === 503) return error.response?.data?.error || 'Backup Worker configuration is incomplete.';
+    return error.response?.data?.error || error.message || 'Unexpected backup error.';
+}
+
+async function sendTable(sock, chat, header, title, rows, footer) {
+    await sock.sendMessage(chat, { headerText: header, contentText: '---', title, table: rows, footerText: footer });
+}
+
 const backupCmd = {
     name: 'backup',
     alias: ['savebackup', 'cloudbackup'],
-    desc: 'Backup your database and settings to the cloud',
+    desc: 'Create an encrypted, versioned backup of settings and database to Cloudflare',
     category: 'Owner',
     ownerOnly: true,
-    usage: '.backup start | number= | code= | push',
-    reactions: { start: '💾', success: '🥀', error: '❔' },
+    usage: '.backup <phone> | .backup save | .backup history',
+    reactions: { start: '💾', success: '✅', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {
         const userId = m.sender;
-        const fullText = args.join(' ').trim();
-        
-        if (!backupSession.has(userId)) {
-            backupSession.set(userId, { phone: '', password: '' });
-        }
-        const session = backupSession.get(userId);
+        const text = args.join(' ').trim();
+        const current = backupSession.get(userId) || { phone: '' };
 
-        // START
-        if (fullText === 'start' || fullText === '') {
-            backupSession.set(userId, { phone: '', password: '' });
-            return sendTable(sock, m.chat,
-                `## 💾 Cloud Backup`,
-                '📋 Step-by-Step',
-                [
-                    ['📱 Step 1', `${prefix}backup number=2348077528901`],
-                    ['🔐 Step 2', `${prefix}backup code=<password>`],
-                    ['🚀 Step 3', `${prefix}backup push`]
-                ],
-                '💡 Your data is encrypted before upload'
-            );
+        if (!text || text.toLowerCase() === 'help') {
+            return sendTable(sock, m.chat, '## 💾 Cloud Backup', 'Commands', [
+                ['1. Select number', `${prefix}backup 2348077528901`],
+                ['2. Save a new version', `${prefix}backup save`],
+                ['Show versions', `${prefix}backup history`]
+            ], 'Every save creates a new encrypted version; previous versions are kept.');
         }
 
-        // NUMBER
-        if (fullText.startsWith('number=')) {
-            const phone = fullText.split('=')[1].replace(/[^0-9]/g, '');
-            if (phone.length < 7) return reply('`✘ Invalid phone number`');
-            
-            try {
-                const res = await axios.post(`${BACKUP_API}/backup/exists`, { phone });
-                session.phone = phone;
-                backupSession.set(userId, session);
-                
-                if (res.data.exists) {
-                    const date = formatBotDateTime(res.data.timestamp);
-                    return sendTable(sock, m.chat,
-                        `## ⚠️ Existing Backup Found`,
-                        '📱 Phone Registered',
-                        [
-                            ['📱 Phone', phone],
-                            ['📅 Created', date],
-                            ['📏 Size', res.data.sizeFormatted || 'N/A'],
-                            ['🔐 Next', `${prefix}backup code=<password>`]
-                        ],
-                        '⚠️ This will overwrite the existing backup'
-                    );
-                }
-                return sendTable(sock, m.chat,
-                    `## 📱 Phone Set`,
-                    '✅ Ready',
-                    [
-                        ['📱 Phone', phone],
-                        ['🔐 Next', `${prefix}backup code=<password>`]
-                    ],
-                    '💡 Set a password to encrypt your backup'
-                );
-            } catch (err) {
-                return reply(`\`❌ ${err.message}\``);
-            }
-        }
-
-        // CODE
-        if (fullText.startsWith('code=')) {
-            const password = fullText.split('=').slice(1).join('=');
-            if (password.length < 3) return reply('`✘ Password must be at least 3 characters`');
-            session.password = password;
-            backupSession.set(userId, session);
-            return sendTable(sock, m.chat,
-                `## 🔐 Password Set`,
-                '✅ Ready to Upload',
-                [
-                    ['📱 Phone', session.phone],
-                    ['🔐 Password', '••••••••'],
-                    ['🚀 Next', `${prefix}backup push`]
-                ],
-                '💡 Your data will be encrypted with this password'
-            );
-        }
-
-        // PUSH
-        if (fullText === 'push') {
-            if (!session.phone) return reply('`✘ Set phone first: .backup number=234xxx`');
-            if (!session.password) return reply('`✘ Set password first: .backup code=<password>`');
-
-            await sock.sendMessage(m.chat, { react: { text: '💾', key: m.key } });
-
-            try {
-                const dbDir = path.join(process.cwd(), 'database');
-                const dbFiles = {};
-                if (fs.existsSync(dbDir)) {
-                    const files = fs.readdirSync(dbDir);
-                    for (const file of files) {
-                        if (file.endsWith('.json')) {
-                            // Keep the original JSON text. The restore path already accepts
-                            // strings, and this avoids changing data while the API encrypts it.
-                            dbFiles[file] = fs.readFileSync(path.join(dbDir, file), 'utf8');
-                        }
-                    }
-                }
-                let envContent = '';
-                const envPath = path.join(process.cwd(), '.env');
-                if (fs.existsSync(envPath)) envContent = fs.readFileSync(envPath, 'utf8');
-                const backupData = { database: dbFiles, env: envContent, timestamp: Date.now() };
-                const saveRes = await saveBackup({
-                    phone: session.phone,
-                    password: session.password,
-                    data: backupData
-                });
-
-                await sendTable(sock, m.chat,
-                    `## ✅ Backup Saved!`,
-                    '💾 Cloud Storage',
-                    [
-                        ['📱 Phone', session.phone],
-                        ['📂 Database Files', Object.keys(dbFiles).length],
-                        ['📝 .env File', envContent ? '✅ Backed up' : '❌ Not found'],
-                        ['📏 Size', saveRes.data.sizeFormatted || (saveRes.data.size / 1024).toFixed(1) + ' KB'],
-                        ['🔐 Status', 'Encrypted & Secure']
-                    ],
-                    '💡 Use .restore on any new deployment to recover!'
-                );
-
-                await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-            } catch (err) {
-                console.error('[BACKUP]', err.message);
-                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-
-                // Some API failures happen after the encrypted record is written.
-                // Verify before telling the owner that the backup is definitely lost.
-                try {
-                    const status = await getBackupStatus(session.phone);
-                    if (status.exists) {
-                        const date = formatBotDateTime(status.timestamp);
-                        return await sock.sendMessage(m.chat, {
-                            text: `⚠️ *Backup response was unclear*\n\n` +
-                                `The cloud still has a backup for this number.\n` +
-                                `📅 Last saved: ${date}\n` +
-                                `📏 Size: ${status.sizeFormatted || 'N/A'}\n\n` +
-                                `Your previous backup was preserved. Please check the date above before retrying.`
-                        });
-                    }
-                } catch (verifyError) {
-                    console.error('[BACKUP VERIFY]', verifyError.message);
-                }
-
-                await sock.sendMessage(m.chat, {
-                    text: `❌ *Failed*\n\n${err.response?.data?.error || err.message}`
-                });
-            }
-
+        if (text.toLowerCase() === 'cancel') {
             backupSession.delete(userId);
-            return;
+            return reply('Backup selection cleared.');
         }
 
-        return sendTable(sock, m.chat,
-            `## 💾 Backup Commands`,
-            '📋 Usage',
-            [
-                ['Start', `${prefix}backup start`],
-                ['Set Number', `${prefix}backup number=234xxx`],
-                ['Set Password', `${prefix}backup code=pass`],
-                ['Upload', `${prefix}backup push`]
-            ],
-            '💡 Follow the steps in order'
-        );
+        if (text.toLowerCase() === 'save') {
+            if (!current.phone) return reply(`Select a phone first: ${prefix}backup <phone>`);
+            let config;
+            try { config = getBackupConfig(); } catch (error) { return reply(`❌ ${error.message}`); }
+            await sock.sendMessage(m.chat, { react: { text: '💾', key: m.key } });
+            try {
+                const data = collectBackupData();
+                const response = await backupApiPost('/backup/save', {
+                    phone: current.phone,
+                    password: config.password,
+                    data
+                });
+                backupSession.set(userId, current);
+                const result = response.data;
+                const envIncluded = Boolean(data.env);
+                await sendTable(sock, m.chat, '## ✅ Backup Version Saved', 'Cloudflare R2', [
+                    ['📱 Phone', current.phone],
+                    ['🆔 Version', result.backupId],
+                    ['📅 Saved', formatBotDateTime(result.timestamp)],
+                    ['📂 Database JSON files', Object.keys(data.database).length],
+                    ['⚙️ Safe settings', envIncluded ? 'Included (secrets/session values omitted)' : 'No safe .env settings found'],
+                    ['🔐 Encryption', 'AES-256-GCM'],
+                    ['🧾 Session data', 'Excluded']
+                ], `${prefix}backup save creates another version; it does not overwrite history.`);
+                await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+                return;
+            } catch (error) {
+                console.error('[BACKUP]', error.message);
+                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
+                return reply(`❌ Backup failed: ${commandError(error)}`);
+            }
+        }
+
+        if (text.toLowerCase() === 'history') {
+            if (!current.phone) return reply(`Select a phone first: ${prefix}backup <phone>`);
+            try {
+                const history = await getBackupHistory(current.phone);
+                if (!history.length) return reply(`No saved versions found for ${current.phone}. Use ${prefix}backup save to create the first one.`);
+                return sendTable(sock, m.chat, '## 🗂️ Backup History', current.phone,
+                    historyRows(history, prefix, 'backup', current.phone),
+                    'Each .backup save adds a separate version; nothing is overwritten.');
+            } catch (error) {
+                return reply(`❌ Could not load backup history: ${commandError(error)}`);
+            }
+        }
+
+        let phone;
+        try { phone = normalizePhone(text); } catch (error) { return reply(`❌ ${error.message}\nUse ${prefix}backup <phone>.`); }
+        try {
+            const history = await getBackupHistory(phone);
+            backupSession.set(userId, { phone });
+            if (!history.length) {
+                return sendTable(sock, m.chat, '## 📱 Backup Number Selected', phone, [
+                    ['Saved versions', 'None yet'],
+                    ['Next step', `${prefix}backup save`]
+                ], 'The first save creates a new encrypted version.');
+            }
+            return sendTable(sock, m.chat, '## 🗂️ Existing Backup History', phone,
+                historyRows(history, prefix, 'backup', phone),
+                `Selection saved. Use ${prefix}backup save to add a new version; existing versions stay unchanged.`);
+        } catch (error) {
+            return reply(`❌ Could not connect to backup service: ${commandError(error)}`);
+        }
     }
 };
 
-// ==================== RESTORE ====================
 const restoreCmd = {
     name: 'restore',
     alias: ['loadbackup', 'cloudrestore'],
-    desc: 'Restore your database and settings from cloud backup',
+    desc: 'List encrypted backup versions and restore a selected version',
     category: 'Owner',
     ownerOnly: true,
-    usage: '.restore start | number= | code= | push',
+    usage: '.restore <phone> | .restore load [version] | .restore history',
     reactions: { start: '📥', success: '✅', error: '❔' },
 
     execute: async (sock, m, { args, reply, prefix }) => {
         const userId = m.sender;
-        const fullText = args.join(' ').trim();
-        
-        if (!restoreSession.has(userId)) {
-            restoreSession.set(userId, { phone: '', password: '' });
-        }
-        const session = restoreSession.get(userId);
+        const text = args.join(' ').trim();
+        const current = restoreSession.get(userId) || { phone: '', history: [] };
 
-        // START
-        if (fullText === 'start' || fullText === '') {
-            restoreSession.set(userId, { phone: '', password: '' });
-            return sendTable(sock, m.chat,
-                `## 📥 Cloud Restore`,
-                '📋 Step-by-Step',
-                [
-                    ['📱 Step 1', `${prefix}restore number=2348077528901`],
-                    ['🔐 Step 2', `${prefix}restore code=<password>`],
-                    ['🚀 Step 3', `${prefix}restore push`]
-                ],
-                '💡 Restore your data to any new deployment'
-            );
+        if (!text || text.toLowerCase() === 'help') {
+            return sendTable(sock, m.chat, '## 📥 Cloud Restore', 'Commands', [
+                ['1. List versions', `${prefix}restore 2348077528901`],
+                ['2. Restore latest', `${prefix}restore load`],
+                ['Restore version #N', `${prefix}restore load 2`],
+                ['Refresh history', `${prefix}restore history`]
+            ], 'Restoring replaces matching database files and safe settings on this deployment.');
         }
 
-        // NUMBER
-        if (fullText.startsWith('number=')) {
-            const phone = fullText.split('=')[1].replace(/[^0-9]/g, '');
-            if (phone.length < 7) return reply('`✘ Invalid phone`');
-            
-            try {
-                const res = await axios.post(`${BACKUP_API}/backup/exists`, { phone });
-                
-                if (!res.data.exists) {
-                    restoreSession.delete(userId);
-                    return sendTable(sock, m.chat,
-                        `## ❌ Not Found`,
-                        '🔍 Search Result',
-                        [
-                            ['📱 Phone', phone],
-                            ['📊 Status', 'No backup found']
-                        ],
-                        '💡 Use .backup to create one first'
-                    );
-                }
-
-                session.phone = phone;
-                const date = formatBotDateTime(res.data.timestamp);
-                restoreSession.set(userId, session);
-                
-                return sendTable(sock, m.chat,
-                    `## ✅ Backup Found`,
-                    '📱 Phone Verified',
-                    [
-                        ['📱 Phone', phone],
-                        ['📅 Date', date],
-                        ['📏 Size', res.data.sizeFormatted || 'N/A'],
-                        ['🔐 Next', `${prefix}restore code=<password>`]
-                    ],
-                    '💡 Enter your backup password to continue'
-                );
-            } catch (err) {
-                return reply(`\`❌ ${err.message}\``);
-            }
-        }
-
-        // CODE
-        if (fullText.startsWith('code=')) {
-            const password = fullText.split('=').slice(1).join('=');
-            if (!password) return reply('`✘ Enter password`');
-            session.password = password;
-            restoreSession.set(userId, session);
-            return sendTable(sock, m.chat,
-                `## 🔐 Password Set`,
-                '⚠️ Ready to Restore',
-                [
-                    ['📱 Phone', session.phone],
-                    ['🔐 Password', '••••••••'],
-                    ['🚀 Next', `${prefix}restore push`],
-                    ['⚠️ Warning', 'This overwrites current files!']
-                ],
-                '💡 Make sure you want to replace all current data'
-            );
-        }
-
-        // PUSH
-        if (fullText === 'push') {
-            if (!session.phone) return reply('`✘ .restore number=234xxx first`');
-            if (!session.password) return reply('`✘ .restore code=password first`');
-
-            await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
-
-            try {
-                const loadRes = await axios.post(`${BACKUP_API}/backup/load`, {
-                    phone: session.phone,
-                    password: session.password
-                }, { timeout: 30000 });
-
-                if (!loadRes.data.data) throw new Error('No data received');
-
-                const backupData = loadRes.data.data;
-
-                let dbCount = 0;
-                if (backupData.database) {
-                    const dbDir = path.join(process.cwd(), 'database');
-                    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-                    
-                    for (const [filename, content] of Object.entries(backupData.database)) {
-                        const filePath = path.join(dbDir, filename);
-                        const data = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-                        fs.writeFileSync(filePath, data, 'utf8');
-                        dbCount++;
-                    }
-                }
-
-                if (backupData.env) {
-                    fs.writeFileSync(path.join(process.cwd(), '.env'), backupData.env, 'utf8');
-                }
-
-                await sendTable(sock, m.chat,
-                    `## ✅ Restore Complete!`,
-                    '📥 Data Recovered',
-                    [
-                        ['📱 Phone', session.phone],
-                        ['📂 Database Files', dbCount],
-                        ['📝 .env File', backupData.env ? '✅ Restored' : '⚠️ Not in backup'],
-                        ['🔄 Action', 'Rebooting bot...']
-                    ],
-                    '💡 Bot will restart in 3 seconds'
-                );
-
-                await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-                setTimeout(() => process.exit(0), 3000);
-
-            } catch (err) {
-                console.error('[RESTORE]', err.message);
-                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-                
-                const msg = err.response?.status === 400 ? '🔐 Wrong password!' : err.message;
-                await sock.sendMessage(m.chat, { text: `❌ *Failed*\n\n${msg}` });
-            }
-
+        if (text.toLowerCase() === 'cancel') {
             restoreSession.delete(userId);
-            return;
+            return reply('Restore selection cleared.');
         }
 
-        return sendTable(sock, m.chat,
-            `## 📥 Restore Commands`,
-            '📋 Usage',
-            [
-                ['Start', `${prefix}restore start`],
-                ['Set Number', `${prefix}restore number=234xxx`],
-                ['Set Password', `${prefix}restore code=pass`],
-                ['Download', `${prefix}restore push`]
-            ],
-            '💡 Follow the steps in order'
-        );
-    }
-};
-
-// ==================== BACKUP HISTORY ====================
-const historyLoadSession = new Map();
-
-const historyCmd = {
-    name: 'history',
-    alias: ['backuphistory'],
-    desc: 'List archived cloud backup versions',
-    category: 'Owner',
-    ownerOnly: true,
-    usage: '.history number=2348077528901',
-    reactions: { start: '🗂️', error: '❔' },
-
-    execute: async (sock, m, { args, reply, prefix }) => {
-        const fullText = args.join(' ').trim();
-        if (!fullText || fullText === 'start') {
-            return sendTable(sock, m.chat,
-                '## 🗂️ Backup History',
-                '📋 Usage',
-                [['📱 Number', `${prefix}history number=2348077528901`]],
-                '💡 History is created automatically before each backup overwrite'
-            );
-        }
-        if (!fullText.startsWith('number=')) {
-            return reply(`Use: ${prefix}history number=2348077528901`);
-        }
-        const phone = fullText.split('=').slice(1).join('=').replace(/[^0-9]/g, '');
-        if (phone.length < 7) return reply('`✘ Invalid phone number`');
-        try {
-            const result = await getBackupHistory(phone);
-            const history = Array.isArray(result.history) ? result.history : [];
-            if (!history.length) {
-                return sendTable(sock, m.chat, '## 🗂️ No Archived Backups', '🔍 History',
-                    [['📱 Phone', phone], ['📊 Status', 'No previous versions found']],
-                    '💡 A version is archived when an existing backup is overwritten'
-                );
-            }
-            const rows = history.slice(0, 20).map((item, index) => [
-                `#${index + 1}`,
-                formatBotDateTime(item.timestamp),
-                item.sizeFormatted || 'N/A',
-                `${prefix}history/load number=${phone} timestamp=${Date.parse(item.timestamp)}`
-            ]);
-            return sendTable(sock, m.chat, '## 🗂️ Archived Backups', '📚 Available Versions', rows,
-                '💡 Use history/load with the timestamp and your backup password'
-            );
-        } catch (err) {
-            return reply(`\`❌ ${err.response?.data?.error || err.message}\``);
-        }
-    }
-};
-
-const historyLoadCmd = {
-    name: 'history/load',
-    alias: ['historyload'],
-    desc: 'Restore an archived cloud backup version',
-    category: 'Owner',
-    ownerOnly: true,
-    usage: '.history/load number= | timestamp= | code= | push',
-    reactions: { start: '📥', success: '✅', error: '❔' },
-
-    execute: async (sock, m, { args, reply, prefix }) => {
-        const userId = m.sender;
-        const fullText = args.join(' ').trim();
-        if (!historyLoadSession.has(userId)) historyLoadSession.set(userId, { phone: '', timestamp: '', password: '' });
-        const session = historyLoadSession.get(userId);
-
-        if (fullText === '' || fullText === 'start') {
-            historyLoadSession.set(userId, { phone: '', timestamp: '', password: '' });
-            return sendTable(sock, m.chat, '## 📥 Historical Restore', '📋 Step-by-Step', [
-                ['📱 Step 1', `${prefix}history/load number=2348077528901`],
-                ['🕒 Step 2', `${prefix}history/load timestamp=<timestamp>`],
-                ['🔐 Step 3', `${prefix}history/load code=<password>`],
-                ['🚀 Step 4', `${prefix}history/load push`]
-            ], '⚠️ This overwrites current database files and restarts the bot');
-        }
-        if (fullText.startsWith('number=')) {
-            const phone = fullText.split('=').slice(1).join('=').replace(/[^0-9]/g, '');
-            if (phone.length < 7) return reply('`✘ Invalid phone number`');
-            session.phone = phone;
-            historyLoadSession.set(userId, session);
-            return reply(`✅ Phone set. Next: ${prefix}history/load timestamp=<timestamp>`);
-        }
-        if (fullText.startsWith('timestamp=')) {
-            const timestamp = fullText.split('=').slice(1).join('=').trim();
-            if (!/^\d{10,}$/.test(timestamp)) return reply('`✘ Timestamp must be the numeric value shown by /history`');
-            session.timestamp = timestamp;
-            historyLoadSession.set(userId, session);
-            return reply(`✅ Version selected. Next: ${prefix}history/load code=<password>`);
-        }
-        if (fullText.startsWith('code=')) {
-            const password = fullText.split('=').slice(1).join('=');
-            if (!password) return reply('`✘ Enter password`');
-            session.password = password;
-            historyLoadSession.set(userId, session);
-            return reply(`✅ Password set. Next: ${prefix}history/load push`);
-        }
-        if (fullText === 'push') {
-            if (!session.phone) return reply(`\`✘ ${prefix}history/load number=234xxx first\``);
-            if (!session.timestamp) return reply(`\`✘ ${prefix}history/load timestamp=<timestamp> first\``);
-            if (!session.password) return reply(`\`✘ ${prefix}history/load code=<password> first\``);
-            await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
+        if (text.toLowerCase() === 'history') {
+            if (!current.phone) return reply(`Choose a phone first: ${prefix}restore <phone>`);
             try {
-                const loaded = await loadHistoricalBackup(session.phone, session.password, session.timestamp);
-                if (!loaded.data) throw new Error(loaded.error || 'No data received');
-                const result = restoreBackupFiles(loaded.data);
-                await sendTable(sock, m.chat, '## ✅ Historical Restore Complete!', '📥 Data Recovered', [
-                    ['📱 Phone', session.phone],
-                    ['🕒 Version', formatBotDateTime(loaded.timestamp)],
-                    ['📂 Database Files', result.dbCount],
-                    ['📝 .env File', result.env ? '✅ Restored' : '⚠️ Not in backup'],
-                    ['🔄 Action', 'Rebooting bot...']
-                ], '💡 Bot will restart in 3 seconds');
-                await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-                setTimeout(() => process.exit(0), 3000);
-            } catch (err) {
-                console.error('[HISTORY RESTORE]', err.message);
-                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-                const msg = err.response?.status === 400 ? (err.response?.data?.error || 'Wrong password!') : err.message;
-                await sock.sendMessage(m.chat, { text: `❌ *Failed*\n\n${msg}` });
+                current.history = await getBackupHistory(current.phone);
+                restoreSession.set(userId, current);
+                if (!current.history.length) return reply(`No backup versions found for ${current.phone}.`);
+                return sendTable(sock, m.chat, '## 🗂️ Restore History', current.phone,
+                    historyRows(current.history, prefix, 'restore', current.phone),
+                    `Use ${prefix}restore load for latest, or ${prefix}restore load <number> for a listed version.`);
+            } catch (error) {
+                return reply(`❌ Could not load backup history: ${commandError(error)}`);
             }
-            historyLoadSession.delete(userId);
-            return;
         }
-        return reply(`\`Use ${prefix}history/load for instructions\``);
+
+        if (/^load(?:\s|$)/i.test(text)) {
+            const selector = text.replace(/^load\s*/i, '').trim();
+            if (!current.phone) return reply(`Choose a phone first: ${prefix}restore <phone>`);
+            let history = current.history;
+            try {
+                if (!history.length) history = await getBackupHistory(current.phone);
+                if (!history.length) return reply(`No backup versions found for ${current.phone}.`);
+                let selected;
+                if (!selector) selected = history[0];
+                else if (/^\d+$/.test(selector)) selected = history[Number(selector) - 1];
+                else selected = history.find(item => item.backupId === selector);
+                if (!selected) return reply(`Version not found. Use ${prefix}restore ${current.phone} to list available versions.`);
+
+                await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
+                const config = getBackupConfig();
+                const response = await backupApiPost('/restore/load', {
+                    phone: current.phone,
+                    backupId: selected.backupId,
+                    password: config.password
+                });
+                if (!response.data?.data || typeof response.data.data !== 'object') throw new Error('No backup data received.');
+                const result = restoreBackupFiles(response.data.data);
+                await sendTable(sock, m.chat, '## ✅ Restore Complete', 'Selected version', [
+                    ['📱 Phone', current.phone],
+                    ['🆔 Version', response.data.backupId || selected.backupId],
+                    ['📅 Saved', formatBotDateTime(response.data.timestamp || selected.timestamp)],
+                    ['📂 Database JSON files', result.dbCount],
+                    ['⚙️ Safe settings', result.env ? 'Merged; secrets/session values kept local' : 'No safe settings in this version'],
+                    ['🔐 Session data', 'Not included or restored'],
+                    ['🔄 Action', 'Restarting bot shortly']
+                ], 'Matching database JSON files are replaced. Files absent from the backup are left as they are.');
+                await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+                restoreSession.delete(userId);
+                setTimeout(() => process.exit(0), 3000);
+                return;
+            } catch (error) {
+                console.error('[RESTORE]', error.message);
+                await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
+                return reply(`❌ Restore failed: ${commandError(error)}`);
+            }
+        }
+
+        let phone;
+        try { phone = normalizePhone(text); } catch (error) { return reply(`❌ ${error.message}\nUse ${prefix}restore <phone>.`); }
+        try {
+            const history = await getBackupHistory(phone);
+            restoreSession.set(userId, { phone, history });
+            if (!history.length) return reply(`No backup versions found for ${phone}.`);
+            return sendTable(sock, m.chat, '## 🗂️ Available Restore Versions', phone,
+                historyRows(history, prefix, 'restore', phone),
+                `Use ${prefix}restore load for latest, or ${prefix}restore load <number> for an older version.`);
+        } catch (error) {
+            return reply(`❌ Could not connect to backup service: ${commandError(error)}`);
+        }
     }
 };
 
-// ==================== EXPORT ====================
-module.exports = [backupCmd, restoreCmd, historyCmd, historyLoadCmd];
+module.exports = [backupCmd, restoreCmd];
+module.exports.helpers = {
+    collectBackupData,
+    collectDatabaseFiles,
+    sanitizeEnvironment,
+    sanitizeObject,
+    isSafeDatabaseFilename,
+    restoreBackupFiles,
+    getBackupConfig,
+    getBackupApiConfig
+};
