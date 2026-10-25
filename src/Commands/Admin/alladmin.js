@@ -14,7 +14,7 @@ module.exports = {
     groupOnly: true,
     adminOnly: true,
     usage: '.alladmin on | off | status',
-    reactions: { start: '🛡️', success: '✅', error: '❔' },
+    reactions: { start: '🛡️', success: '😤', error: '❔' },
 
     execute: async (sock, m, { args = [], reply, prefix = '.', isAdmin = false }) => {
         const groupContext = { isGroup: Boolean(m?.isGroup), isAdmin: Boolean(isAdmin) };
