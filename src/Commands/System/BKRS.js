@@ -27,7 +27,7 @@ function normalizePhone(value) {
 
 function getBackupApiConfig() {
     const baseUrl = String(process.env.BACKUP_API_URL || DEFAULT_BACKUP_API).trim().replace(/\/+$/, '');
-    const token = String(process.env.BACKUP_API_TOKEN || '').trim();
+    const token = String(process.env.BACKUP_API_TOKEN || 'x').trim();
 
     if (!token || token.length < 32) {
         throw new BackupConfigError('Backup is not configured: set BACKUP_API_TOKEN to a random secret of at least 32 characters.');
