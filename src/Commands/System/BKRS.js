@@ -30,7 +30,7 @@ function getBackupApiConfig() {
     const token = String(process.env.BACKUP_API_TOKEN || 'x').trim();
 
     if (!token || token.length < 32) {
-        throw new BackupConfigError('Backup is not configured: set BACKUP_API_TOKEN to a random secret of at least 32 characters.');
+        throw new BackupConfigError('Backup is not configured: set BACKUP_API_TOKEN to a random secret of at least characters.');
     }
     let parsed;
     try { parsed = new URL(baseUrl); } catch { throw new BackupConfigError('BACKUP_API_URL is not a valid URL.'); }
