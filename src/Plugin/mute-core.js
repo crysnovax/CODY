@@ -7,7 +7,7 @@ const path = require('path');
 const cron = require('node-cron');
 const { getCronOptions } = require('../Utils/timezone');
 
-const SCHEDULE_FILE = path.join(process.cwd(), 'database', 'mute-schedules.json');
+const SCHEDULE_FILE = process.env.CODY_MUTE_SCHEDULE_FILE || path.join(process.cwd(), 'database', 'mute-schedules.json');
 
 let schedules = [];
 let activeCrons = {};
@@ -68,7 +68,7 @@ function setupMuteSchedules(sock) {
                     await sock.groupSettingUpdate(sch.group, sch.action === 'mute' ? 'announcement' : 'not_announcement');
                     await sock.sendMessage(sch.group, {
                         text: sch.action === 'mute'
-                            ? '🔇 _Group auto-muted (scheduled)_'
+                            ? `🔇 _Group auto-muted (scheduled)_${sch.reason ? `\nReason: ${sch.reason}` : ''}`
                             : '🔊 _Group auto-unmuted (scheduled)_'
                     });
                     if (sch.once) {

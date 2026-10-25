@@ -252,7 +252,15 @@ setupPromotionGuard(sock);
 
     sock.ev.on('messages.upsert', async (chatUpdate) => {
         try {
-            const mek = chatUpdate.messages[0];
+            const upsertedMessages = Array.isArray(chatUpdate?.messages) ? chatUpdate.messages : [];
+            for (const incoming of upsertedMessages) {
+                try {
+                    require('./library/quoted.js').cacheMessage?.(incoming);
+                } catch (err) {
+                    console.error('[DELETED MESSAGE CACHE ERROR]', err?.message || err);
+                }
+            }
+            const mek = upsertedMessages[0];
             if (!mek || !mek.message) return;
             if (mek.key?.remoteJid === 'status@broadcast') {
                 try {

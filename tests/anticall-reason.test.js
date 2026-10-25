@@ -54,6 +54,13 @@ test('anticall reason command saves the full custom rejection text', async () =>
     });
     assert.equal(manager.loadConfig().reason, 'Please do not call');
     assert.match(replies[0], /Please do not call/);
+
+    const sock = mappedSocket();
+    const runtimeConfig = manager.loadConfig();
+    runtimeConfig.enabled = true;
+    const result = await manager.handleIncomingCall(sock, { status: 'offer', id: 'custom-reason-1', from: phone }, runtimeConfig);
+    assert.equal(result.reason, 'Please do not call');
+    assert.deepEqual(sock.sent, [{ jid: phone, content: { text: 'Please do not call' } }]);
 });
 
 test('a blacklisted phone/LID match gets the configured reason even when unknown blocking is off', async () => {
@@ -102,4 +109,20 @@ test('unknown callers receive unknownReason while whitelist identity variants ar
     assert.equal(allowed.whitelisted, true);
     assert.deepEqual(whitelistSock.rejected, []);
     assert.deepEqual(whitelistSock.sent, []);
+});
+
+test('default unknown reason is preserved and an explicit unknownReason overrides the general reason', async () => {
+    const defaultSock = mappedSocket();
+    const defaultResult = await manager.handleIncomingCall(defaultSock, { status: 'offer', id: 'default-unknown-1', from: phone }, config({ enabled: true }));
+    assert.equal(defaultResult.reason, manager.defaultConfig.unknownReason);
+    assert.equal(defaultSock.sent[0].content.text, manager.defaultConfig.unknownReason);
+
+    const overrideSock = mappedSocket();
+    const overrideResult = await manager.handleIncomingCall(overrideSock, { status: 'offer', id: 'override-unknown-1', from: phone }, config({
+        enabled: true,
+        reason: 'General custom reason',
+        unknownReason: 'Dedicated unknown reason',
+    }));
+    assert.equal(overrideResult.reason, 'Dedicated unknown reason');
+    assert.equal(overrideSock.sent[0].content.text, 'Dedicated unknown reason');
 });

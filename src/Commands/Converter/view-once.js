@@ -66,6 +66,31 @@ function findMedia(content, seen = new WeakSet()) {
   return null;
 }
 
+function findViewOnceText(content, seen = new WeakSet()) {
+  if (!content || typeof content !== 'object' || seen.has(content)) return '';
+  seen.add(content);
+  if (typeof content.conversation === 'string' && content.conversation.trim()) return content.conversation;
+  if (typeof content.extendedTextMessage?.text === 'string' && content.extendedTextMessage.text.trim()) return content.extendedTextMessage.text;
+  if (typeof content.textMessage?.text === 'string' && content.textMessage.text.trim()) return content.textMessage.text;
+  for (const [key, value] of Object.entries(content)) {
+    if (key === 'contextInfo' || key === 'quotedMessage') continue;
+    const found = findViewOnceText(value, seen);
+    if (found) return found;
+  }
+  return '';
+}
+
+function buildMediaPayload(type, buffer, media, caption) {
+  switch (type) {
+    case 'imageMessage': return { image: buffer, caption };
+    case 'videoMessage': return { video: buffer, caption, gifPlayback: media?.gifPlayback || false };
+    case 'audioMessage': return { audio: buffer, mimetype: media?.mimetype || 'audio/ogg', ptt: media?.ptt || false };
+    case 'documentMessage': return { document: buffer, mimetype: media?.mimetype || 'application/octet-stream', fileName: media?.fileName || 'view-once-file', caption };
+    case 'stickerMessage': return { sticker: buffer };
+    default: return null;
+  }
+}
+
 // Only the message the member actually sent may drive AutoVV. A reply carries
 // the quoted message inside contextInfo.quotedMessage, so without this the hook
 // fired on every reply to a view-once message and forwarded unrelated media.
@@ -91,7 +116,7 @@ async function downloadMedia(content) {
   const stream = await downloadContentFromMessage(media, type.replace('Message', '').toLowerCase());
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
-  return { type, buffer: Buffer.concat(chunks) };
+  return { type, media, buffer: Buffer.concat(chunks) };
 }
 
 module.exports = {
@@ -149,10 +174,13 @@ module.exports = {
       }
 
       const found = findMedia(quoted);
-
-      // ───── SUPPORTED TYPES ─────
       if (!found) {
-        return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ Only view-once media/audio supported.\n╰──────────────────');
+        const text = findViewOnceText(quoted);
+        if (!text) return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ No supported text or media found.\n╰──────────────────');
+        if (cmd === vvpCmd) await sock.sendMessage(sender, { text });
+        else await sock.sendMessage(m.chat, { text }, { quoted: m });
+        await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } }).catch(() => {});
+        return;
       }
       const type = found.type;
 
@@ -167,32 +195,21 @@ module.exports = {
         buffer = Buffer.concat([buffer, chunk]);
       }
 
-      // ───── MAP TYPE TO SEND TYPE ─────
-      const sendType =
-        type === 'videoMessage'
-          ? 'video'
-          : type === 'imageMessage'
-          ? 'image'
-          : type === 'stickerMessage'
-          ? 'sticker'
-          : type === 'audioMessage'
-          ? 'audio'
-          : null;
+      const payload = buildMediaPayload(
+        type,
+        buffer,
+        found.media,
+        `╭─❍ *CRYSNOVA AI V2.0*\n│ ✓ View-once unlocked.\n╰──────────────────`
+      );
+      if (!payload) return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ Unsupported type.\n╰──────────────────');
 
-      if (!sendType) return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ Unsupported type.\n╰──────────────────');
-
-      // ───── PRIVATE (.vvp) ─────
       if (cmd === vvpCmd) {
-        await sock.sendMessage(sender, { [sendType]: buffer });
+        await sock.sendMessage(sender, payload);
         await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } }).catch(() => {});
         return;
       }
 
-      // ───── NORMAL (.vv) ─────
-      await sock.sendMessage(m.chat, {
-        [sendType]: buffer,
-        caption: `╭─❍ *CRYSNOVA AI V2.0*\n│ ✓ View-once unlocked.\n╰──────────────────`
-      }, { quoted: m });
+      await sock.sendMessage(m.chat, payload, { quoted: m });
 
       // ───── ATTACH REACTION LISTENER ONCE ─────
       if (!listenerAttached) {
@@ -212,7 +229,11 @@ module.exports = {
 
             const content = unwrapViewOnce(msg.message);
             const reacted = findMedia(content);
-            if (!reacted) return;
+            if (!reacted) {
+              const text = findViewOnceText(content);
+              if (text) await sock.sendMessage(reactor, { text });
+              return;
+            }
             const t = reacted.type;
 
             const s = await downloadContentFromMessage(
@@ -225,23 +246,13 @@ module.exports = {
               buf = Buffer.concat([buf, chunk]);
             }
 
-            const st =
-              t === 'videoMessage'
-                ? 'video'
-                : t === 'imageMessage'
-                ? 'image'
-                : t === 'stickerMessage'
-                ? 'sticker'
-                : t === 'audioMessage'
-                ? 'audio'
-                : null;
-
-            if (!st) return;
-
-            await sock.sendMessage(reactor, {
-              [st]: buf,
-              caption: `╭─❍ *CRYSNOVA AI V2.0*\n│ ✓ View-once saved via reaction ${reactedEmoji}\n╰──────────────────`
-            });
+            const payload = buildMediaPayload(
+              t,
+              buf,
+              reacted.media,
+              `╭─❍ *CRYSNOVA AI V2.0*\n│ ✓ View-once saved via reaction ${reactedEmoji}\n╰──────────────────`
+            );
+            if (payload) await sock.sendMessage(reactor, payload);
 
           } catch {}
         });
@@ -301,7 +312,11 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
       media = await downloadMedia(unwrapViewOnce(ownMsg));
     }
 
-    if (!media) {
+    const viewOnceText = findViewOnceText(rawEnvelope) ||
+      findViewOnceText(unwrapViewOnce(ownMessage)) ||
+      findViewOnceText(unwrapViewOnce(ownMsg));
+
+    if (!media && !viewOnceText) {
       if (messageId) processedAutoVV.delete(messageId);
       return false;
     }
@@ -317,8 +332,13 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
       || senderCandidates.find(jid => String(jid).endsWith('@s.whatsapp.net'))
       || senderCandidates[0];
     if (!recipient) return false;
-    const sendType = media.type.replace('Message', '').toLowerCase();
-    await sock.sendMessage(recipient, { [sendType]: media.buffer, ...(sendType === 'document' ? { fileName: 'view-once-document' } : {}) });
+    if (media) {
+      const payload = buildMediaPayload(media.type, media.buffer, media.media, '');
+      if (!payload) return false;
+      await sock.sendMessage(recipient, payload);
+    } else {
+      await sock.sendMessage(recipient, { text: viewOnceText });
+    }
     if (chat.endsWith('@g.us') && (typeof sock.sendMessage === 'function')) {
       await sock.sendMessage(chat, { delete: m?.key || mek?.key }).catch(() => {});
     }

@@ -109,6 +109,19 @@ function isWithinSchedule(schedule) {
     return true;
 }
 
+function getUnknownCallReason(config) {
+    const configuredUnknownReason = typeof config.unknownReason === 'string' &&
+        config.unknownReason.trim() && config.unknownReason !== defaultConfig.unknownReason
+        ? config.unknownReason
+        : null;
+    const configuredReason = typeof config.reason === 'string' &&
+        config.reason.trim() && config.reason !== defaultConfig.reason
+        ? config.reason
+        : null;
+
+    return configuredUnknownReason || configuredReason || config.unknownReason || defaultConfig.unknownReason;
+}
+
 async function sendCallRejection(sock, call, reason) {
     let rejected = false;
     try {
@@ -194,7 +207,7 @@ async function handleIncomingCall(sock, call, config) {
         return { blocked: false, callerJid, outsideSchedule: true };
     }
 
-    const reason = config.unknownReason || config.reason || defaultConfig.reason;
+    const reason = getUnknownCallReason(config);
     const delivery = await sendCallRejection(sock, call, reason);
     return { blocked: true, unknown: true, callerJid, reason, ...delivery };
 }
