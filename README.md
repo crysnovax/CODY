@@ -589,9 +589,8 @@ CODY stores encrypted, versioned backups in the BAKNEW Cloudflare Worker. Config
 
 - `BACKUP_API_URL=https://bk.crysnovax.com`
 - `BACKUP_API_TOKEN` — the same random 32+ character token configured as the Worker secret.
-- `BACKUP_ENCRYPTION_PASSWORD` — a separate private password of at least 12 characters. Keep it stable; changing it prevents decryption of earlier backups.
 
-Commands are owner-only. Use `.backup <phone>` to select a number and show its saved versions, then `.backup save` to append a new version. Use `.backup history` to refresh that list. Use `.restore <phone>` to view available versions, then `.restore load` for the latest or `.restore load <number>` for the numbered older version. Saves do not overwrite earlier versions. Restoring replaces matching database JSON files and merges backed-up non-secret settings into the local `.env`.
+Commands are owner-only. Use `.backup <phone>` to select a number and show its saved versions, then `.backup save` to append a new version. Use `.backup history` to refresh that list. Use `.restore <phone>` to view available versions, then `.restore load` for the latest or `.restore load <number>` for the numbered older version. Saves do not overwrite earlier versions. The Worker encrypts data server-side using its stable `BACKUP_NAMESPACE_KEY`; CODY does not need or send a separate backup password. Restoring replaces matching database JSON files and merges backed-up non-secret settings into the local `.env`.
 
 Session directories, WhatsApp credentials/auth-state files, session-ID fields, and sensitive `.env` entries such as API keys, tokens, passwords, and secrets are excluded from backup and restore. The live CODY session and deployment secrets stay local to the deployment.
 

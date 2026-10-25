@@ -47,11 +47,10 @@ async function withTempRoot(fn) {
 }
 
 async function withBackupEnvironment(fn) {
-    const names = ['BACKUP_API_URL', 'BACKUP_API_TOKEN', 'BACKUP_ENCRYPTION_PASSWORD'];
+    const names = ['BACKUP_API_URL', 'BACKUP_API_TOKEN'];
     const before = Object.fromEntries(names.map(name => [name, process.env[name]]));
     process.env.BACKUP_API_URL = 'https://bk.crysnovax.com';
     process.env.BACKUP_API_TOKEN = 'test-api-token-'.padEnd(64, 'a');
-    process.env.BACKUP_ENCRYPTION_PASSWORD = 'test-private-encryption-password';
     try {
         return await fn();
     } finally {
@@ -79,7 +78,6 @@ function writeFixture(root) {
         'SESSION_NAME=sessions',
         'OPENAI_API_KEY=must-not-be-backed-up',
         'BACKUP_API_TOKEN=must-not-be-backed-up',
-        'BACKUP_ENCRYPTION_PASSWORD=must-not-be-backed-up',
         ''
     ].join('\n'));
 }
@@ -121,7 +119,7 @@ test('backup selects a phone and appends a version through BAKNEW with session f
             assert.equal(requests[0].options.headers.Authorization, `Bearer ${process.env.BACKUP_API_TOKEN}`);
             const payload = requests[1].payload;
             assert.equal(payload.phone, '2348077528901');
-            assert.equal(payload.password, 'test-private-encryption-password');
+            assert.equal(Object.hasOwn(payload, 'password'), false);
             assert.equal(payload.data.database['nested/user-config.json'], JSON.stringify({ bot: { prefix: '!', name: 'CODY test' } }));
             assert.equal(payload.data.database['runtime-config.json'], JSON.stringify({ PREFIX: '!' }));
             assert.equal(payload.data.database['sessions/creds.json'], undefined);
@@ -170,7 +168,7 @@ test('restore lists versions and loads the requested older version without resto
                 'https://bk.crysnovax.com/restore/load'
             ]);
             assert.equal(requests[1].payload.backupId, 'version-older');
-            assert.equal(requests[1].payload.password, 'test-private-encryption-password');
+            assert.equal(Object.hasOwn(requests[1].payload, 'password'), false);
             assert.equal(fs.readFileSync(path.join(root, 'database', 'nested', 'user-config.json'), 'utf8'), JSON.stringify({ bot: { prefix: '!', name: 'restored' } }));
             assert.equal(fs.existsSync(path.join(root, 'database', 'sessions', 'creds.json')), false);
             const env = fs.readFileSync(path.join(root, '.env'), 'utf8');
@@ -217,16 +215,19 @@ test('restore defaults to newest version and rejects unsafe filenames and exclud
     }));
 });
 
-test('backup configuration requires a valid API token and a separate persistent encryption password', () => {
+test('backup configuration requires only a valid API token; encryption password is not required', () => {
     const beforeToken = process.env.BACKUP_API_TOKEN;
     const beforePassword = process.env.BACKUP_ENCRYPTION_PASSWORD;
     try {
         process.env.BACKUP_API_TOKEN = 'short';
-        process.env.BACKUP_ENCRYPTION_PASSWORD = 'long-enough-password';
+        delete process.env.BACKUP_ENCRYPTION_PASSWORD;
         assert.throws(() => helpers.getBackupConfig(), /BACKUP_API_TOKEN/);
         process.env.BACKUP_API_TOKEN = 'valid-api-token-'.padEnd(64, 'b');
-        process.env.BACKUP_ENCRYPTION_PASSWORD = 'short';
-        assert.throws(() => helpers.getBackupConfig(), /BACKUP_ENCRYPTION_PASSWORD/);
+        process.env.BACKUP_ENCRYPTION_PASSWORD = 'unused-old-setting';
+        assert.deepEqual(helpers.getBackupConfig(), {
+            baseUrl: 'https://bk.crysnovax.com',
+            token: process.env.BACKUP_API_TOKEN
+        });
     } finally {
         if (beforeToken === undefined) delete process.env.BACKUP_API_TOKEN;
         else process.env.BACKUP_API_TOKEN = beforeToken;

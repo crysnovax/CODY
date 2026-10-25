@@ -27,7 +27,7 @@ function normalizePhone(value) {
 
 function getBackupApiConfig() {
     const baseUrl = String(process.env.BACKUP_API_URL || DEFAULT_BACKUP_API).trim().replace(/\/+$/, '');
-    const token = String(process.env.BACKUP_API_TOKEN || 'x').trim();
+    const token = String(process.env.BACKUP_API_TOKEN || '').trim();
 
     if (!token || token.length < 32) {
         throw new BackupConfigError('Backup is not configured: set BACKUP_API_TOKEN to a random secret of at least 32 characters.');
@@ -40,16 +40,8 @@ function getBackupApiConfig() {
     return { baseUrl, token };
 }
 
-function getEncryptionPassword() {
-    const password = String(process.env.BACKUP_ENCRYPTION_PASSWORD || 'x');
-    if (password.length < 12) {
-        throw new BackupConfigError('Backup encryption is not configured: set BACKUP_ENCRYPTION_PASSWORD to a private password of at least 12 characters.');
-    }
-    return password;
-}
-
 function getBackupConfig() {
-    return { ...getBackupApiConfig(), password: getEncryptionPassword() };
+    return getBackupApiConfig();
 }
 
 async function backupApiPost(endpoint, payload) {
@@ -231,14 +223,12 @@ const backupCmd = {
 
         if (text.toLowerCase() === 'save') {
             if (!current.phone) return reply(`Select a phone first: ${prefix}backup <phone>`);
-            let config;
-            try { config = getBackupConfig(); } catch (error) { return reply(`❌ ${error.message}`); }
+            try { getBackupConfig(); } catch (error) { return reply(`❌ ${error.message}`); }
             await sock.sendMessage(m.chat, { react: { text: '💾', key: m.key } });
             try {
                 const data = collectBackupData();
                 const response = await backupApiPost('/backup/save', {
                     phone: current.phone,
-                    password: config.password,
                     data
                 });
                 backupSession.set(userId, current);
@@ -351,11 +341,9 @@ const restoreCmd = {
                 if (!selected) return reply(`Version not found. Use ${prefix}restore ${current.phone} to list available versions.`);
 
                 await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
-                const config = getBackupConfig();
                 const response = await backupApiPost('/restore/load', {
                     phone: current.phone,
-                    backupId: selected.backupId,
-                    password: config.password
+                    backupId: selected.backupId
                 });
                 if (!response.data?.data || typeof response.data.data !== 'object') throw new Error('No backup data received.');
                 const result = restoreBackupFiles(response.data.data);
