@@ -6,6 +6,7 @@ const DB_PATH = path.join(process.cwd(), 'database', 'antispam.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antispam_warns.json');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 // Spam tracking cache (in-memory, cleared on restart)
 const messageCache = new Map(); // group: { userId: { count, firstTime, lastTime } }
@@ -180,6 +181,8 @@ module.exports.handleAntiSpam = async function(sock, m) {
         const db    = loadDB();
         const group = m.chat;
         if (!db[group]?.enabled) return;
+        const adminwatchEnabled = isAdminwatchEnabled(group, 'antispam');
+        if (!await shouldApplyAdminwatch(sock, m, 'antispam')) return;
 
         const sender = m.sender;
         if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
@@ -229,10 +232,15 @@ module.exports.handleAntiSpam = async function(sock, m) {
             let auditAction = action;
             // Check admin exemption
             const meta = await sock.groupMetadata(group).catch(() => null);
+            if (adminwatchEnabled && !meta?.participants) {
+                userData.count = 0;
+                userData.firstTime = now;
+                return;
+            }
             if (meta) {
                 const admins = meta.participants.filter(p => p.admin).map(p => norm(p.id));
                 const senderNorm = norm(sender);
-                if (admins.includes(senderNorm)) {
+                if (!adminwatchEnabled && admins.includes(senderNorm)) {
                     // Admin exempt - reset count
                     userData.count = 0;
                     return;

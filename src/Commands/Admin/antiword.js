@@ -3,6 +3,7 @@ const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antiword.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antiword_warns.json');
@@ -200,6 +201,8 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
         const cfg = db[group];
         if (!cfg?.enabled) return;
         if (!cfg.words?.length) return;
+        const adminwatchEnabled = isAdminwatchEnabled(group, 'antiword');
+        if (!await shouldApplyAdminwatch(sock, m, 'antiword')) return;
 
         const text = extractText(m);
         if (!text) return;
@@ -214,7 +217,7 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
         const senderNorm = (sender || '').replace(/:\d+@/, '@');
-        if (admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
 

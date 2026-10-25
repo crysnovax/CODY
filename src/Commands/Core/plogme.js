@@ -427,7 +427,7 @@ const SELF_NAMES = new Set(['plogme', 'plg', 'plog']);
 const RESERVED_CONTROL_COMMANDS = new Set([
     'antis', 'antisystem', 'antimoderation', 'moderation',
     'clearwarn', 'clearwarnings', 'clearallwarns', 'resetallwarns',
-    'alladmin'
+    'alladmin', 'adminwatch', 'admin-watch'
 ]);
 
 // Files that PLOGME refuses to delete — deleting these would brick the bot.

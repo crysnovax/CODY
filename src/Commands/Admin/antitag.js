@@ -4,6 +4,7 @@ const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antitag.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antitag_warns.json');
@@ -203,6 +204,8 @@ module.exports.handleAntiTag = async function(sock, m) {
         const shouldTrigger = hasAllMention || hasNonJid || isHideTag || mentionCount >= minTags;
 
         if (!shouldTrigger) return;
+        const adminwatchEnabled = isAdminwatchEnabled(group, 'antitag');
+        if (!await shouldApplyAdminwatch(sock, m, 'antitag')) return;
 
         // Get group metadata
         const meta = await sock.groupMetadata(group).catch(() => null);
@@ -215,7 +218,7 @@ module.exports.handleAntiTag = async function(sock, m) {
             const identities = [participant.id, participant.jid, participant.lid, participant.phoneNumber].filter(Boolean);
             return identities.some(identity => senderCandidates.some(sender => sameIdentity(identity, sender)));
         });
-        if (senderRecord?.admin) return;
+        if (!adminwatchEnabled && senderRecord?.admin) return;
 
         const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
         if (senderCandidates.some(sender => botCandidates.some(bot => sameIdentity(sender, bot)))) return;

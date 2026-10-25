@@ -4,6 +4,7 @@ const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('./identityUtils')
 const { stripBotMarkerDeep, stripQuotedDeep } = require('./antiText');
 const { isModerationEnabled } = require('./moderationControl');
 const { isAntiPermitted } = require('./antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('./adminwatch');
 
 function readJson(filePath) {
     if (!fs.existsSync(filePath)) return {};
@@ -103,6 +104,8 @@ function createAntiMessageModeration({
                 serialized: sanitize(m)
             };
             if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return false;
+            const adminwatchEnabled = isAdminwatchEnabled(m.chat, command);
+            if (!await shouldApplyAdminwatch(sock, m, command)) return false;
             const config = readJson(dbPath)[m.chat];
             if (!config?.enabled) return false;
             if (!detector(detectionPayload, { m, mek, config, messageId: mek?.key?.id || m?.key?.id })) return false;
@@ -125,7 +128,7 @@ function createAntiMessageModeration({
             if (!senderJid || !senderIdentity) return false;
 
             if (await isAntiPermitted(sock, m.chat, [senderJid, senderIdentity, ...senderCandidates])) return false;
-            if (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin') return false;
+            if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
 
             const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
             const botRecord = metadata.participants.find(participant =>

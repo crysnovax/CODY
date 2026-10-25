@@ -3,6 +3,7 @@ const path = require('path');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antigm.json');
@@ -154,6 +155,8 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
         const db = loadDB();
         const group = m.chat;
         if (!db[group]?.enabled) return;
+        const adminwatchEnabled = isAdminwatchEnabled(group, 'antigm');
+        if (!await shouldApplyAdminwatch(sock, m, 'antigm')) return;
 
         const action = db[group].action || 'delete';
 
@@ -166,7 +169,7 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
             .map(p => p.id.replace(/:\d+@/, '@'));
         const senderNorm = (m.sender || '').replace(/:\d+@/, '@');
         if (await isAntiPermitted(sock, group, [m.sender, m.key?.participant, m.key?.participantAlt])) return;
-        if (admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
 
         const sender = m.sender;
 

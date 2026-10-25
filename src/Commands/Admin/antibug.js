@@ -6,6 +6,7 @@ const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('../../Plugin/iden
 const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 const CONFIG_FILE = path.join(process.cwd(), 'database', 'antibug.json');
 const WARN_FILE = path.join(process.cwd(), 'database', 'antibug_warns.json');
@@ -190,6 +191,8 @@ const plugin = {
   handleAntiBug: async (sock, m, mek) => {
     try {
       if (!m || m.key?.fromMe || !m.chat || (m.isGroup && !isModerationEnabled(m.chat))) return false;
+      const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antibug');
+      if (!await shouldApplyAdminwatch(sock, m, 'antibug')) return false;
       const payload = getRawPayload(m, mek);
       const senderIdentityKey = senderKey(m);
       const followUp = pendingNextMessage.get(senderIdentityKey) === true;
@@ -207,7 +210,7 @@ const plugin = {
       }
       const sender = await resolveSender(sock, m, mek, metadata);
       if (await isAntiPermitted(sock, m.chat, [sender.jid, ...sender.candidates, m.sender])) return false;
-      if (sender.record && isAdminRecord(sender.record)) return false;
+      if (!adminwatchEnabled && sender.record && isAdminRecord(sender.record)) return false;
       const botRecord = metadata?.participants?.find(participant =>
         [participant.id, participant.jid, participant.lid].filter(Boolean).map(normalize)
           .some(id => [sock.user?.id, sock.user?.lid].filter(Boolean).map(normalize).includes(id))
