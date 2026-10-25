@@ -25,20 +25,22 @@ test('moderation master switch defaults on and can be toggled per group', () => 
   }
 });
 
-test('antis and clearwarn expose distinct admin commands', () => {
-  clearRegistry();
-  addCommand(antis);
-  addCommand(clearwarn);
-  assert.equal(getCommand('antis'), antis);
-  assert.equal(getCommand('antisystem'), antis);
-  assert.equal(getCommand('clearwarn'), clearwarn);
-  assert.equal(getCommand('clearallwarns'), clearwarn);
+test('antis, clearwarn, and alladmin expose distinct admin controls', () => {
+    clearRegistry();
+    addCommand(antis);
+    addCommand(clearwarn);
+    addCommand(require('../src/Commands/Admin/alladmin'));
+    assert.equal(getCommand('antis'), antis);
+    assert.equal(getCommand('antisystem'), antis);
+    assert.equal(getCommand('clearwarn'), clearwarn);
+    assert.equal(getCommand('clearallwarns'), clearwarn);
+    assert.equal(getCommand('alladmin').name, 'alladmin');
 });
 
 test('plogme cannot intercept or disable moderation-control commands', () => {
-  for (const name of ['antis', 'antisystem', 'antimoderation', 'moderation', 'clearwarn']) {
+    for (const name of ['antis', 'antisystem', 'antimoderation', 'moderation', 'clearwarn', 'alladmin']) {
     assert.equal(plogme.isCommandToggled(name), false, name);
     assert.equal(plogme.toggleCommand(name, true), false, name);
   }
-  assert.equal(plogme.getToggledList().some(name => name === 'antis' || name === 'antisystem'), false);
+    assert.equal(plogme.getToggledList().some(name => ['antis', 'antisystem', 'alladmin'].includes(name)), false);
 });

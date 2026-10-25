@@ -426,7 +426,8 @@ const SELF_NAMES = new Set(['plogme', 'plg', 'plog']);
 // command-toggle layer. Ignore stale toggle entries from older deployments.
 const RESERVED_CONTROL_COMMANDS = new Set([
     'antis', 'antisystem', 'antimoderation', 'moderation',
-    'clearwarn', 'clearwarnings', 'clearallwarns', 'resetallwarns'
+    'clearwarn', 'clearwarnings', 'clearallwarns', 'resetallwarns',
+    'alladmin'
 ]);
 
 // Files that PLOGME refuses to delete — deleting these would brick the bot.

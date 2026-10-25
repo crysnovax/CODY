@@ -629,6 +629,10 @@ The service runs as a worker process and does not require a public domain.
 
 ## ✦ Command Format
 
+### Group admin command access
+
+In a group, a WhatsApp group admin can use `.alladmin on` to let the admins of that group run regular commands in CODY's **Admin** category without being added to `SUDO_NUMBERS` or being dualed. The setting is saved per group in `database/alladmin.json`. Use `.alladmin status` to check it or `.alladmin off` to turn it off. Only current WhatsApp group admins can change the setting. Commands explicitly marked owner-only or privileged remain protected, and this does not grant WhatsApp admin rights.
+
 ```javascript
 module.exports = {
     name:      'example',

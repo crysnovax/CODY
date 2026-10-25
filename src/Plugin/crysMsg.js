@@ -2,6 +2,7 @@
 const { getCommand, getAll } = require('./crysCmd');
 const { getVar, resolvePrefix } = require('./configManager');
 const { normalizePoolcardButton, normalizePoolcardButtonMessage } = require('./poolcardButtonRouter');
+const { isAllAdminEnabled, hasAllAdminAccess, isAllAdminCommandBlocked, canManageAllAdmin } = require('./allAdminAccess');
 const chalk = require('chalk');
 const fs    = require('fs');
 const path  = require('path');
@@ -288,6 +289,8 @@ const handleMessage = async (sock, m, store) => {
         const cmd = getCommand(cmdName);
         if (!cmd) return;
 
+        const allAdminEnabled = Boolean(m.isGroup && isAllAdminEnabled(m.chat));
+
         let groupMeta, isAdmin, isBotAdmin, isOwnerAdmin;
         if (m.isGroup) {
             groupMeta = await sock.groupMetadata(m.chat).catch(() => null);
@@ -327,12 +330,29 @@ const handleMessage = async (sock, m, store) => {
 
         // MODIFIED: Allow 'appeal' command for everyone even in private mode
         const isPublicCommand = cmdName === 'appeal';
+        const hasAllAdminGroupAccess = hasAllAdminAccess({
+            groupJid: m.chat,
+            isGroup: Boolean(m.isGroup),
+            isAdmin: Boolean(isAdmin),
+            enabled: allAdminEnabled,
+            command: cmd,
+        });
+        const canConfigureAllAdmin = cmd.name === 'alladmin' && canManageAllAdmin({
+            isGroup: Boolean(m.isGroup),
+            isAdmin: Boolean(isAdmin),
+        });
 
-        if (!cfg.status.public && !isSudo && !isDual && !isPublicCommand) {
+        if (!cfg.status.public && !isSudo && !isDual && !isPublicCommand && !hasAllAdminGroupAccess && !canConfigureAllAdmin) {
             if (privateReact) {
                 await sock.sendMessage(m.chat, { react: { text: '⚉', key: m.key } }).catch(() => {});
             }
             return;
+        }
+
+        // When enabled, every non-protected Admin-category command is group-admin-only.
+        // Explicit owner/sudo/privileged flags continue to be checked below.
+        if (isAllAdminCommandBlocked({ enabled: allAdminEnabled, isAdmin: Boolean(isAdmin), command: cmd })) {
+            return reply(cfg.message.admin || 'Admin only!');
         }
 
         // Keep privileged commands silent for unauthorized users. Do not reveal
