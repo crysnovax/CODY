@@ -3,6 +3,7 @@ const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antilink.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antilink_warns.json');
@@ -320,6 +321,8 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
         if (m.key?.fromMe) return;
+        const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antilink');
+        if (!await shouldApplyAdminwatch(sock, m, 'antilink')) return;
 
         const db = loadDB();
         const group = m.chat;
@@ -369,7 +372,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const admins = meta.participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
-        if (admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
         let auditAction = action;

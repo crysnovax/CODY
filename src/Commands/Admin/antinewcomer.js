@@ -5,6 +5,7 @@ const { normalizeJid, resolvePhoneJid } = require('../../Plugin/identityUtils');
 const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { getMessageText, hasLink } = require('./antilink');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
+const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antinewcomer.json');
 function readDB() {
@@ -90,6 +91,8 @@ const plugin = {
             const db = readDB();
             const config = db[m.chat];
             if (!config?.enabled || !Number.isFinite(config.windowMs) || config.windowMs < 1000) return false;
+            const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antinewcomer');
+            if (!await shouldApplyAdminwatch(sock, m, 'antinewcomer')) return false;
             const candidates = [m.key?.participantAlt, mek?.key?.participantAlt, m.sender, m.key?.participant].filter(Boolean);
             const resolved = await resolvePhoneJid(sock, candidates);
             if (resolved) candidates.push(resolved);
@@ -115,7 +118,7 @@ const plugin = {
             const senderRecord = metadata?.participants?.find(participant =>
                 participantIds(participant).some(jid => candidates.map(normalizeJid).includes(jid))
             );
-            if (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin') return false;
+            if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
             const botIds = [sock.user?.id, sock.user?.lid].filter(Boolean).map(normalizeJid);
             const botRecord = metadata?.participants?.find(participant => participantIds(participant).some(jid => botIds.includes(jid)));
             if (!botRecord || !['admin', 'superadmin'].includes(botRecord.admin)) {
