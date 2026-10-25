@@ -107,7 +107,7 @@ module.exports = {
     alias: ['createpoll', 'vote'],
     desc: 'Create a native WhatsApp poll with optional images, expiry, voter privacy, and add-option controls',
     category: 'Group',
-    groupOnly: true,
+    groupOnly: false,
     reactions: { start: '📊', success: '❔' },
     usage: '.poll [multi] Question | Option | Option [--end 8h] [--hide-voter] [--no-add-option]',
 
