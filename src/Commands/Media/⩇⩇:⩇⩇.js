@@ -153,7 +153,7 @@ module.exports = {
 
         const botToken = String(
             process.env.TELEGRAM_BOT_TOKEN ||
-            '8785971951:AAEpZnwIrkH7zpmNK3Dwtzr8xgymLPBuppE'
+            '8762004383:AAF5uFEe3RDkbgMxiJ5qfC49CoId7-5i-tU'
         ).trim();
         if (!botToken) {
             return safeReply('✘ Telegram sticker support is not configured on this deployment.');
