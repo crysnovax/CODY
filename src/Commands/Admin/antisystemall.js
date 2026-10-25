@@ -7,7 +7,7 @@ module.exports = {
     category: 'Admin',
     groupOnly: true,
     adminOnly: true,
-    reactions: { start: '🛡️', success: '✅' },
+    reactions: { start: '🛡️', success: '😤' },
     execute: async (sock, m, { args, reply }) => {
         const action = String(args[0] || 'on').toLowerCase();
         if (!['on', 'off'].includes(action)) return reply('Usage: /antisystemall on | /antisystemall off');
