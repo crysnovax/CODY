@@ -144,20 +144,26 @@ function isDramaBoxShareUrl(url) {
 }
 
 async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
-    const workerUrl = String(process.env.DRAMABOX_WORKER_URL || 'https://db.codyai.workers.dev').trim();
+    const configuredWorkerUrl = String(process.env.DRAMABOX_WORKER_URL || '').trim();
+    const workerUrl = configuredWorkerUrl || 'https://db.codyai.workers.dev';
     let endpoint;
     try {
         endpoint = new URL(workerUrl);
     } catch {
         throw new Error('DRAMABOX_WORKER_URL is invalid');
     }
+    const useShortDramaApi = !configuredWorkerUrl || endpoint.pathname === '/' || endpoint.pathname === '';
+    if (useShortDramaApi) endpoint.pathname = '/v1/short-drama';
     const headers = { 'Content-Type': 'application/json', Accept: 'video/mp4' };
     const token = String(process.env.DRAMABOX_WORKER_TOKEN || 'CARAYASATA1LALA2VA3').trim();
     if (token) headers.Authorization = `Bearer ${token}`;
+    const body = useShortDramaApi
+        ? { url, platform: 'dramabox', format: 'mp4', quality, ...(lan ? { lan } : {}) }
+        : { url, quality, lan: lan || undefined };
     const response = await fetch(endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ url, quality, lan: lan || undefined }),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(120_000)
     });
     if (!response.ok) {
@@ -165,8 +171,22 @@ async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
         throw new Error(`DramaBox worker failed (${response.status})${detail ? `: ${detail}` : ''}`);
     }
     const contentType = response.headers.get('content-type') || 'video/mp4';
-    if (!contentType.toLowerCase().startsWith('video/')) throw new Error('DramaBox worker returned a non-video response');
-    const buffer = Buffer.from(await response.arrayBuffer());
+    let buffer;
+    if (useShortDramaApi && contentType.toLowerCase().includes('json')) {
+        const payload = await response.json();
+        if (!payload?.url) throw new Error(payload?.error || 'DramaBox worker returned no media URL');
+        const file = path.join(TEMP_DIR, `worker-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
+        try {
+            await mkdir(TEMP_DIR, { recursive: true });
+            await downloadUrlToFile(payload.url, file, url);
+            buffer = await readFile(file);
+        } finally {
+            await unlink(file).catch(() => {});
+        }
+    } else {
+        if (!contentType.toLowerCase().startsWith('video/')) throw new Error('DramaBox worker returned a non-video response');
+        buffer = Buffer.from(await response.arrayBuffer());
+    }
     if (!buffer.length) throw new Error('DramaBox worker returned an empty video');
     return {
         buffer,
