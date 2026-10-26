@@ -144,8 +144,7 @@ function isDramaBoxShareUrl(url) {
 }
 
 async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
-    const workerUrl = String(process.env.DRAMABOX_WORKER_URL || '').trim();
-    if (!workerUrl) return null;
+    const workerUrl = String(process.env.DRAMABOX_WORKER_URL || 'https://db.codyai.workers.dev').trim();
     let endpoint;
     try {
         endpoint = new URL(workerUrl);
@@ -153,7 +152,7 @@ async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
         throw new Error('DRAMABOX_WORKER_URL is invalid');
     }
     const headers = { 'Content-Type': 'application/json', Accept: 'video/mp4' };
-    const token = String(process.env.DRAMABOX_WORKER_TOKEN || '').trim();
+    const token = String(process.env.DRAMABOX_WORKER_TOKEN || 'CARAYASATA1LALA2VA3').trim();
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(endpoint, {
         method: 'POST',
