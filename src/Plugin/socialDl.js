@@ -19,6 +19,11 @@ function safeDownloadError(error) {
     return new Error(`social-dl download failed (${code})`);
 }
 
+function isProviderBlocked(error) {
+    return error?.code === 'BOT_DETECTED'
+        || /(?:HTTP_)?403|automated|unusual traffic|challenge|captcha|provider blocked|browser verification/i.test(error?.message || '');
+}
+
 function isExpectedMediaType(detected, expectedType = {}, responseContentType) {
     const contentType = String(responseContentType || '').split(';')[0].trim().toLowerCase();
     const detectedMime = String(detected?.mime || '').toLowerCase();
@@ -174,6 +179,21 @@ async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
     };
 }
 
+async function downloadDramaBoxViaUniversalSave(socialDl, url, options = {}) {
+    const buffer = await saveToBuffer(
+        file => socialDl.universalSave(url, file, options),
+        { extension: 'mp4', audio: false }
+    );
+    return {
+        buffer,
+        title: 'DramaBox video',
+        platform: 'dramabox',
+        mimetype: 'video/mp4',
+        extension: 'mp4',
+        mediaType: 'video'
+    };
+}
+
 async function downloadUniversal(url, { audioOnly = false, noWatermark = false, quality, lan } = {}) {
     const socialDl = await loadSocialDl();
     const dramaBoxShare = isDramaBoxShareUrl(url);
@@ -188,9 +208,17 @@ async function downloadUniversal(url, { audioOnly = false, noWatermark = false, 
     const universalOptions = { audioOnly, noWatermark };
     if (quality) universalOptions.quality = quality;
     if (lan) universalOptions.lan = lan;
-    const info = dramaBoxShare && typeof socialDl.dramafrenDl === 'function'
-        ? await socialDl.dramafrenDl(url, universalOptions)
-        : await socialDl.universalDl(url, universalOptions);
+    let info;
+    try {
+        info = dramaBoxShare && typeof socialDl.dramafrenDl === 'function'
+            ? await socialDl.dramafrenDl(url, universalOptions)
+            : await socialDl.universalDl(url, universalOptions);
+    } catch (error) {
+        if (dramaBoxShare && isProviderBlocked(error) && typeof socialDl.universalSave === 'function') {
+            return downloadDramaBoxViaUniversalSave(socialDl, url, universalOptions);
+        }
+        throw error;
+    }
     const images = imageUrlsFromInfo(info);
     if (info?.mediaType === 'photo' || images.length) return downloadPhotoGallery({ ...info, images }, url);
 
@@ -199,9 +227,9 @@ async function downloadUniversal(url, { audioOnly = false, noWatermark = false, 
     const saveOptions = { audioOnly: isAudio, noWatermark };
     if (quality) saveOptions.quality = quality;
     if (lan) saveOptions.lan = lan;
-    const save = dramaBoxShare && typeof socialDl.dramafrenSave === 'function'
-        ? socialDl.dramafrenSave
-        : socialDl.universalSave;
+    const save = dramaBoxShare && typeof socialDl.universalSave === 'function'
+        ? socialDl.universalSave
+        : (typeof socialDl.dramafrenSave === 'function' ? socialDl.dramafrenSave : socialDl.universalSave);
     const buffer = await saveToBuffer(file => save(url, file, saveOptions), { extension, audio: isAudio });
     return {
         buffer,
