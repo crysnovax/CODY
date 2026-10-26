@@ -194,14 +194,15 @@ test('new social-dl platform commands recognize their provider links', () => {
 
 test('new social-dl platform commands use universal save and deliver video media', async () => {
     for (const [name, label, url] of shortDramaCommands) {
-        const { command, restore } = loadWithStub(`../src/Commands/Downloader/${name}`, 'downloadUniversal', async suppliedUrl => {
+        const { command, restore } = loadWithStub(`../src/Commands/Downloader/${name}`, 'downloadUniversal', async (suppliedUrl, options) => {
             assert.equal(suppliedUrl, url);
+            assert.deepEqual(options, { quality: 'best', lan: 'en' });
             return { buffer: Buffer.from(`${name}-video`), title: `${label} episode`, platform: name, mimetype: 'video/mp4', extension: 'mp4', mediaType: 'video' };
         });
         const { sock, sent } = mockSock();
         const replies = [];
         try {
-            await command.execute(sock, { chat: 'chat', key: {} }, { args: [url], reply: async value => replies.push(value) });
+            await command.execute(sock, { chat: 'chat', key: {} }, { args: [url, '--best', '--lan', 'en'], reply: async value => replies.push(value) });
             const video = sent.find(([, payload]) => payload.video);
             assert.ok(video, `${name} should send a video payload`);
             assert.deepEqual(video[1].video, Buffer.from(`${name}-video`));
@@ -209,6 +210,26 @@ test('new social-dl platform commands use universal save and deliver video media
             assert.deepEqual(replies, []);
         } finally { restore(); }
     }
+});
+
+test('short-drama commands support quality/lang aliases and reject unsupported flags', async () => {
+    const url = shortDramaCommands[0][2];
+    const calls = [];
+    const { command, restore } = loadWithStub('../src/Commands/Downloader/dramabox', 'downloadUniversal', async (suppliedUrl, options) => {
+        calls.push({ suppliedUrl, options });
+        return { buffer: Buffer.from('video'), title: 'DramaBox episode', platform: 'dramabox', mimetype: 'video/mp4', extension: 'mp4', mediaType: 'video' };
+    });
+    const { sock } = mockSock();
+    const replies = [];
+    try {
+        await command.execute(sock, { chat: 'chat', key: {} }, { args: [url, '--quality', '720p', '--lang', 'id', '--no-watermark'], reply: async value => replies.push(value) });
+        assert.deepEqual(calls, [{ suppliedUrl: url, options: { quality: '720p', lan: 'id', noWatermark: true } }]);
+
+        await command.execute(sock, { chat: 'chat', key: {} }, { args: [url, '--unknown'], reply: async value => replies.push(value) });
+        assert.equal(calls.length, 1);
+        assert.match(replies[0], /Unsupported option: --unknown/);
+        assert.match(replies[0], /--best/);
+    } finally { restore(); }
 });
 
 test('HLS and MPD source metadata use an MP4 output extension', () => {
