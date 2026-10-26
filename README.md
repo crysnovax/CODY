@@ -209,7 +209,7 @@
 - **npm** v8+
 - A WhatsApp account (self-bot — runs on your number)
 - Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
-- CODY social-media downloaders use the `social-dl` 1.3.9 candidate pinned to GitHub commit [`3e56354`](https://github.com/crysnovax/social-dl/commit/3e563544813002933cb735a00951f35b3e339991); this candidate is not yet published to npm.
+- CODY social-media downloaders use the published npm package `social-dl@1.3.9`, pinned in `package-lock.json`; installation uses the npm registry and does not require access to the private GitHub repository.
 - Use `.applemusic <URL>`, `.threads <URL>`, `.rednote <URL>`, `.audiomack <URL>`, `.dramabox <URL>`, `.dramafren <URL>`, `.goodshort <URL>`, `.flextv <URL>`, `.moboreels <URL>`, and `.reelshort <URL>`. Apple Music requires a strict external match and falls back to Apple's official preview when no confident match is available. Apple Music catalog search remains available as `.amsearch <query>`.
 - warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
 

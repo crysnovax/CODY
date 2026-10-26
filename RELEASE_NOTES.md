@@ -2,7 +2,7 @@
 
 ## Social downloader integrations
 
-- Pinned `social-dl` to the tested 1.3.9 GitHub candidate commit `3e563544813002933cb735a00951f35b3e339991`; it is not yet published to npm.
+- Updated `social-dl` to the published npm release 1.3.9 and locked its public npm registry tarball; CODY no longer depends on a GitHub source checkout.
 - Added `.dramabox`, `.dramafren`, `.goodshort`, `.flextv`, `.moboreels`, and `.reelshort` downloader commands while keeping the existing Apple Music, Threads, RedNote, and Audiomack commands. The Apple Music catalog search command remains `.amsearch`.
 - Added shared image downloading and multi-image delivery for photo results. TikTok, Pinterest, Threads, and RedNote carousels use a WhatsApp image album when available, with individual-image fallback so no item is silently treated as a video.
 - Updated generic video saves to use an MP4 destination for HLS/MPD sources.
