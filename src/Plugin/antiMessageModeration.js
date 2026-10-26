@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { normalizeJid, resolvePhoneJid, isPhoneJid } = require('./identityUtils');
+const { identityVariants, normalizeJid, participantJids, resolvePhoneJid, isPhoneJid } = require('./identityUtils');
 const { stripBotMarkerDeep, stripQuotedDeep } = require('./antiText');
 const { isModerationEnabled } = require('./moderationControl');
 const { isAntiPermitted } = require('./antiPermit');
@@ -16,14 +16,24 @@ function writeJson(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-function sameUser(first = '', second = '') {
-    return normalizeJid(first) === normalizeJid(second);
-}
+async function findMatchingParticipant(sock, participants, candidates) {
+    const candidateIds = new Set();
+    for (const candidate of candidates.filter(Boolean)) {
+        for (const variant of await identityVariants(sock, candidate)) {
+            candidateIds.add(normalizeJid(variant).toLowerCase());
+        }
+    }
+    if (!candidateIds.size) return null;
 
-function participantJids(participant) {
-    return [participant?.id, participant?.jid, participant?.lid, participant?.phoneNumber]
-        .filter(Boolean)
-        .map(normalizeJid);
+    for (const participant of participants || []) {
+        for (const id of participantJids(participant)) {
+            if (candidateIds.has(normalizeJid(id).toLowerCase())) return participant;
+            for (const variant of await identityVariants(sock, id)) {
+                if (candidateIds.has(normalizeJid(variant).toLowerCase())) return participant;
+            }
+        }
+    }
+    return null;
 }
 
 function createAntiMessageModeration({
@@ -114,9 +124,7 @@ function createAntiMessageModeration({
             if (!metadata?.participants) return false;
 
             const senderCandidates = [m.key?.participantAlt, mek?.key?.participantAlt, m.sender, m.key?.participant];
-            const senderRecord = metadata.participants.find(participant =>
-                participantJids(participant).some(jid => senderCandidates.some(candidate => sameUser(jid, candidate)))
-            );
+            const senderRecord = await findMatchingParticipant(sock, metadata.participants, senderCandidates);
             // LID-first groups can arrive before the LID→PN mapping exists, and
             // resolvePhoneJid then returns null — which silently disabled every
             // anti hook. Fall back to the phone number carried by the group
@@ -131,9 +139,7 @@ function createAntiMessageModeration({
             if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
 
             const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
-            const botRecord = metadata.participants.find(participant =>
-                participantJids(participant).some(jid => botCandidates.some(bot => sameUser(jid, bot)))
-            );
+            const botRecord = await findMatchingParticipant(sock, metadata.participants, botCandidates);
             const botIsAdmin = botRecord?.admin === 'admin' || botRecord?.admin === 'superadmin';
             if (!botIsAdmin) {
                 await sock.sendMessage(m.chat, { text: `${label} cannot remove this content because the bot is not a group admin.` }, { quoted: mek }).catch(() => {});

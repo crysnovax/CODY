@@ -177,7 +177,8 @@ test('shared moderation engine applies antis to eligible admins only while prese
         const { sock } = makeIdentityGroup();
         const sent = [];
         sock.sendMessage = async (_chat, content) => { sent.push(content); return {}; };
-        adminwatch.setAdminwatchAll(group, true);
+        await adminwatch.command.execute(sock, { chat: group }, { args: ['on'], reply: async () => {} });
+        assert.equal(adminwatch.isAdminwatchEnabled(group, 'antibot'), true, 'the global command enables inherited targeting');
         try {
             process.chdir(dir);
             const enginePath = require.resolve('../src/Plugin/antiMessageModeration');
@@ -223,6 +224,58 @@ test('shared moderation engine applies antis to eligible admins only while prese
     }));
 });
 
+test('global adminwatch command reaches anticontact and deletes an admin-sent contact card', async () => {
+    await withEnvironment({ OWNER_NUMBER: '111111', SUDO_NUMBERS: '222222', DUAL_NUMBERS: '333333' }, async () => withTempStore(async (dir) => {
+        const previousCwd = process.cwd();
+        const group = 'anticontact-targets@g.us';
+        const dbDir = path.join(dir, 'database');
+        fs.mkdirSync(dbDir, { recursive: true });
+        fs.writeFileSync(path.join(dbDir, 'anticontact.json'), JSON.stringify({
+            [group]: { enabled: true, action: 'delete' },
+        }));
+        const { sock, participants } = makeIdentityGroup();
+        const targetParticipant = participants.find(participant => participant.id === 'target@lid');
+        targetParticipant.phoneNumber = '444444';
+        const botParticipant = participants.find(participant => participant.id === 'bot@s.whatsapp.net');
+        botParticipant.id = 'bot@lid';
+        const lidMapping = sock.signalRepository.lidMapping;
+        const getPNForLID = lidMapping.getPNForLID;
+        const getLIDForPN = lidMapping.getLIDForPN;
+        lidMapping.getPNForLID = async lid => {
+            if (lid === 'bot@lid') return 'bot@s.whatsapp.net';
+            if (lid === 'target@lid') return null;
+            return getPNForLID(lid);
+        };
+        lidMapping.getLIDForPN = async pn => pn === 'bot@s.whatsapp.net' ? 'bot@lid' : getLIDForPN(pn);
+        const sent = [];
+        sock.sendMessage = async (_chat, content) => { sent.push(content); return {}; };
+        try {
+            process.chdir(dir);
+            await adminwatch.command.execute(sock, { chat: group }, { args: ['on'], reply: async () => {} });
+            assert.equal(adminwatch.isAdminwatchEnabled(group, 'anticontact'), true);
+
+            const antiPath = require.resolve('../src/Commands/Admin/anticontact');
+            delete require.cache[antiPath];
+            const anticontact = require(antiPath);
+            const content = { contactMessage: { displayName: 'Shared contact', vcard: 'BEGIN:VCARD\nVERSION:3.0\nEND:VCARD' } };
+            const message = messageFor(group, 'target@lid');
+            message.message = content;
+            message.msg = content.contactMessage;
+            message.text = '';
+            message.body = '';
+
+            assert.equal(await anticontact.handleAntiContact(sock, message, {
+                key: message.key,
+                message: content,
+                __rawMessage: content,
+            }), true, 'the contact detector and shared moderation hook accept the real contact payload');
+            assert.ok(sent.some(payload => payload.delete), 'the eligible admin contact card is actually deleted');
+        } finally {
+            process.chdir(previousCwd);
+        }
+    }));
+});
+
 test('custom antilink handler targets admins only with adminwatch and leaves per-anti-off behavior unchanged', async () => {
     await withTempStore(async (dir) => {
         const previousCwd = process.cwd();
@@ -235,7 +288,8 @@ test('custom antilink handler targets admins only with adminwatch and leaves per
         const { sock } = makeIdentityGroup();
         const sent = [];
         sock.sendMessage = async (_chat, content) => { sent.push(content); return {}; };
-        adminwatch.setAdminwatchAll(group, true);
+        await adminwatch.command.execute(sock, { chat: group }, { args: ['on'], reply: async () => {} });
+        assert.equal(adminwatch.isAdminwatchEnabled(group, 'antilink'), true, 'the global command enables inherited targeting');
         try {
             process.chdir(dir);
             const linkPath = require.resolve('../src/Commands/Admin/antilink');

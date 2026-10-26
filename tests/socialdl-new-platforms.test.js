@@ -232,6 +232,7 @@ test('short-drama commands support quality/lang aliases and reject unsupported f
     } finally { restore(); }
 });
 
+
 test('HLS and MPD source metadata use an MP4 output extension', () => {
     assert.equal(socialDl.universalOutputExtension({ downloadExtension: 'm3u8' }), 'mp4');
     assert.equal(socialDl.universalOutputExtension({ downloadExtension: 'mpd' }), 'mp4');
