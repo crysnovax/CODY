@@ -130,16 +130,27 @@ function universalOutputExtension(info, isAudio = false) {
     return ['m3u8', 'mpd'].includes(extension) ? 'mp4' : extension;
 }
 
+function isDramaBoxShareUrl(url) {
+    try {
+        return new URL(String(url)).hostname.replace(/^www\./i, '').toLowerCase() === 'sharet.dramabox.com';
+    } catch {
+        return false;
+    }
+}
+
 async function downloadUniversal(url, { audioOnly = false, noWatermark = false, quality, lan } = {}) {
     const socialDl = await loadSocialDl();
-    const platform = socialDl.detectPlatform(url);
+    const dramaBoxShare = isDramaBoxShareUrl(url);
+    const platform = dramaBoxShare ? 'dramafren' : socialDl.detectPlatform(url);
     if (platform === 'applemusic') return downloadAppleMusic(url);
     if (platform === 'audiomack') return downloadAudiomack(url);
     if (platform === 'spotify') return downloadSpotify(url);
     const universalOptions = { audioOnly, noWatermark };
     if (quality) universalOptions.quality = quality;
     if (lan) universalOptions.lan = lan;
-    const info = await socialDl.universalDl(url, universalOptions);
+    const info = dramaBoxShare && typeof socialDl.dramafrenDl === 'function'
+        ? await socialDl.dramafrenDl(url, universalOptions)
+        : await socialDl.universalDl(url, universalOptions);
     const images = imageUrlsFromInfo(info);
     if (info?.mediaType === 'photo' || images.length) return downloadPhotoGallery({ ...info, images }, url);
 
@@ -148,7 +159,10 @@ async function downloadUniversal(url, { audioOnly = false, noWatermark = false, 
     const saveOptions = { audioOnly: isAudio, noWatermark };
     if (quality) saveOptions.quality = quality;
     if (lan) saveOptions.lan = lan;
-    const buffer = await saveToBuffer(file => socialDl.universalSave(url, file, saveOptions), { extension, audio: isAudio });
+    const save = dramaBoxShare && typeof socialDl.dramafrenSave === 'function'
+        ? socialDl.dramafrenSave
+        : socialDl.universalSave;
+    const buffer = await saveToBuffer(file => save(url, file, saveOptions), { extension, audio: isAudio });
     return {
         buffer,
         title: info?.title || '',
@@ -296,5 +310,6 @@ module.exports = {
     saveToBuffer,
     safeDownloadError,
     isExpectedMediaType,
-    universalOutputExtension
+    universalOutputExtension,
+    isDramaBoxShareUrl
 };
