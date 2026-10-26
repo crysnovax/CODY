@@ -130,19 +130,25 @@ function universalOutputExtension(info, isAudio = false) {
     return ['m3u8', 'mpd'].includes(extension) ? 'mp4' : extension;
 }
 
-async function downloadUniversal(url, { audioOnly = false, noWatermark = false } = {}) {
+async function downloadUniversal(url, { audioOnly = false, noWatermark = false, quality, lan } = {}) {
     const socialDl = await loadSocialDl();
     const platform = socialDl.detectPlatform(url);
     if (platform === 'applemusic') return downloadAppleMusic(url);
     if (platform === 'audiomack') return downloadAudiomack(url);
     if (platform === 'spotify') return downloadSpotify(url);
-    const info = await socialDl.universalDl(url, { audioOnly, noWatermark });
+    const universalOptions = { audioOnly, noWatermark };
+    if (quality) universalOptions.quality = quality;
+    if (lan) universalOptions.lan = lan;
+    const info = await socialDl.universalDl(url, universalOptions);
     const images = imageUrlsFromInfo(info);
     if (info?.mediaType === 'photo' || images.length) return downloadPhotoGallery({ ...info, images }, url);
 
     const isAudio = audioOnly || info?.mediaType === 'audio';
     const extension = audioOnly ? 'mp3' : universalOutputExtension(info, isAudio);
-    const buffer = await saveToBuffer(file => socialDl.universalSave(url, file, { audioOnly: isAudio, noWatermark }), { extension, audio: isAudio });
+    const saveOptions = { audioOnly: isAudio, noWatermark };
+    if (quality) saveOptions.quality = quality;
+    if (lan) saveOptions.lan = lan;
+    const buffer = await saveToBuffer(file => socialDl.universalSave(url, file, saveOptions), { extension, audio: isAudio });
     return {
         buffer,
         title: info?.title || '',
