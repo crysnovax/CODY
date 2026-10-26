@@ -192,7 +192,7 @@ async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
         buffer,
         title: response.headers.get('x-dramabox-title') || 'DramaBox video',
         platform: 'dramabox',
-        mimetype: contentType.split(';')[0],
+        mimetype: 'video/mp4',
         extension: 'mp4',
         mediaType: 'video'
     };
