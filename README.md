@@ -155,7 +155,7 @@
 
 - YouTube (audio + video), Spotify, TikTok
 - Facebook, Instagram, Pinterest
-- Apple Music, Threads, RedNote/Xiaohongshu, Audiomack
+- Apple Music, Threads, RedNote/Xiaohongshu, Audiomack, DramaBox/DramaFren, GoodShort, FlexTV, MoboReels, and ReelShort
 - TikTok photo carousels, Pinterest images, Threads photo posts/carousels, and RedNote/Xiaohongshu photo carousels are delivered as images; multi-image posts use a WhatsApp album when supported, with individual-image fallback.
 - APK downloader, Mediafire, direct links
 - Shazam song recognition + download
@@ -209,8 +209,8 @@
 - **npm** v8+
 - A WhatsApp account (self-bot — runs on your number)
 - Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
-- CODY social-media downloaders use the `social-dl` npm package; the lockfile now resolves the current 1.3.7 release.
-- Use `.applemusic <URL>`, `.threads <URL>`, `.rednote <URL>`, and `.audiomack <URL>` to download those platforms. Apple Music requires a strict external match and falls back to Apple's official preview when no confident match is available. Apple Music catalog search remains available as `.amsearch <query>`.
+- CODY social-media downloaders use the published npm package `social-dl@1.3.9`, pinned in `package-lock.json`; installation uses the npm registry and does not require access to the private GitHub repository.
+- Use `.applemusic <URL>`, `.threads <URL>`, `.rednote <URL>`, `.audiomack <URL>`, `.dramabox <URL>`, `.dramafren <URL>`, `.goodshort <URL>`, `.flextv <URL>`, `.moboreels <URL>`, and `.reelshort <URL>`. Apple Music requires a strict external match and falls back to Apple's official preview when no confident match is available. Apple Music catalog search remains available as `.amsearch <query>`.
 - warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
 
 ---

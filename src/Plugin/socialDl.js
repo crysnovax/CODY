@@ -124,6 +124,12 @@ async function downloadYouTube(url, { audioOnly = false } = {}) {
     return { buffer, title: undefined, mimetype: audioOnly ? 'audio/mpeg' : 'video/mp4', extension: type.extension, mediaType: audioOnly ? 'audio' : 'video' };
 }
 
+function universalOutputExtension(info, isAudio = false) {
+    if (isAudio) return info?.downloadExtension || 'mp3';
+    const extension = String(info?.downloadExtension || 'mp4').toLowerCase();
+    return ['m3u8', 'mpd'].includes(extension) ? 'mp4' : extension;
+}
+
 async function downloadUniversal(url, { audioOnly = false, noWatermark = false } = {}) {
     const socialDl = await loadSocialDl();
     const platform = socialDl.detectPlatform(url);
@@ -135,7 +141,7 @@ async function downloadUniversal(url, { audioOnly = false, noWatermark = false }
     if (info?.mediaType === 'photo' || images.length) return downloadPhotoGallery({ ...info, images }, url);
 
     const isAudio = audioOnly || info?.mediaType === 'audio';
-    const extension = audioOnly ? 'mp3' : (info?.downloadExtension || (isAudio ? 'mp3' : 'mp4'));
+    const extension = audioOnly ? 'mp3' : universalOutputExtension(info, isAudio);
     const buffer = await saveToBuffer(file => socialDl.universalSave(url, file, { audioOnly: isAudio, noWatermark }), { extension, audio: isAudio });
     return {
         buffer,
@@ -283,5 +289,6 @@ module.exports = {
     sendDownloadedMedia,
     saveToBuffer,
     safeDownloadError,
-    isExpectedMediaType
+    isExpectedMediaType,
+    universalOutputExtension
 };
