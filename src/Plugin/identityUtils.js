@@ -2,6 +2,23 @@ const normalizeJid = (jid = '') => String(jid).replace(/:\d+@/, '@');
 const cleanNumber = (value = '') => String(value).replace(/[^0-9]/g, '');
 const isPhoneJid = (jid = '') => normalizeJid(jid).endsWith('@s.whatsapp.net');
 
+function participantJids(participant) {
+    if (!participant || typeof participant !== 'object') return [];
+    const ids = [participant.id, participant.jid, participant.lid]
+        .filter(value => typeof value === 'string' && value.includes('@'))
+        .map(normalizeJid);
+    const phoneNumber = String(participant.phoneNumber || '').trim();
+    if (phoneNumber) {
+        const normalized = normalizeJid(phoneNumber);
+        if (normalized.includes('@')) ids.push(normalized);
+        else if (/^\+?[\d\s().-]+$/.test(phoneNumber)) {
+            const digits = cleanNumber(phoneNumber);
+            if (digits) ids.push(`${digits}@s.whatsapp.net`);
+        }
+    }
+    return [...new Set(ids.filter(Boolean))];
+}
+
 async function resolvePhoneJid(sock, candidates = []) {
     const values = [...new Set(candidates.filter(Boolean).map(normalizeJid))];
     const direct = values.find(isPhoneJid);
@@ -98,6 +115,7 @@ module.exports = {
     identityVariants,
     isPhoneJid,
     normalizeJid,
+    participantJids,
     resolveCommandTarget,
     resolvePhoneJid,
     resolvePhoneJidWithMetadata,

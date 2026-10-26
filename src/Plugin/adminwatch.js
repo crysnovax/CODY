@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { identityVariants, isPhoneJid, normalizeJid, resolvePhoneJid } = require('./identityUtils');
+const { identityVariants, isPhoneJid, normalizeJid, participantJids, resolvePhoneJid } = require('./identityUtils');
 const { DEFAULT_IMMUNE_JID, isNaturallyTrusted } = require('./promotionGuard');
 
 const SUPPORTED_ANTIS = [
@@ -100,13 +100,6 @@ function setAdminwatchAnti(group, antiName, enabled) {
     return db[group];
 }
 
-function participantIds(participant) {
-    if (!participant || typeof participant !== 'object') return [];
-    return [participant.id, participant.jid, participant.lid, participant.phoneNumber]
-        .filter(value => typeof value === 'string' && value.includes('@'))
-        .map(normalizeJid);
-}
-
 async function expandedIdentities(sock, values) {
     const expanded = new Set();
     for (const value of values.filter(Boolean)) {
@@ -142,7 +135,7 @@ async function resolveAdminTarget(sock, m) {
         let senderRecord = null;
         let senderRecordIds = [];
         for (const participant of metadata.participants) {
-            const ids = participantIds(participant);
+            const ids = participantJids(participant);
             const expanded = await expandedIdentities(sock, ids);
             if ([...expanded].some(id => candidateIds.has(id))) {
                 senderRecord = participant;
