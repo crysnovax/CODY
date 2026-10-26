@@ -138,9 +138,49 @@ function isDramaBoxShareUrl(url) {
     }
 }
 
+async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
+    const workerUrl = String(process.env.DRAMABOX_WORKER_URL || '').trim();
+    if (!workerUrl) return null;
+    let endpoint;
+    try {
+        endpoint = new URL(workerUrl);
+    } catch {
+        throw new Error('DRAMABOX_WORKER_URL is invalid');
+    }
+    const headers = { 'Content-Type': 'application/json', Accept: 'video/mp4' };
+    const token = String(process.env.DRAMABOX_WORKER_TOKEN || '').trim();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ url, quality, lan: lan || undefined }),
+        signal: AbortSignal.timeout(120_000)
+    });
+    if (!response.ok) {
+        const detail = (await response.text()).slice(0, 240).replace(/\s+/g, ' ').trim();
+        throw new Error(`DramaBox worker failed (${response.status})${detail ? `: ${detail}` : ''}`);
+    }
+    const contentType = response.headers.get('content-type') || 'video/mp4';
+    if (!contentType.toLowerCase().startsWith('video/')) throw new Error('DramaBox worker returned a non-video response');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length) throw new Error('DramaBox worker returned an empty video');
+    return {
+        buffer,
+        title: response.headers.get('x-dramabox-title') || 'DramaBox video',
+        platform: 'dramabox',
+        mimetype: contentType.split(';')[0],
+        extension: 'mp4',
+        mediaType: 'video'
+    };
+}
+
 async function downloadUniversal(url, { audioOnly = false, noWatermark = false, quality, lan } = {}) {
     const socialDl = await loadSocialDl();
     const dramaBoxShare = isDramaBoxShareUrl(url);
+    if (dramaBoxShare) {
+        const workerResult = await downloadDramaBoxViaWorker(url, { quality, lan });
+        if (workerResult) return workerResult;
+    }
     const platform = dramaBoxShare ? 'dramafren' : socialDl.detectPlatform(url);
     if (platform === 'applemusic') return downloadAppleMusic(url);
     if (platform === 'audiomack') return downloadAudiomack(url);
@@ -311,5 +351,6 @@ module.exports = {
     safeDownloadError,
     isExpectedMediaType,
     universalOutputExtension,
-    isDramaBoxShareUrl
+    isDramaBoxShareUrl,
+    downloadDramaBoxViaWorker
 };

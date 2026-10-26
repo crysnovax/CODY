@@ -53,6 +53,38 @@ test('DramaBox share links are recognized as exact supported URLs', () => {
     assert.equal(socialDl.isDramaBoxShareUrl('https://www.dramaboxdb.com/ep/42000021648_my-teenage-mother-dubbed/701326021_Episode-24'), false);
 });
 
+test('DramaBox share downloads use the configured mobile worker', async () => {
+    const url = 'https://sharet.dramabox.com/play?bid=42000021648&cid=701326021&cindex=23&lan=en';
+    const originalFetch = global.fetch;
+    const originalWorkerUrl = process.env.DRAMABOX_WORKER_URL;
+    const originalWorkerToken = process.env.DRAMABOX_WORKER_TOKEN;
+    let request;
+    process.env.DRAMABOX_WORKER_URL = 'https://termux.example.test/v1/dramabox';
+    process.env.DRAMABOX_WORKER_TOKEN = 'test-token';
+    global.fetch = async (input, options) => {
+        request = { input: String(input), options };
+        return new Response(Buffer.from('worker-video'), {
+            status: 200,
+            headers: { 'Content-Type': 'video/mp4', 'X-DramaBox-Title': 'Worker episode' }
+        });
+    };
+    try {
+        const result = await socialDl.downloadUniversal(url, { quality: 'best', lan: 'en' });
+        assert.equal(request.input, 'https://termux.example.test/v1/dramabox');
+        assert.equal(request.options.headers.Authorization, 'Bearer test-token');
+        assert.deepEqual(JSON.parse(request.options.body), { url, quality: 'best', lan: 'en' });
+        assert.deepEqual(result.buffer, Buffer.from('worker-video'));
+        assert.equal(result.title, 'Worker episode');
+        assert.equal(result.mediaType, 'video');
+    } finally {
+        global.fetch = originalFetch;
+        if (originalWorkerUrl === undefined) delete process.env.DRAMABOX_WORKER_URL;
+        else process.env.DRAMABOX_WORKER_URL = originalWorkerUrl;
+        if (originalWorkerToken === undefined) delete process.env.DRAMABOX_WORKER_TOKEN;
+        else process.env.DRAMABOX_WORKER_TOKEN = originalWorkerToken;
+    }
+});
+
 test('Apple Music downloader sends audio and identifies a preview fallback clearly', async () => {
     const { command, restore } = loadWithStub('../src/Commands/Downloader/applemusic', 'downloadAppleMusic', async () => ({
         buffer: Buffer.from('preview-audio'), title: 'Example track', artist: 'Example artist', thumbnail: 'https://example.com/cover.jpg',
