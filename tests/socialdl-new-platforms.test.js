@@ -48,6 +48,11 @@ test('new platform command URL parsers recognize their provider links', () => {
     assert.equal(audiomack.findUrl('https://audiomack.com/user/song/test'), 'https://audiomack.com/user/song/test');
 });
 
+test('DramaBox share links are recognized as exact supported URLs', () => {
+    assert.equal(socialDl.isDramaBoxShareUrl('https://sharet.dramabox.com/play?bid=42000021648&cid=701326021&cindex=23&lan=en'), true);
+    assert.equal(socialDl.isDramaBoxShareUrl('https://www.dramaboxdb.com/ep/42000021648_my-teenage-mother-dubbed/701326021_Episode-24'), false);
+});
+
 test('Apple Music downloader sends audio and identifies a preview fallback clearly', async () => {
     const { command, restore } = loadWithStub('../src/Commands/Downloader/applemusic', 'downloadAppleMusic', async () => ({
         buffer: Buffer.from('preview-audio'), title: 'Example track', artist: 'Example artist', thumbnail: 'https://example.com/cover.jpg',
