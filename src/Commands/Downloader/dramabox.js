@@ -7,5 +7,5 @@ module.exports = createSocialVideoCommand({
     aliases: ['dramaboxdl', 'dbox'],
     label: 'DramaBox',
     emoji: '🎞️',
-    hostPattern: '(?:[a-z0-9-]+\\.)*dramaboxdb\\.com|sharet\\.dramabox\\.com'
+    hostPattern: '(?:[a-z0-9-]+\\.)*dramabox(?:db)?\\.com'
 });

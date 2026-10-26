@@ -19,11 +19,6 @@ function safeDownloadError(error) {
     return new Error(`social-dl download failed (${code})`);
 }
 
-function isProviderBlocked(error) {
-    return error?.code === 'BOT_DETECTED'
-        || /(?:HTTP_)?403|automated|unusual traffic|challenge|captcha|provider blocked|browser verification/i.test(error?.message || '');
-}
-
 function isExpectedMediaType(detected, expectedType = {}, responseContentType) {
     const contentType = String(responseContentType || '').split(';')[0].trim().toLowerCase();
     const detectedMime = String(detected?.mime || '').toLowerCase();
@@ -135,158 +130,17 @@ function universalOutputExtension(info, isAudio = false) {
     return ['m3u8', 'mpd'].includes(extension) ? 'mp4' : extension;
 }
 
-function isDramaBoxShareUrl(url) {
-    try {
-        return new URL(String(url)).hostname.replace(/^www\./i, '').toLowerCase() === 'sharet.dramabox.com';
-    } catch {
-        return false;
-    }
-}
-function isPreviewMediaUrl(url) {
-    return /(?:\.15s\.|(?:^|[._-])preview(?:[._-]|$)|(?:^|[._-])free(?:[._-]|$))/i.test(String(url || ''));
-}
-
-async function downloadDramaBoxViaWorker(url, { quality = 'best', lan } = {}) {
-    const configuredWorkerUrl = String(process.env.DRAMABOX_WORKER_URL || '').trim();
-    const workerUrl = configuredWorkerUrl || 'https://db.codyai.workers.dev';
-    let endpoint;
-    try {
-        endpoint = new URL(workerUrl);
-    } catch {
-        throw new Error('DRAMABOX_WORKER_URL is invalid');
-    }
-    const useShortDramaApi = !configuredWorkerUrl || endpoint.pathname === '/' || endpoint.pathname === '';
-    if (useShortDramaApi) endpoint.pathname = '/v1/short-drama';
-    const headers = { 'Content-Type': 'application/json', Accept: 'video/mp4' };
-    const token = String(process.env.DRAMABOX_WORKER_TOKEN || 'CARAYASATA1LALA2VA3').trim();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const body = useShortDramaApi
-        ? { url, platform: 'dramabox', format: 'mp4', quality, ...(lan ? { lan } : {}) }
-        : { url, quality, lan: lan || undefined };
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(120_000)
-    });
-    if (!response.ok) {
-        const detail = (await response.text()).slice(0, 240).replace(/\s+/g, ' ').trim();
-        throw new Error(`DramaBox worker failed (${response.status})${detail ? `: ${detail}` : ''}`);
-    }
-    const contentType = response.headers.get('content-type') || 'video/mp4';
-    let buffer;
-    let sourceUrl = null;
-    let resolvedUrl = null;
-    let isPreviewFallback = false;
-    if (useShortDramaApi && contentType.toLowerCase().includes('json')) {
-        const payload = await response.json();
-        if (!payload?.url) throw new Error(payload?.error || 'DramaBox worker returned no media URL');
-        sourceUrl = payload.url;
-        resolvedUrl = payload.resolvedUrl || null;
-        isPreviewFallback = isPreviewMediaUrl(sourceUrl);
-        const file = path.join(TEMP_DIR, `worker-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
-        try {
-            await mkdir(TEMP_DIR, { recursive: true });
-            await downloadUrlToFile(payload.url, file, url);
-            buffer = await readFile(file);
-        } finally {
-            await unlink(file).catch(() => {});
-        }
-    } else {
-        if (!contentType.toLowerCase().startsWith('video/')) throw new Error('DramaBox worker returned a non-video response');
-        buffer = Buffer.from(await response.arrayBuffer());
-    }
-    if (!buffer.length) throw new Error('DramaBox worker returned an empty video');
-    return {
-        buffer,
-        title: response.headers.get('x-dramabox-title') || 'DramaBox video',
-        platform: 'dramabox',
-        sourceUrl,
-        resolvedUrl,
-        isPreviewFallback,
-        mimetype: 'video/mp4',
-        extension: 'mp4',
-        mediaType: 'video'
-    };
-}
-
-async function downloadDramaBoxViaUniversalSave(socialDl, url, options = {}) {
-    const buffer = await saveToBuffer(
-        file => socialDl.universalSave(url, file, options),
-        { extension: 'mp4', audio: false }
-    );
-    return {
-        buffer,
-        title: 'DramaBox video',
-        platform: 'dramabox',
-        mimetype: 'video/mp4',
-        extension: 'mp4',
-        mediaType: 'video'
-    };
-}
-
-async function downloadDramaBoxOfficialFull(socialDl, workerResult, originalUrl, { quality = 'best', lan } = {}) {
-    if (!workerResult?.isPreviewFallback || !workerResult.resolvedUrl || typeof socialDl.dramaboxDl !== 'function') return null;
-    let episodeId;
-    try { episodeId = new URL(originalUrl).searchParams.get('cid'); } catch { return null; }
-    if (!/^\d+$/.test(String(episodeId || ''))) return null;
-    let info;
-    try {
-        info = await socialDl.dramaboxDl(workerResult.resolvedUrl, { lan });
-    } catch {
-        return null;
-    }
-    const fullFormats = (info.formats || []).filter(format => {
-        const pathname = (() => { try { return new URL(format.url).pathname; } catch { return ''; } })();
-        return pathname.includes(`/${episodeId}_`) && !isPreviewMediaUrl(format.url);
-    });
-    if (!fullFormats.length || typeof socialDl.dramaboxSave !== 'function') return null;
-    const buffer = await saveToBuffer(
-        file => socialDl.dramaboxSave(workerResult.resolvedUrl, file, quality, { lan }),
-        { extension: 'mp4', audio: false }
-    );
-    return {
-        buffer,
-        title: info.title || workerResult.title || 'DramaBox video',
-        platform: 'dramabox',
-        resolvedUrl: workerResult.resolvedUrl,
-        isPreviewFallback: false,
-        mimetype: 'video/mp4',
-        extension: 'mp4',
-        mediaType: 'video'
-    };
-}
-
 async function downloadUniversal(url, { audioOnly = false, noWatermark = false, quality, lan } = {}) {
     const socialDl = await loadSocialDl();
-    const dramaBoxShare = isDramaBoxShareUrl(url);
-    if (dramaBoxShare) {
-        const workerResult = await downloadDramaBoxViaWorker(url, { quality, lan });
-        if (workerResult && !workerResult.isPreviewFallback) return workerResult;
-        if (workerResult?.isPreviewFallback) {
-            const fullResult = await downloadDramaBoxOfficialFull(socialDl, workerResult, url, { quality, lan });
-            if (fullResult) return fullResult;
-            throw new Error('DramaBox returned only a 15-second preview; the full episode is locked or no authorized full-length source is publicly available.');
-        }
-    }
-    const platform = dramaBoxShare ? 'dramafren' : socialDl.detectPlatform(url);
+    const platform = socialDl.detectPlatform(url);
     if (platform === 'applemusic') return downloadAppleMusic(url);
     if (platform === 'audiomack') return downloadAudiomack(url);
     if (platform === 'spotify') return downloadSpotify(url);
+
     const universalOptions = { audioOnly, noWatermark };
     if (quality) universalOptions.quality = quality;
     if (lan) universalOptions.lan = lan;
-    let info;
-    try {
-        info = dramaBoxShare && typeof socialDl.dramafrenDl === 'function'
-            ? await socialDl.dramafrenDl(url, universalOptions)
-            : await socialDl.universalDl(url, universalOptions);
-    } catch (error) {
-        if (dramaBoxShare && isProviderBlocked(error) && typeof socialDl.universalSave === 'function') {
-            return downloadDramaBoxViaUniversalSave(socialDl, url, universalOptions);
-        }
-        throw error;
-    }
+    const info = await socialDl.universalDl(url, universalOptions);
     const images = imageUrlsFromInfo(info);
     if (info?.mediaType === 'photo' || images.length) return downloadPhotoGallery({ ...info, images }, url);
 
@@ -295,10 +149,13 @@ async function downloadUniversal(url, { audioOnly = false, noWatermark = false, 
     const saveOptions = { audioOnly: isAudio, noWatermark };
     if (quality) saveOptions.quality = quality;
     if (lan) saveOptions.lan = lan;
-    const save = dramaBoxShare && typeof socialDl.universalSave === 'function'
-        ? socialDl.universalSave
-        : (typeof socialDl.dramafrenSave === 'function' ? socialDl.dramafrenSave : socialDl.universalSave);
-    const buffer = await saveToBuffer(file => save(url, file, saveOptions), { extension, audio: isAudio });
+    if (typeof socialDl.universalSave !== 'function') {
+        throw new Error('social-dl 1.4.1 universalSave is unavailable; update the installed package.');
+    }
+    const buffer = await saveToBuffer(
+        file => socialDl.universalSave(url, file, saveOptions),
+        { extension, audio: isAudio }
+    );
     return {
         buffer,
         title: info?.title || '',
@@ -446,7 +303,5 @@ module.exports = {
     saveToBuffer,
     safeDownloadError,
     isExpectedMediaType,
-    universalOutputExtension,
-    isDramaBoxShareUrl,
-    downloadDramaBoxViaWorker
+    universalOutputExtension
 };

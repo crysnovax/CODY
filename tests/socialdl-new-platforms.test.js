@@ -48,43 +48,6 @@ test('new platform command URL parsers recognize their provider links', () => {
     assert.equal(audiomack.findUrl('https://audiomack.com/user/song/test'), 'https://audiomack.com/user/song/test');
 });
 
-test('DramaBox share links are recognized as exact supported URLs', () => {
-    assert.equal(socialDl.isDramaBoxShareUrl('https://sharet.dramabox.com/play?bid=42000021648&cid=701326021&cindex=23&lan=en'), true);
-    assert.equal(socialDl.isDramaBoxShareUrl('https://www.dramaboxdb.com/ep/42000021648_my-teenage-mother-dubbed/701326021_Episode-24'), false);
-});
-
-test('DramaBox share downloads use the configured mobile worker', async () => {
-    const url = 'https://sharet.dramabox.com/play?bid=42000021648&cid=701326021&cindex=23&lan=en';
-    const originalFetch = global.fetch;
-    const originalWorkerUrl = process.env.DRAMABOX_WORKER_URL;
-    const originalWorkerToken = process.env.DRAMABOX_WORKER_TOKEN;
-    let request;
-    process.env.DRAMABOX_WORKER_URL = 'https://termux.example.test/v1/dramabox';
-    process.env.DRAMABOX_WORKER_TOKEN = 'test-token';
-    global.fetch = async (input, options) => {
-        request = { input: String(input), options };
-        return new Response(Buffer.from('worker-video'), {
-            status: 200,
-            headers: { 'Content-Type': 'video/mp4', 'X-DramaBox-Title': 'Worker episode' }
-        });
-    };
-    try {
-        const result = await socialDl.downloadUniversal(url, { quality: 'best', lan: 'en' });
-        assert.equal(request.input, 'https://termux.example.test/v1/dramabox');
-        assert.equal(request.options.headers.Authorization, 'Bearer test-token');
-        assert.deepEqual(JSON.parse(request.options.body), { url, quality: 'best', lan: 'en' });
-        assert.deepEqual(result.buffer, Buffer.from('worker-video'));
-        assert.equal(result.title, 'Worker episode');
-        assert.equal(result.mediaType, 'video');
-    } finally {
-        global.fetch = originalFetch;
-        if (originalWorkerUrl === undefined) delete process.env.DRAMABOX_WORKER_URL;
-        else process.env.DRAMABOX_WORKER_URL = originalWorkerUrl;
-        if (originalWorkerToken === undefined) delete process.env.DRAMABOX_WORKER_TOKEN;
-        else process.env.DRAMABOX_WORKER_TOKEN = originalWorkerToken;
-    }
-});
-
 test('Apple Music downloader sends audio and identifies a preview fallback clearly', async () => {
     const { command, restore } = loadWithStub('../src/Commands/Downloader/applemusic', 'downloadAppleMusic', async () => ({
         buffer: Buffer.from('preview-audio'), title: 'Example track', artist: 'Example artist', thumbnail: 'https://example.com/cover.jpg',
@@ -216,7 +179,10 @@ const shortDramaCommands = [
     ['goodshort', 'GoodShort', 'https://www.goodshort.com/episode/example-31001365025/067-17989995'],
     ['flextv', 'FlexTV', 'https://www.flextv.cc/episodes/episode-1-a-pinch-of-little-witch-A3zjDM5ZXY'],
     ['moboreels', 'MoboReels', 'https://www.moboreels.com/episode/daddy-will-you-love-me-112418322-01'],
-    ['reelshort', 'ReelShort', 'https://www.reelshort.com/en/embed/6aafa7fc530d47585a054f74-aqthox3d16']
+    ['reelshort', 'ReelShort', 'https://www.reelshort.com/en/embed/6aafa7fc530d47585a054f74-aqthox3d16'],
+    ['anydrama', 'AnyDrama', 'https://any-drama.com/en/watch/shortmax-mommy-im-not-lyingupdating-18550'],
+    ['shortmax', 'ShortMax', 'https://www.shorttv.live/episode/mommy-im-not-lying-18550-1'],
+    ['flickreels', 'FlickReels', 'https://www.flickreels.net/playlist/drama/12345/episode-1']
 ];
 
 test('new social-dl platform commands recognize their provider links', () => {
@@ -226,6 +192,7 @@ test('new social-dl platform commands recognize their provider links', () => {
         assert.equal(command.findUrl(`download this: ${url}`), url);
     }
     const dramabox = require('../src/Commands/Downloader/dramabox');
+    assert.equal(dramabox.findUrl('https://sharet.dramabox.com/play?bid=42000021648&cid=701326021&cindex=23&lan=en'), shortDramaCommands[0][2]);
     assert.equal(dramabox.findUrl('https://www.dramaboxdb.com/ep/42000021648_title/701326021_Episode-24'), 'https://www.dramaboxdb.com/ep/42000021648_title/701326021_Episode-24');
 });
 
@@ -234,7 +201,7 @@ test('new social-dl platform commands use universal save and deliver video media
         const { command, restore } = loadWithStub(`../src/Commands/Downloader/${name}`, 'downloadUniversal', async (suppliedUrl, options) => {
             assert.equal(suppliedUrl, url);
             assert.deepEqual(options, { quality: 'best', lan: 'en' });
-            return { buffer: Buffer.from(`${name}-video`), title: `${label} episode`, platform: name, mimetype: 'video/mp4', extension: 'mp4', mediaType: 'video' };
+            return { buffer: Buffer.from(`${name}-video`), title: `${label} episode`, platform: name === 'reelshort' ? 'anydrama' : name, mimetype: 'video/mp4', extension: 'mp4', mediaType: 'video' };
         });
         const { sock, sent } = mockSock();
         const replies = [];
