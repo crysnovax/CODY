@@ -8,9 +8,11 @@ const socialDl = require('../src/Plugin/socialDl');
 
 function loadWithStub(file, method, stub) {
     const commandPath = require.resolve(file);
+    const sharedFactoryPath = require.resolve('../src/Plugin/socialVideoCommand');
     const original = socialDl[method];
     socialDl[method] = stub;
     delete require.cache[commandPath];
+    delete require.cache[sharedFactoryPath];
     const command = require(commandPath);
     return {
         command,
@@ -169,4 +171,49 @@ test('TikTok downloader sends every carousel image rather than a video payload',
         assert.equal(sent.some(([, payload]) => payload.video), false);
         assert.deepEqual(replies, []);
     } finally { restore(); }
+});
+
+const shortDramaCommands = [
+    ['dramabox', 'DramaBox', 'https://sharet.dramabox.com/play?bid=42000021648&cid=701326021&cindex=23&lan=en'],
+    ['dramafren', 'DramaFren', 'https://dramafren.org/watch/example/'],
+    ['goodshort', 'GoodShort', 'https://www.goodshort.com/episode/example-31001365025/067-17989995'],
+    ['flextv', 'FlexTV', 'https://www.flextv.cc/episodes/episode-1-a-pinch-of-little-witch-A3zjDM5ZXY'],
+    ['moboreels', 'MoboReels', 'https://www.moboreels.com/episode/daddy-will-you-love-me-112418322-01'],
+    ['reelshort', 'ReelShort', 'https://www.reelshort.com/en/embed/6aafa7fc530d47585a054f74-aqthox3d16']
+];
+
+test('new social-dl platform commands recognize their provider links', () => {
+    for (const [name, , url] of shortDramaCommands) {
+        const command = require(`../src/Commands/Downloader/${name}`);
+        assert.equal(command.name, name);
+        assert.equal(command.findUrl(`download this: ${url}`), url);
+    }
+    const dramabox = require('../src/Commands/Downloader/dramabox');
+    assert.equal(dramabox.findUrl('https://www.dramaboxdb.com/ep/42000021648_title/701326021_Episode-24'), 'https://www.dramaboxdb.com/ep/42000021648_title/701326021_Episode-24');
+});
+
+test('new social-dl platform commands use universal save and deliver video media', async () => {
+    for (const [name, label, url] of shortDramaCommands) {
+        const { command, restore } = loadWithStub(`../src/Commands/Downloader/${name}`, 'downloadUniversal', async suppliedUrl => {
+            assert.equal(suppliedUrl, url);
+            return { buffer: Buffer.from(`${name}-video`), title: `${label} episode`, platform: name, mimetype: 'video/mp4', extension: 'mp4', mediaType: 'video' };
+        });
+        const { sock, sent } = mockSock();
+        const replies = [];
+        try {
+            await command.execute(sock, { chat: 'chat', key: {} }, { args: [url], reply: async value => replies.push(value) });
+            const video = sent.find(([, payload]) => payload.video);
+            assert.ok(video, `${name} should send a video payload`);
+            assert.deepEqual(video[1].video, Buffer.from(`${name}-video`));
+            assert.match(video[1].caption, new RegExp(`${label} Downloader`));
+            assert.deepEqual(replies, []);
+        } finally { restore(); }
+    }
+});
+
+test('HLS and MPD source metadata use an MP4 output extension', () => {
+    assert.equal(socialDl.universalOutputExtension({ downloadExtension: 'm3u8' }), 'mp4');
+    assert.equal(socialDl.universalOutputExtension({ downloadExtension: 'mpd' }), 'mp4');
+    assert.equal(socialDl.universalOutputExtension({ downloadExtension: 'm4v' }), 'm4v');
+    assert.equal(socialDl.universalOutputExtension({ downloadExtension: 'm3u8' }, true), 'm3u8');
 });
