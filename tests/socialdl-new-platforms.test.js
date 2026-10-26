@@ -2,6 +2,8 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { writeFile } = require('node:fs/promises');
+const { fromBuffer } = require('file-type');
 const socialDl = require('../src/Plugin/socialDl');
 
 function loadWithStub(file, method, stub) {
@@ -102,6 +104,23 @@ test('Audiomack command sends M4A audio with the track metadata', async () => {
         assert.ok(sent.some(([, payload]) => payload.image && /Example song/.test(payload.caption)));
         assert.deepEqual(replies, []);
     } finally { restore(); }
+});
+
+test('Audiomack audio/mp4 container passes the type check only when the response declares audio', async () => {
+    const fixture = Buffer.from('000000186674797069736f6d0000020069736f6d6d703431', 'hex');
+    const detected = await fromBuffer(fixture);
+    assert.deepEqual(detected, { ext: 'mp4', mime: 'video/mp4' });
+
+    const accepted = await socialDl.saveToBuffer(async file => {
+        await writeFile(file, fixture);
+        return { contentType: 'audio/mp4; charset=binary' };
+    }, { extension: 'm4a', audio: true });
+    assert.deepEqual(accepted, fixture);
+
+    await assert.rejects(() => socialDl.saveToBuffer(async file => {
+        await writeFile(file, fixture);
+        return { contentType: 'video/mp4' };
+    }, { extension: 'm4a', audio: true }), error => error.message === 'MEDIA_TYPE_MISMATCH');
 });
 
 test('generic sender sends photo results as images instead of video buffers', async () => {

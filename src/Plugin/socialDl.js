@@ -19,18 +19,26 @@ function safeDownloadError(error) {
     return new Error(`social-dl download failed (${code})`);
 }
 
+function isExpectedMediaType(detected, expectedType = {}, responseContentType) {
+    const contentType = String(responseContentType || '').split(';')[0].trim().toLowerCase();
+    const detectedMime = String(detected?.mime || '').toLowerCase();
+    const isAudio = detectedMime.startsWith('audio/')
+        || (detectedMime === 'video/mp4' && expectedType.audio && (detected.ext === 'm4a' || contentType === 'audio/mp4'));
+    const isVideo = detectedMime.startsWith('video/')
+        && !(detectedMime === 'video/mp4' && contentType.startsWith('audio/'));
+    return expectedType.audio ? isAudio : isVideo;
+}
+
 async function saveToBuffer(save, expectedType) {
     await mkdir(TEMP_DIR, { recursive: true });
     const file = path.join(TEMP_DIR, `download-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.${expectedType.extension}`);
     try {
-        await save(file);
+        const saveMetadata = await save(file);
         const fileInfo = await stat(file);
         if (!fileInfo.isFile() || fileInfo.size === 0) throw new Error('EMPTY_DOWNLOAD');
         const buffer = await readFile(file);
         const detected = await fromBuffer(buffer);
-        const isAudio = detected?.mime?.startsWith('audio/') || (detected?.mime === 'video/mp4' && expectedType.audio && detected.ext === 'm4a');
-        const isVideo = detected?.mime?.startsWith('video/');
-        if (expectedType.audio ? !isAudio : !isVideo) throw new Error('MEDIA_TYPE_MISMATCH');
+        if (!isExpectedMediaType(detected, expectedType, saveMetadata?.contentType)) throw new Error('MEDIA_TYPE_MISMATCH');
         return buffer;
     } catch (error) {
         if (error?.message === 'EMPTY_DOWNLOAD' || error?.message === 'MEDIA_TYPE_MISMATCH') throw error;
@@ -56,7 +64,7 @@ async function downloadUrlToFile(url, file, referer) {
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length || buffer.length > maxBytes) throw new Error('INVALID_MEDIA_SIZE');
     await writeFile(file, buffer);
-    return file;
+    return { contentType: response.headers.get('content-type') || null };
 }
 
 async function downloadImageBuffer(url, referer) {
@@ -273,5 +281,7 @@ module.exports = {
     downloadAudiomack,
     downloadImageBuffer,
     sendDownloadedMedia,
-    safeDownloadError
+    saveToBuffer,
+    safeDownloadError,
+    isExpectedMediaType
 };
