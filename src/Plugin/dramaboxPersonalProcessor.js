@@ -153,7 +153,7 @@ async function processDramaBoxPersonalVideo(media) {
             args.push('-map', '0:v:0', '-vf', videoFilters.join(','));
         } else if (filters.has('overlay')) {
             await createWatermarkPng(watermarkPath, Math.max(160, Math.round(metadata.width * 0.2)), Math.max(48, Math.round(metadata.height * 0.06)));
-            args.push('-i', watermarkPath, '-filter_complex', `[0:v]${videoFilters.join(',')}[base];[1:v]format=rgba[wm];[base][wm]overlay=x=W-w-${Math.max(18, Math.round(metadata.width * 0.035))}:y=H-h-${Math.max(18, Math.round(metadata.height * 0.035))}:shortest=1[vout]`, '-map', '[vout]');
+            args.push('-loop', '1', '-i', watermarkPath, '-filter_complex', `[0:v]${videoFilters.join(',')}[base];[1:v]format=rgba[wm];[base][wm]overlay=x=W-w-${Math.max(18, Math.round(metadata.width * 0.035))}:y=H-h-${Math.max(18, Math.round(metadata.height * 0.035))}:eof_action=repeat:shortest=1[vout]`, '-map', '[vout]');
         } else {
             throw new Error('FFMPEG_MISSING_WATERMARK_FILTER');
         }
