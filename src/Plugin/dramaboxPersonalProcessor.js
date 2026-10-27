@@ -1,7 +1,6 @@
 'use strict';
 
 const path = require('node:path');
-const os = require('node:os');
 const { existsSync } = require('node:fs');
 const { mkdir, readFile, rm, stat, writeFile } = require('node:fs/promises');
 const { spawn } = require('node:child_process');
@@ -56,9 +55,15 @@ async function probeVideo(inputPath, executable) {
 
     const metadata = result.stderr || '';
     const durationMatch = metadata.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
-    const videoMatch = metadata.match(/Video:\s+[^,]+,\s*[^,]+,\s*(\d+)x(\d+)/i);
-    const audioMatch = metadata.match(/Audio:\s+[^,]+,\s*(\d+)\s*Hz/i);
-    if (!durationMatch || !videoMatch) throw new Error('INVALID_VIDEO_METADATA');
+    const videoLine = metadata.split(/\r?\n/).find(line => /\bVideo:\s*/i.test(line)) || '';
+    const videoMatch = videoLine.match(/\b(\d{2,5})x(\d{2,5})(?=\s|,|\[|$)/)
+        || metadata.match(/\bVideo:[\s\S]{0,300}?\b(\d{2,5})x(\d{2,5})(?=\s|,|\[|$)/i);
+    const audioLine = metadata.split(/\r?\n/).find(line => /\bAudio:\s*/i.test(line)) || '';
+    const audioMatch = audioLine.match(/\b(\d{4,6})\s*Hz\b/i)
+        || metadata.match(/\bAudio:[\s\S]{0,200}?\b(\d{4,6})\s*Hz\b/i);
+    if (!durationMatch || !videoMatch) {
+        throw new Error('INVALID_VIDEO_METADATA: FFmpeg could not read duration or video dimensions');
+    }
 
     const duration = Number(durationMatch[1]) * 3600
         + Number(durationMatch[2]) * 60
@@ -66,7 +71,7 @@ async function probeVideo(inputPath, executable) {
     const width = Number(videoMatch[1]);
     const height = Number(videoMatch[2]);
     const sampleRate = Number(audioMatch?.[1] || 44100);
-    if (!duration || !width || !height) throw new Error('INVALID_VIDEO_METADATA');
+    if (!duration || !width || !height) throw new Error('INVALID_VIDEO_METADATA: invalid duration or video dimensions');
     return { duration, width, height, sampleRate, hasAudio: Boolean(audioMatch) };
 }
 
