@@ -1,0 +1,145 @@
+'use strict';
+
+const path = require('node:path');
+const os = require('node:os');
+const { existsSync } = require('node:fs');
+const { mkdir, readFile, rm, stat, writeFile } = require('node:fs/promises');
+const { spawn } = require('node:child_process');
+const ffmpegPath = require('ffmpeg-static');
+
+const TEMP_DIR = path.join(process.cwd(), 'cache', 'temp', 'dramabox-personal');
+const MAX_INPUT_BYTES = 100 * 1024 * 1024;
+const PROCESS_TIMEOUT_MS = 180_000;
+const FADE_SECONDS = 0.2;
+const PITCH_RATIO = 1.007;
+
+function getFfmpegPath() {
+    return ffmpegPath && existsSync(ffmpegPath) ? ffmpegPath : 'ffmpeg';
+}
+
+function runProcess(command, args, { timeout = PROCESS_TIMEOUT_MS } = {}) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+        let stdout = '';
+        let stderr = '';
+        const timer = setTimeout(() => {
+            child.kill('SIGKILL');
+            reject(new Error('VIDEO_PROCESSING_TIMEOUT'));
+        }, timeout);
+
+        child.stdout.on('data', chunk => { stdout += chunk.toString(); });
+        child.stderr.on('data', chunk => { stderr += chunk.toString(); });
+        child.once('error', error => {
+            clearTimeout(timer);
+            reject(error);
+        });
+        child.once('close', code => {
+            clearTimeout(timer);
+            if (code === 0) return resolve({ stdout, stderr });
+            const detail = stderr.split('\n').filter(Boolean).slice(-3).join(' ').slice(0, 500);
+            const error = new Error(`VIDEO_PROCESSING_FAILED${detail ? `: ${detail}` : ''}`);
+            error.stderr = stderr;
+            reject(error);
+        });
+    });
+}
+
+async function probeVideo(inputPath, executable) {
+    let result;
+    try {
+        result = await runProcess(executable, ['-hide_banner', '-i', inputPath]);
+    } catch (error) {
+        // ffmpeg exits non-zero when used only for probing, but still prints metadata.
+        if (!error.message.startsWith('VIDEO_PROCESSING_FAILED')) throw error;
+        result = { stderr: error.stderr || '' };
+    }
+
+    const metadata = result.stderr || '';
+    const durationMatch = metadata.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
+    const videoMatch = metadata.match(/Video:\s+[^,]+,\s*[^,]+,\s*(\d+)x(\d+)/i);
+    const audioMatch = metadata.match(/Audio:\s+[^,]+,\s*(\d+)\s*Hz/i);
+    if (!durationMatch || !videoMatch) throw new Error('INVALID_VIDEO_METADATA');
+
+    const duration = Number(durationMatch[1]) * 3600
+        + Number(durationMatch[2]) * 60
+        + Number(durationMatch[3]);
+    const width = Number(videoMatch[1]);
+    const height = Number(videoMatch[2]);
+    const sampleRate = Number(audioMatch?.[1] || 44100);
+    if (!duration || !width || !height) throw new Error('INVALID_VIDEO_METADATA');
+    return { duration, width, height, sampleRate, hasAudio: Boolean(audioMatch) };
+}
+
+function escapeDrawtext(value) {
+    return value.replace(/([\\':])/g, '\\$1');
+}
+
+async function processDramaBoxPersonalVideo(media) {
+    if (!media?.buffer || !Buffer.isBuffer(media.buffer)) throw new Error('VIDEO_BUFFER_REQUIRED');
+    if (media.mediaType === 'audio' || !/^video\//i.test(media.mimetype || 'video/mp4')) {
+        throw new Error('VIDEO_REQUIRED');
+    }
+    if (media.buffer.length > MAX_INPUT_BYTES) throw new Error('VIDEO_TOO_LARGE_TO_PROCESS');
+    const executable = getFfmpegPath();
+
+    await mkdir(TEMP_DIR, { recursive: true });
+    const base = `dramabox-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const inputPath = path.join(TEMP_DIR, `${base}-input.mp4`);
+    const outputPath = path.join(TEMP_DIR, `${base}-output.mp4`);
+
+    try {
+        await writeFile(inputPath, media.buffer, { mode: 0o600 });
+        const metadata = await probeVideo(inputPath, executable);
+        const fadeStart = Math.max(0, metadata.duration);
+        const outputDuration = metadata.duration + FADE_SECONDS;
+        const cropWidth = Math.max(2, Math.floor(metadata.width * 0.985 / 2) * 2);
+        const cropHeight = Math.max(2, Math.floor(metadata.height * 0.985 / 2) * 2);
+        const pitchRate = Math.round(metadata.sampleRate * PITCH_RATIO);
+        const atempo = (1 / PITCH_RATIO).toFixed(6);
+        const watermark = escapeDrawtext('@gitplog');
+        const videoFilter = [
+            `crop=${cropWidth}:${cropHeight}:(iw-ow)/2:(ih-oh)/2`,
+            `scale=${metadata.width}:${metadata.height}:flags=lanczos`,
+            'eq=contrast=1.01:saturation=1.03:brightness=0.005',
+            `drawtext=text='${watermark}':fontcolor=white@0.42:fontsize=${Math.max(16, Math.round(metadata.height * 0.028))}:x=w-tw-${Math.max(18, Math.round(metadata.width * 0.035))}:y=h-th-${Math.max(18, Math.round(metadata.height * 0.035))}`,
+            `tpad=stop_mode=clone:stop_duration=${FADE_SECONDS}`,
+            `fade=t=out:st=${fadeStart.toFixed(3)}:d=${FADE_SECONDS}`,
+            'format=yuv420p'
+        ].join(',');
+
+        const args = [
+            '-hide_banner', '-y', '-i', inputPath,
+            '-map', '0:v:0',
+            '-vf', videoFilter,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18',
+            '-movflags', '+faststart'
+        ];
+        if (metadata.hasAudio) {
+            args.push(
+                '-map', '0:a:0?',
+                '-af', `asetrate=${pitchRate},aresample=${metadata.sampleRate},atempo=${atempo},apad=pad_dur=${FADE_SECONDS},atrim=duration=${outputDuration.toFixed(3)},afade=t=out:st=${fadeStart.toFixed(3)}:d=${FADE_SECONDS}`,
+                '-c:a', 'aac', '-b:a', '192k'
+            );
+        }
+        args.push('-t', outputDuration.toFixed(3), '-metadata', 'comment=Processed for personal use', outputPath);
+
+        await runProcess(executable, args);
+        const outputInfo = await stat(outputPath);
+        if (!outputInfo.isFile() || outputInfo.size === 0) throw new Error('EMPTY_PROCESSED_VIDEO');
+        const buffer = await readFile(outputPath);
+        return {
+            ...media,
+            buffer,
+            mimetype: 'video/mp4',
+            extension: 'mp4',
+            mediaType: 'video'
+        };
+    } finally {
+        await Promise.all([
+            rm(inputPath, { force: true }).catch(() => {}),
+            rm(outputPath, { force: true }).catch(() => {})
+        ]);
+    }
+}
+
+module.exports = { processDramaBoxPersonalVideo };
