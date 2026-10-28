@@ -5,7 +5,7 @@ const { processDramaBoxPersonalVideo } = require('../../Plugin/dramaboxPersonalP
 
 const URL_PATTERN = /https?:\/\/(?:[a-z0-9-]+\.)*dramabox(?:db)?\.com(?::\d+)?(?:\/[^\s]*)?/i;
 const PREFIX = process.env.PREFIX || '.';
-const USAGE = `Usage: ${PREFIX}dbp <DramaBox URL>`;
+const USAGE = `Usage: ${PREFIX}dbp [wm] <DramaBox URL>`;
 
 function trimPunctuation(value) {
     return value.replace(/[)\]>.,;!?"']+$/, '');
@@ -19,6 +19,8 @@ function findUrl(text) {
 async function execute(sock, m, { args = [], reply = async () => {}, quoted } = {}) {
     const target = m.quoted || quoted;
     const text = Array.isArray(args) ? args.join(' ') : String(args || '');
+    const addWatermark = (Array.isArray(args) ? args : text.trim().split(/\s+/))
+        .some(value => String(value).toLowerCase() === 'wm');
     const input = [text, target?.text, target?.body, target?.caption].filter(Boolean).join(' ');
     const url = findUrl(input);
     if (!url) return reply(USAGE);
@@ -26,7 +28,7 @@ async function execute(sock, m, { args = [], reply = async () => {}, quoted } = 
     try {
         await sock.sendPresenceUpdate?.('composing', m.chat);
         const downloaded = await downloadUniversal(url, { quality: 'best' });
-        const processed = await processDramaBoxPersonalVideo(downloaded);
+        const processed = await processDramaBoxPersonalVideo(downloaded, { watermark: addWatermark });
         await sendDownloadedMedia(sock, m, processed, '🎞️ *DramaBox Personal Downloader*');
     } catch (error) {
         console.error('[DRAMABOX PERSONAL]', error.stack || error.message || error);
