@@ -13,6 +13,7 @@ const FADE_SECONDS = 0.2;
 const PITCH_RATIO = 1.007;
 const ENDING_SECONDS = 3.5;
 const FLOWER_SECONDS = 2;
+const DURATION_RATIO = 1.01;
 
 function getFfmpegPath() {
     return ffmpegPath && existsSync(ffmpegPath) ? ffmpegPath : 'ffmpeg';
@@ -199,18 +200,20 @@ async function processDramaBoxPersonalVideo(media, { watermark = true } = {}) {
         const filters = await availableFilters(executable);
         if (!filters.has('tpad')) throw new Error('FFMPEG_MISSING_TPAD_FILTER');
         if (!filters.has('overlay') || !filters.has('format')) throw new Error('FFMPEG_MISSING_OVERLAY_FILTER');
-        const outputDuration = metadata.duration + ENDING_SECONDS;
-        const flowerStart = metadata.duration + ENDING_SECONDS - FLOWER_SECONDS;
+        const contentDuration = metadata.duration * DURATION_RATIO;
+        const outputDuration = contentDuration + ENDING_SECONDS;
+        const flowerStart = contentDuration + ENDING_SECONDS - FLOWER_SECONDS;
         const cropWidth = Math.max(2, Math.floor(metadata.width * 0.985 / 2) * 2);
         const cropHeight = Math.max(2, Math.floor(metadata.height * 0.985 / 2) * 2);
         const pitchRate = Math.round(metadata.sampleRate * PITCH_RATIO);
-        const atempo = (1 / PITCH_RATIO).toFixed(6);
+        const atempo = (1 / (PITCH_RATIO * DURATION_RATIO)).toFixed(6);
         await createFloralLightPng(floralPath, metadata.width, metadata.height);
         await createClimaxWav(climaxPath, ENDING_SECONDS, metadata.sampleRate);
         const videoFilters = [
             `crop=${cropWidth}:${cropHeight}:(iw-ow)/2:(ih-oh)/2`,
             `scale=${metadata.width}:${metadata.height}:flags=lanczos`,
             'eq=contrast=1.01:saturation=1.03:brightness=0.005',
+            `setpts=${DURATION_RATIO}*PTS`,
             `tpad=stop_mode=clone:stop_duration=${ENDING_SECONDS}`
         ];
         videoFilters.push('format=yuv420p');
@@ -243,12 +246,12 @@ async function processDramaBoxPersonalVideo(media, { watermark = true } = {}) {
         graph.push(`[${floralInput}:v]format=rgba[floral]`);
         graph.push(`[${markedVideo}][floral]overlay=x=0:y=0:enable=gte(t\\,${flowerStart.toFixed(3)}):eof_action=repeat:shortest=1[vout]`);
         if (metadata.hasAudio) {
-            const delay = Math.round(metadata.duration * 1000);
+            const delay = Math.round(contentDuration * 1000);
             graph.push(`[0:a]asetrate=${pitchRate},aresample=${metadata.sampleRate},atempo=${atempo},apad=pad_dur=${ENDING_SECONDS},atrim=duration=${outputDuration.toFixed(3)}[originalAudio]`);
             graph.push(`[${climaxInput}:a]adelay=${delay}|${delay},volume=0.65[climaxAudio]`);
             graph.push(`[originalAudio][climaxAudio]amix=inputs=2:duration=longest:dropout_transition=0,atrim=duration=${outputDuration.toFixed(3)}[aout]`);
         } else {
-            const delay = Math.round(metadata.duration * 1000);
+            const delay = Math.round(contentDuration * 1000);
             graph.push(`[${climaxInput}:a]adelay=${delay}|${delay},atrim=duration=${outputDuration.toFixed(3)}[aout]`);
         }
         args.push('-filter_complex', graph.join(';'), '-map', '[vout]', '-map', '[aout]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart');
