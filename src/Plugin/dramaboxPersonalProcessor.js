@@ -177,7 +177,7 @@ function escapeDrawtext(value) {
     return value.replace(/([\\':])/g, '\\$1');
 }
 
-async function processDramaBoxPersonalVideo(media) {
+async function processDramaBoxPersonalVideo(media, { watermark = true } = {}) {
     if (!media?.buffer || !Buffer.isBuffer(media.buffer)) throw new Error('VIDEO_BUFFER_REQUIRED');
     if (media.mediaType === 'audio' || !/^video\//i.test(media.mimetype || 'video/mp4')) {
         throw new Error('VIDEO_REQUIRED');
@@ -220,10 +220,10 @@ async function processDramaBoxPersonalVideo(media) {
         ];
         let nextInput = 1;
         let watermarkInput;
-        if (filters.has('drawtext')) {
+        if (watermark && filters.has('drawtext')) {
             const watermark = escapeDrawtext('@gitplog');
             videoFilters.push(`drawtext=text='${watermark}':fontcolor=white@0.42:fontsize=${Math.max(16, Math.round(metadata.height * 0.028))}:x=w-tw-${Math.max(18, Math.round(metadata.width * 0.035))}:y=h-th-${Math.max(18, Math.round(metadata.height * 0.035))}`);
-        } else if (filters.has('overlay')) {
+        } else if (watermark && filters.has('overlay')) {
             await createWatermarkPng(watermarkPath, Math.max(160, Math.round(metadata.width * 0.2)), Math.max(48, Math.round(metadata.height * 0.06)));
             watermarkInput = nextInput;
             nextInput += 1;
