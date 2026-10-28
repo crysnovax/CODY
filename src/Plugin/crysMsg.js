@@ -1,6 +1,7 @@
 // crysMsg.js
 const { getCommand, getAll } = require('./crysCmd');
 const { getVar, resolvePrefix } = require('./configManager');
+const { parseCommandInput } = require('./command-parser');
 const { normalizePoolcardButton, normalizePoolcardButtonMessage } = require('./poolcardButtonRouter');
 const { isAllAdminEnabled, hasAllAdminAccess, isAllAdminCommandBlocked, canManageAllAdmin } = require('./allAdminAccess');
 const chalk = require('chalk');
@@ -270,21 +271,10 @@ const handleMessage = async (sock, m, store) => {
         }
 
         // ── PREFIX HANDLING — supports null/empty for no-prefix mode ──
-        let cmdName, args, text;
-
-        if (prefix === '') {
-            // No-prefix mode — first word is the command
-            const parts = body.trim().split(/ +/);
-            cmdName = parts[0]?.toLowerCase() || '';
-            args    = parts.slice(1);
-            text    = args.join(' ');
-        } else {
-            // Normal prefix mode
-            if (!body.startsWith(prefix)) return;
-            cmdName = body.slice(prefix.length).trim().split(/ +/)[0]?.toLowerCase() || '';
-            args    = body.trim().split(/ +/).slice(1);
-            text    = args.join(' ');
-        }
+        const parsedCommand = parseCommandInput(body, prefix);
+        if (!parsedCommand) return;
+        const { cmdName, args, text } = parsedCommand;
+        prefix = parsedCommand.prefix;
 
         const cmd = getCommand(cmdName);
         if (!cmd) return;
