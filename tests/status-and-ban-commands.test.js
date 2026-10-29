@@ -76,17 +76,23 @@ function stubFetch(payload, { ok = true, status = 200 } = {}) {
     global.fetch = async () => ({ ok, status, json: async () => payload });
 }
 
-test('bancheck queries the keyless kyuux ban-status endpoint', async () => {
+test('bancheck posts to Baron0 with the configured Bearer token', async () => {
     const replies = [];
     let requestedUrl = '';
-    global.fetch = async url => {
+    let requestedOptions;
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
+    global.fetch = async (url, options) => {
         requestedUrl = String(url);
+        requestedOptions = options;
         return {
             ok: true,
             status: 200,
             json: async () => ({
-                success: true,
-                data: { number: '15*****111', status: 'Safe', banned: false, info: { device: 'Unknown', email: 'Unknown' } }
+                status: 'ok',
+                number: '+15550001111',
+                banned: false,
+                reason: 'No ban found'
             })
         };
     };
@@ -98,18 +104,28 @@ test('bancheck queries the keyless kyuux ban-status endpoint', async () => {
         });
     } finally {
         global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
     }
 
-    assert.match(requestedUrl, /kyuux-r\.indevs\.in\/api\/check-whatsapp\?phone=15550001111/);
-    assert.match(replies[0], /Status: Safe/i);
+    assert.equal(requestedUrl, 'https://baron0.com/api/v2/check');
+    assert.equal(requestedOptions.method, 'POST');
+    assert.equal(requestedOptions.headers.Authorization, 'Bearer test-baron0-token');
+    assert.equal(requestedOptions.headers['Content-Type'], 'application/json');
+    assert.deepEqual(JSON.parse(requestedOptions.body), { number: '+15550001111' });
+    assert.match(replies[0], /Status: Clean/i);
     assert.match(replies[0], /Ban detected: NO/i);
     assert.match(replies[0], /ban-status endpoint/i);
 });
 
 test('bancheck reports a banned number as banned', async () => {
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
     stubFetch({
-        success: true,
-        data: { number: '23*****901', status: 'Unsafe', banned: true, info: { device: 'Android', email: 'Unknown' } }
+        status: 'ok',
+        number: '+2348077528901',
+        banned: true,
+        reason: 'Test reason'
     });
     const replies = [];
     try {
@@ -119,16 +135,21 @@ test('bancheck reports a banned number as banned', async () => {
         });
     } finally {
         global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
     }
 
-    assert.match(replies[0], /Status: Unsafe/i);
+    assert.match(replies[0], /Status: Banned/i);
     assert.match(replies[0], /Ban detected: YES/i);
 });
 
 test('bancheck debug mode returns safe diagnostics without raw response values', async () => {
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
     stubFetch({
-        success: true,
-        data: { number: '23*****901', status: 'Safe', banned: false, info: { device: 'Unknown', email: 'Unknown' } }
+        status: 'ok',
+        number: '+2348077528901',
+        banned: false
     });
     const replies = [];
     try {
@@ -138,9 +159,27 @@ test('bancheck debug mode returns safe diagnostics without raw response values',
         });
     } finally {
         global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
     }
 
     assert.match(replies[0], /Diagnostics \(safe metadata only\)/i);
     assert.match(replies[0], /Ban detected: NO/i);
-    assert.match(replies[0], /Data keys: number/i);
+    assert.match(replies[0], /Data keys: status, number, banned/i);
+});
+
+test('bancheck reports a missing BARON0_API_KEY without making a request', async () => {
+    const originalApiKey = process.env.BARON0_API_KEY;
+    delete process.env.BARON0_API_KEY;
+    const replies = [];
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['2349122083563'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        if (originalApiKey !== undefined) process.env.BARON0_API_KEY = originalApiKey;
+    }
+
+    assert.match(replies[0], /BARON0_API_KEY is not configured/i);
 });

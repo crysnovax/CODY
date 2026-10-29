@@ -1,30 +1,51 @@
-// bancheck.js — keyless WhatsApp ban check via the kyuux endpoint.
+// bancheck.js — WhatsApp ban check via the Baron0 v2 API.
 //
-// GET https://kyuux-r.indevs.in/api/check-whatsapp?phone=<digits>
-//   { success: true, data: { number, status, banned, info: { device, email } } }
-//
-// No API key is required, so this command no longer reads BARON0_API_KEY.
-const API_BASE = 'https://kyuux-r.indevs.in';
+// POST https://baron0.com/api/v2/check
+// Authorization: Bearer <BARON0_API_KEY>
+// Body: { number: "+<country-code-and-number>" }
+const API_BASE = 'https://baron0.com';
 const { getBotDateParts } = require('../../Utils/timezone');
 
-async function checkNumber(number) {
-    const res = await fetch(`${API_BASE}/api/check-whatsapp?phone=${encodeURIComponent(number)}`);
+async function checkNumber(number, apiKey = process.env.BARON0_API_KEY) {
+    if (!apiKey) throw new Error('BARON0_API_KEY is not configured. Add it to your .env before using .bancheck.');
+    const normalizedNumber = normalizeNumber(number);
+    if (!normalizedNumber) throw new Error('No number supplied');
+
+    const e164Number = normalizedNumber.startsWith('+') ? normalizedNumber : `+${normalizedNumber}`;
+    const res = await fetch(`${API_BASE}/api/v2/check`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+        },
+        body: JSON.stringify({ number: e164Number }),
+    });
     let body;
     try {
         body = await res.json();
     } catch {
-        throw new Error(`Ban check API returned a non-JSON response (HTTP ${res.status})`);
+        const error = new Error(`Ban check API returned a non-JSON response (HTTP ${res.status})`);
+        error.httpStatus = res.status;
+        throw error;
     }
 
-    if (!res.ok || body?.success === false || !body?.data) {
-        const detail = body?.message || body?.error || `HTTP ${res.status}`;
+    if (!res.ok) {
+        const detail = body?.detail || body?.message || body?.error || body?.title || `HTTP ${res.status}`;
         const error = new Error(`Ban check failed: ${detail}`);
         error.httpStatus = res.status;
         error.bodyKeys = body && typeof body === 'object' ? Object.keys(body) : [];
         throw error;
     }
 
-    return body.data;
+    if (!body || typeof body !== 'object' || typeof body.banned !== 'boolean') {
+        const error = new Error('Ban check API returned an unexpected response');
+        error.httpStatus = res.status;
+        error.bodyKeys = body && typeof body === 'object' ? Object.keys(body) : [];
+        throw error;
+    }
+
+    return body;
 }
 
 function normalizeNumber(value = '') {
@@ -55,9 +76,13 @@ function formatDateTime(value) {
 function formatBanResult(result, requestedNumber = '') {
     const number = result?.number || requestedNumber || 'Not provided';
     const banned = Boolean(result?.banned);
-    const status = result?.status || (banned ? 'Unsafe' : 'Safe');
+    const apiStatus = String(result?.status || '');
+    const status = !apiStatus || apiStatus.toLowerCase() === 'ok'
+        ? (banned ? 'Banned' : 'Clean')
+        : apiStatus;
     const device = result?.info?.device || 'Unknown';
     const email = result?.info?.email || 'Unknown';
+    const reason = result?.reason ? `<tr><td style="padding:5px 0;color:#7a8599;font-size:12px;white-space:nowrap">REASON</td><td style="padding:5px 0 5px 12px;color:#c9d1d9;font-size:13px">${escapeHtml(result.reason)}</td></tr>` : '';
     const checkedAt = formatDateTime(result?.checkedAt || new Date());
     const now = getBotDateParts(new Date());
     const ts = `${now.hour}:${now.minute}:${now.second}`;
@@ -70,6 +95,7 @@ function formatBanResult(result, requestedNumber = '') {
     const detailRows = `
            <tr><td style="padding:5px 0;color:#7a8599;font-size:12px;white-space:nowrap">STATUS</td><td style="padding:5px 0 5px 12px;color:${accentColor};font-size:13px;font-weight:700">${escapeHtml(status)}</td></tr>
            <tr><td style="padding:5px 0;color:#7a8599;font-size:12px;white-space:nowrap">BANNED</td><td style="padding:5px 0 5px 12px;color:${banned ? '#ff6b6b' : '#00ff88'};font-size:13px;font-weight:700">${banned ? 'YES' : 'NO'}</td></tr>
+           ${reason}
            <tr><td style="padding:5px 0;color:#7a8599;font-size:12px;white-space:nowrap">DEVICE</td><td style="padding:5px 0 5px 12px;color:#c9d1d9;font-size:13px">${escapeHtml(device)}</td></tr>
            <tr><td style="padding:5px 0;color:#7a8599;font-size:12px;white-space:nowrap">EMAIL</td><td style="padding:5px 0 5px 12px;color:#c9d1d9;font-size:13px">${escapeHtml(email)}</td></tr>
            <tr><td style="padding:5px 0;color:#7a8599;font-size:12px;white-space:nowrap">CHECKED</td><td style="padding:5px 0 5px 12px;color:#c9d1d9;font-size:13px">${escapeHtml(checkedAt)}</td></tr>`;
@@ -121,7 +147,7 @@ function formatBanResult(result, requestedNumber = '') {
     </div>
 
     <div style="padding:8px 14px;border-top:1px solid #1c2333;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:9px;color:#374151;letter-spacing:1px">KYUUX BAN API</span>
+      <span style="font-size:9px;color:#374151;letter-spacing:1px">BARON0 BAN API</span>
       <span style="font-size:9px;color:${banned ? '#ff3e3e44' : '#00ff8844'};letter-spacing:1px">● ${banned ? 'FLAGGED' : 'CLEARED'}</span>
     </div>
   </div>
@@ -133,8 +159,12 @@ module.exports = {
     alias: ['checkban', 'numbercheck', 'bc'],
     category: 'Owner',
     ownerOnly: true,
-    desc: 'Check WhatsApp ban status (no API key required)',
+    desc: 'Check WhatsApp ban status via Baron0 API',
     execute: async (_sock, m, { args = [], reply }) => {
+        const apiKey = process.env.BARON0_API_KEY;
+        if (!apiKey) {
+            return reply('BARON0_API_KEY is not configured. Add it to your .env before using .bancheck.');
+        }
         const debug = args.some(arg => /^(--)?debug$/i.test(String(arg)));
         const numberArg = args.find((arg) => !/^(--)?debug$/i.test(String(arg)));
         const number = normalizeNumber(numberArg || m?.sender || '');
@@ -144,13 +174,16 @@ module.exports = {
         }
 
         try {
-            const result = await checkNumber(number);
+            const result = await checkNumber(number, apiKey);
             const html = formatBanResult(result, number);
             if (typeof _sock.sendHtmlMessage === 'function') {
                 return _sock.sendHtmlMessage(m.chat, { html }, { quoted: m });
             }
             const banned = result?.banned;
-            const status = result?.status || (banned ? 'Unsafe' : 'Safe');
+            const apiStatus = String(result?.status || '');
+            const status = !apiStatus || apiStatus.toLowerCase() === 'ok'
+                ? (banned ? 'Banned' : 'Clean')
+                : apiStatus;
             if (debug) {
                 return reply(
                     `Diagnostics (safe metadata only)\n` +
@@ -164,7 +197,7 @@ module.exports = {
                 `Ban check: ${number}\n` +
                 `Status: ${status}\n` +
                 `Ban detected: ${banned ? 'YES' : 'NO'}\n` +
-                `Checked via the ban-status endpoint.`
+                `Checked via the Baron0 ban-status endpoint.`
             );
         } catch (error) {
             return reply(`Ban check failed for ${number}: ${error?.message || error}`);

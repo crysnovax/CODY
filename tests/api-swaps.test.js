@@ -55,32 +55,51 @@ test('movieintel treats a missing items array as no results', () => {
     assert.deepEqual(movieintel.getResults(undefined), []);
 });
 
-test('bancheck.checkNumber unwraps the kyuux data envelope', async () => {
+test('bancheck.checkNumber sends an authenticated Baron0 check request', async () => {
     const realFetch = global.fetch;
-    global.fetch = async () => ({
-        ok: true,
-        status: 200,
-        json: async () => ({ success: true, data: { number: '15*****111', status: 'Safe', banned: false } })
-    });
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
+    let requestedUrl;
+    let requestedOptions;
+    global.fetch = async (url, options) => {
+        requestedUrl = String(url);
+        requestedOptions = options;
+        return {
+            ok: true,
+            status: 200,
+            json: async () => ({ status: 'ok', number: '+15550001111', banned: false })
+        };
+    };
     try {
         const data = await bancheck.checkNumber('15550001111');
-        assert.equal(data.status, 'Safe');
+        assert.equal(data.status, 'ok');
         assert.equal(data.banned, false);
     } finally {
         global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
     }
+
+    assert.equal(requestedUrl, 'https://baron0.com/api/v2/check');
+    assert.equal(requestedOptions.method, 'POST');
+    assert.equal(requestedOptions.headers.Authorization, 'Bearer test-baron0-token');
+    assert.deepEqual(JSON.parse(requestedOptions.body), { number: '+15550001111' });
 });
 
-test('bancheck.checkNumber throws on an unsuccessful envelope', async () => {
+test('bancheck.checkNumber reports an unsuccessful Baron0 response', async () => {
     const realFetch = global.fetch;
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
     global.fetch = async () => ({
-        ok: true,
-        status: 200,
-        json: async () => ({ success: false, message: 'no number supplied' })
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Unauthorized' })
     });
     try {
-        await assert.rejects(() => bancheck.checkNumber(''), /no number supplied/);
+        await assert.rejects(() => bancheck.checkNumber('15550001111'), /Unauthorized/);
     } finally {
         global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
     }
 });
