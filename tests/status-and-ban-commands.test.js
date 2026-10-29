@@ -168,9 +168,43 @@ test('bancheck debug mode returns safe diagnostics without raw response values',
     assert.match(replies[0], /Data keys: status, number, banned/i);
 });
 
-test('bancheck reports a missing BARON0_API_KEY without making a request', async () => {
+test('bancheck uses the configured default credential when no environment override is set', async () => {
     const originalApiKey = process.env.BARON0_API_KEY;
     delete process.env.BARON0_API_KEY;
+    const replies = [];
+    let requestedOptions;
+    global.fetch = async (_url, options) => {
+        requestedOptions = options;
+        return {
+            ok: true,
+            status: 200,
+            json: async () => ({ status: 'ok', number: '+2349122083563', banned: false })
+        };
+    };
+
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['2349122083563'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        global.fetch = realFetch;
+        if (originalApiKey !== undefined) process.env.BARON0_API_KEY = originalApiKey;
+    }
+
+    assert.match(requestedOptions.headers.Authorization, /^Bearer bk_v1_/);
+    assert.ok(requestedOptions.signal);
+    assert.match(replies[0], /Status: Clean/i);
+});
+
+test('bancheck handles rate limits without echoing provider error details', async () => {
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
+    global.fetch = async () => ({
+        ok: false,
+        status: 429,
+        json: async () => { throw new Error('rejected test-baron0-token'); }
+    });
     const replies = [];
     try {
         await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
@@ -178,8 +212,59 @@ test('bancheck reports a missing BARON0_API_KEY without making a request', async
             reply: async value => replies.push(value)
         });
     } finally {
-        if (originalApiKey !== undefined) process.env.BARON0_API_KEY = originalApiKey;
+        global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
     }
 
-    assert.match(replies[0], /BARON0_API_KEY is not configured/i);
+    assert.match(replies[0], /rate limited/i);
+    assert.doesNotMatch(replies[0], /test-baron0-token|rejected/i);
+});
+
+test('bancheck handles invalid response data without exposing it', async () => {
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
+    global.fetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ banned: 'invalid test-baron0-token' })
+    });
+    const replies = [];
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['2349122083563'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
+    }
+
+    assert.match(replies[0], /invalid response/i);
+    assert.doesNotMatch(replies[0], /test-baron0-token|invalid test/i);
+});
+
+test('bancheck handles timeouts without exposing the thrown error', async () => {
+    const originalApiKey = process.env.BARON0_API_KEY;
+    process.env.BARON0_API_KEY = 'test-baron0-token';
+    global.fetch = async () => {
+        const error = new Error('timeout test-baron0-token');
+        error.name = 'TimeoutError';
+        throw error;
+    };
+    const replies = [];
+    try {
+        await bancheck.execute({}, { chat: '12345@s.whatsapp.net' }, {
+            args: ['2349122083563'],
+            reply: async value => replies.push(value)
+        });
+    } finally {
+        global.fetch = realFetch;
+        if (originalApiKey === undefined) delete process.env.BARON0_API_KEY;
+        else process.env.BARON0_API_KEY = originalApiKey;
+    }
+
+    assert.match(replies[0], /timed out/i);
+    assert.doesNotMatch(replies[0], /test-baron0-token|timeout test/i);
 });

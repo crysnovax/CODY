@@ -274,6 +274,10 @@ const config = {
     // API KEYS (ZEE BOT .env style)
     // ════════════════════════════════════════════
     api: {
+        baron0:
+            process.env.BARON0_API_KEY ||
+            getVar('BARON0_API_KEY') ||
+            'bk_v1_PSuvIYJsAM8Z7FG3_iBVObDwyP3O4aGuqbj6JfydQ0g0m_f6sSNseCtz8CCQN8MSrmd5Xy-yGCQ3QGOxD7OsfE3iN5P2KF1rVU2aXjHNAJs7b6dXTeOFVQq-CAuWCcKcYtIvUhSaWUqp6rC6P12-x8nurvtZCumGOZnFuy3bk_v1_PSuvIYJsAM8Z7FG3_iBVObDwyP3O4aGuqbj6JfydQ0g0m_f6sSNseCtz8CCQN8MSrmd5Xy-yGCQ3QGOxD7OsfE3iN5P2KF1rVU2aXjHNAJs7b6dXTeOFVQq-CAuWCcKcYtIvUhSaWUqp6rC6P12-x8nurvtZCumGOZnFuy3meWgRek0jBlQmWTPF1-P7IAF9Wht1IX7akAiVQZxSK2gGJdecJWEuJwVKVJVED3aNbksdAP0WPsuAMyR6QMQ9sUNMrEIiCz--bXYdtILtXFsjjjQG2a9AbUSsZybOzG3RmUG9ohLS9mWEKzEYl6qas0uzKJ1bN3-7cM6sSjtTLJQnDF7HyfsUFVZVR8_m_0t4dxf1UmgO9G0OyynwITwLMaKt_jtTCVWry5mGgSFhgH_Oz_Wa0moCdY9zwlJOyEx-6G0F2aM1BoesbWzxcgqWsljfg9Y1quwUfpxw9Iq62hBx4OGxsP_bFtHLtvgatJUqL-IMPqbQBh9kSRVhk29XAQXPCUSfliF-hmLPKAO5DQDfVsLbtbklKX--UdsD',
         baseurl:
             process.env.API_BASEURL  ||
             getVar('API_BASEURL')    ||

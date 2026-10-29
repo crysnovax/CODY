@@ -3,45 +3,73 @@
 // POST https://baron0.com/api/v2/check
 // Authorization: Bearer <BARON0_API_KEY>
 // Body: { number: "+<country-code-and-number>" }
+const config = require('../../../settings/config');
 const API_BASE = 'https://baron0.com';
+const API_TIMEOUT_MS = 10000;
 const { getBotDateParts } = require('../../Utils/timezone');
 
-async function checkNumber(number, apiKey = process.env.BARON0_API_KEY) {
+async function checkNumber(number, apiKey = process.env.BARON0_API_KEY || config.api.baron0) {
     if (!apiKey) throw new Error('BARON0_API_KEY is not configured. Add it to your .env before using .bancheck.');
     const normalizedNumber = normalizeNumber(number);
     if (!normalizedNumber) throw new Error('No number supplied');
 
     const e164Number = normalizedNumber.startsWith('+') ? normalizedNumber : `+${normalizedNumber}`;
-    const res = await fetch(`${API_BASE}/api/v2/check`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-        },
-        body: JSON.stringify({ number: e164Number }),
-    });
-    let body;
+    let res;
     try {
-        body = await res.json();
-    } catch {
-        const error = new Error(`Ban check API returned a non-JSON response (HTTP ${res.status})`);
-        error.httpStatus = res.status;
-        throw error;
+        res = await fetch(`${API_BASE}/api/v2/check`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ number: e164Number }),
+            signal: AbortSignal.timeout(API_TIMEOUT_MS),
+        });
+    } catch (error) {
+        const timedOut = error?.name === 'TimeoutError' || error?.name === 'AbortError';
+        const failure = new Error(timedOut
+            ? 'Ban check service timed out. Try again later.'
+            : 'Ban check service is unavailable. Try again later.');
+        failure.publicMessage = failure.message;
+        failure.code = timedOut ? 'ETIMEDOUT' : 'ESERVICEUNAVAILABLE';
+        throw failure;
     }
 
     if (!res.ok) {
-        const detail = body?.detail || body?.message || body?.error || body?.title || `HTTP ${res.status}`;
-        const error = new Error(`Ban check failed: ${detail}`);
+        const publicMessage = res.status === 429
+            ? 'Ban check service is rate limited. Try again later.'
+            : (res.status === 408 || res.status === 504)
+                ? 'Ban check service timed out. Try again later.'
+                : res.status === 401 || res.status === 403
+                    ? 'Ban check service rejected its credentials.'
+                    : res.status >= 500
+                        ? 'Ban check service is unavailable. Try again later.'
+                        : 'Ban check request was rejected.';
+        const error = new Error(publicMessage);
+        error.publicMessage = publicMessage;
         error.httpStatus = res.status;
-        error.bodyKeys = body && typeof body === 'object' ? Object.keys(body) : [];
         throw error;
     }
 
-    if (!body || typeof body !== 'object' || typeof body.banned !== 'boolean') {
-        const error = new Error('Ban check API returned an unexpected response');
+    let body;
+    try {
+        body = await res.json();
+    } catch (cause) {
+        const timedOut = cause?.name === 'TimeoutError' || cause?.name === 'AbortError';
+        const publicMessage = timedOut
+            ? 'Ban check service timed out. Try again later.'
+            : 'Ban check service returned an invalid response. Try again later.';
+        const error = new Error(publicMessage);
+        error.publicMessage = publicMessage;
         error.httpStatus = res.status;
-        error.bodyKeys = body && typeof body === 'object' ? Object.keys(body) : [];
+        throw error;
+    }
+
+    if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.banned !== 'boolean') {
+        const error = new Error('Ban check API returned an unexpected response');
+        error.publicMessage = 'Ban check service returned an invalid response. Try again later.';
+        error.httpStatus = res.status;
         throw error;
     }
 
@@ -161,7 +189,7 @@ module.exports = {
     ownerOnly: true,
     desc: 'Check WhatsApp ban status via Baron0 API',
     execute: async (_sock, m, { args = [], reply }) => {
-        const apiKey = process.env.BARON0_API_KEY;
+        const apiKey = process.env.BARON0_API_KEY || config.api.baron0;
         if (!apiKey) {
             return reply('BARON0_API_KEY is not configured. Add it to your .env before using .bancheck.');
         }
@@ -200,7 +228,8 @@ module.exports = {
                 `Checked via the Baron0 ban-status endpoint.`
             );
         } catch (error) {
-            return reply(`Ban check failed for ${number}: ${error?.message || error}`);
+            const safeMessage = error?.publicMessage || 'Ban check failed. Try again later.';
+            return reply(`Ban check failed for ${number}: ${safeMessage}`);
         }
     },
     formatBanResult,
