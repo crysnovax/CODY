@@ -1,1 +1,25 @@
-const a0_0x37c250=a0_0x5bcf;function a0_0x5bcf(_0x3b4251,_0x380133){_0x3b4251=_0x3b4251-0x198;const _0x285704=a0_0x2857();let _0x5bcf3d=_0x285704[_0x3b4251];return _0x5bcf3d;}function a0_0x2857(){const _0x1134cd=['_*✦\x20CHANNEL\x20JID\x20FETCH*_\x0a\x0a','3228taXCIn','Tools','[JID\x20CHANNEL\x20ERROR]','chjid','exports','46077EdutpI','𓉤\x20_*Usage:\x20.jidchannel\x20<channel\x20link>*_','2276658XQHRIH','newsletterMetadata','_*𝓬𝓻𝔂𝓼𝓷𝓸𝓿𝓪\x20𝓿𝓮𝓻𝓲𝓯𝓲𝓮𝓭*_','亗\x20*JID\x20Information*\x0a\x0a','*Channel\x20JID:*\x20','1376756aEoHMC','✘\x20Failed\x20to\x20get\x20channel\x20JID','856104lcLdqG','3doKUbF','error','3479584kkIWjk','Get\x20WhatsApp\x20channel\x20JID\x20from\x20link','4858notZPW','47786CuJByl','22FqQhmp','match','_*⚉\x20Invalid\x20channel\x20link*_','sendMessage','10zMIkdu','_*𓄄\x20Failed\x20to\x20fetch\x20channel\x20info*_','invite','5QyaLLr'];a0_0x2857=function(){return _0x1134cd;};return a0_0x2857();}(function(_0x7a407c,_0x458fb3){const _0x4f170c=a0_0x5bcf,_0x1433b4=_0x7a407c();while(!![]){try{const _0x43d74a=-parseInt(_0x4f170c(0x1ac))/0x1*(-parseInt(_0x4f170c(0x1b1))/0x2)+-parseInt(_0x4f170c(0x1a2))/0x3+-parseInt(_0x4f170c(0x1a9))/0x4*(-parseInt(_0x4f170c(0x19b))/0x5)+-parseInt(_0x4f170c(0x19d))/0x6*(-parseInt(_0x4f170c(0x1b0))/0x7)+-parseInt(_0x4f170c(0x1ae))/0x8+-parseInt(_0x4f170c(0x1a4))/0x9*(parseInt(_0x4f170c(0x198))/0xa)+-parseInt(_0x4f170c(0x1b2))/0xb*(-parseInt(_0x4f170c(0x1ab))/0xc);if(_0x43d74a===_0x458fb3)break;else _0x1433b4['push'](_0x1433b4['shift']());}catch(_0x15c9b4){_0x1433b4['push'](_0x1433b4['shift']());}}}(a0_0x2857,0x37d2f),module[a0_0x37c250(0x1a1)]={'name':'jidchannel','alias':[a0_0x37c250(0x1a0)],'desc':a0_0x37c250(0x1af),'category':a0_0x37c250(0x19e),'execute':async(_0x24cd2e,_0x2ed9e8,{args:_0x20cf18,reply:_0x411f97})=>{const _0x3fb20a=a0_0x37c250;try{const _0x48d052=_0x20cf18[0x0];if(!_0x48d052)return _0x411f97(_0x3fb20a(0x1a3));const _0x448bb0=_0x48d052[_0x3fb20a(0x1b3)](/\/([A-Za-z0-9]+)$/);if(!_0x448bb0)return _0x411f97(_0x3fb20a(0x1b4));const _0x25651e=_0x448bb0[0x1],_0xaebdc5=await _0x24cd2e[_0x3fb20a(0x1a5)](_0x3fb20a(0x19a),_0x25651e);if(!_0xaebdc5||!_0xaebdc5['id'])return _0x411f97(_0x3fb20a(0x199));const _0x1b7155=_0xaebdc5['id'];await _0x24cd2e[_0x3fb20a(0x1b5)](_0x2ed9e8['chat'],{'text':_0x3fb20a(0x1a7)+(_0x3fb20a(0x1a8)+_0x1b7155+'\x0a')+('*User\x20JID:*\x20'+_0x1b7155+'\x0a')+_0x3fb20a(0x19c)+_0x3fb20a(0x1a6)},{'quoted':_0x2ed9e8});}catch(_0x4955ea){console[_0x3fb20a(0x1ad)](_0x3fb20a(0x19f),_0x4955ea),_0x411f97(_0x3fb20a(0x1aa));}}});
+module.exports = {
+    name: 'channeljid',
+    alias: ['chjid'],
+    category: 'Tools',
+    execute: async (sock, m, { args }) => {
+        let jid;
+
+        const input = args[0];
+        if (!input) return;
+
+        const match = input.match(/\/([A-Za-z0-9]+)$/);
+        if (!match) return;
+
+        const inviteCode = match[1];
+        const metadata = await sock.newsletterMetadata('invite', inviteCode);
+        
+        jid = metadata.id;
+
+        await sock.sendRichTextCopy(m.chat, {
+            text: '## ⓘ Resolved lid/jid',
+            copyText: jid,
+            copyLabel: jid
+        });
+    }
+};
