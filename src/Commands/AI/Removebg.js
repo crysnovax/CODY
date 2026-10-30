@@ -4,7 +4,7 @@ const config = require('../../../settings/config');
 
 // Use Apex gateway from config
 const GATEWAY_URL = process.env.GATEWAY_URL || config.api?.gateway || 'https://api.crysnovax.link';
-const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || config.api?.gatewayToken || '';
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN || config.api?.gatewayToken || 'x';
 
 module.exports = {
     name: 'rembg',
