@@ -5,24 +5,21 @@ const { exec } = require('child_process');
 const { addExif } = require('../../../library/exif');
 const { getStickerBranding } = require('../../Plugin/packname');
 
-// WhatsApp caps a single sticker at 1 MB. 15% headroom for the exif chunk
-// addExif appends after encoding.
 const STICKER_LIMIT = 950 * 1024;
-
-// Concurrent sticker pipelines. Telegram tolerates ~30 req/sec; 6 is safe
-// and turns a 90s sequential pack into ~15s.
 const CONCURRENCY = 6;
-
-// Cache getStickerSet responses so repeat calls on the same pack skip the API.
 const PACK_TTL_MS = 5 * 60 * 1000;
 const packCache = new Map();
 
-// Shared 512x512 centre-crop filter.
+// Proxy config - NO TOKEN HERE. Token lives in Cloudflare Worker env.
+const TELEGRAM_PROXY_URL = String(
+    process.env.TELEGRAM_PROXY_URL || 'https://tg.crysnovax.com'
+).replace(/\/+$/, '').trim();
+const PROXY_SECRET = String(process.env.TELEGRAM_PROXY_SECRET || 'x').trim();
+
 const CROP_VF =
     'scale=512:512:force_original_aspect_ratio=increase,' +
     'crop=512:512:(iw-ow)/2:(ih-oh)/2';
 
-// Promise wrapper around exec.
 function run(cmd) {
     return new Promise((resolve, reject) =>
         exec(cmd, { maxBuffer: 16 * 1024 * 1024 }, (err, stdout) =>
@@ -31,8 +28,6 @@ function run(cmd) {
     );
 }
 
-// Read duration from a .webm so we can compute a target bitrate that fits.
-// Telegram caps video stickers at ~3s, so that's the fallback.
 async function ffprobeDuration(inputPath) {
     try {
         const out = await run(
@@ -46,8 +41,6 @@ async function ffprobeDuration(inputPath) {
     }
 }
 
-// One-shot video encode targeting a specific bitrate. Replaces the old
-// q-ladder — we compute the bitrate up front and trust ffmpeg to hit it.
 async function encodeVideo(inputPath, outputPath, bitrateKbps) {
     const cmd =
         `ffmpeg -y -i "${inputPath}" ` +
@@ -59,7 +52,6 @@ async function encodeVideo(inputPath, outputPath, bitrateKbps) {
     return fs.readFileSync(outputPath);
 }
 
-// Static re-encode. Only used for oversized static webp, which is rare.
 async function encodeStatic(inputPath, outputPath, q) {
     const cmd =
         `ffmpeg -y -i "${inputPath}" ` +
@@ -69,7 +61,6 @@ async function encodeStatic(inputPath, outputPath, q) {
     return fs.readFileSync(outputPath);
 }
 
-// Minimal concurrency pool — no deps. Preserves input order in the result.
 async function pool(items, limit, worker) {
     const results = new Array(items.length);
     let cursor = 0;
@@ -90,14 +81,13 @@ async function pool(items, limit, worker) {
     return results;
 }
 
-// Cached getStickerSet. The response already tells us is_video / is_animated
-// / file_size for every sticker, which the pre-filter and encoder both use.
-async function fetchStickerSet(botToken, name) {
+async function fetchStickerSet(name) {
     const cached = packCache.get(name);
     if (cached && cached.expires > Date.now()) return cached.data;
 
     const res = await fetch(
-        `https://api.telegram.org/bot${botToken}/getStickerSet?name=${name}`
+        `${TELEGRAM_PROXY_URL}/getStickerSet?name=${encodeURIComponent(name)}`,
+        { headers: { 'x-proxy-secret': PROXY_SECRET } }
     );
     const data = await res.json();
 
@@ -110,7 +100,7 @@ async function fetchStickerSet(botToken, name) {
 module.exports = {
     name: 'tgsticker',
     alias: ['tg', 'telegramsticker', 'tgs'],
-    desc: 'Download Telegram sticker pack and send as one WhatsApp sticker pack',
+    desc: 'Download Telegram sticker pack and send as one 【entity-WhatsApp¦canonical_name=WhatsApp】 sticker pack',
     category: 'Tools',
     usage: '.tg <Telegram sticker URL>',
     examples: ['.tg https://t.me/addstickers/HoppersCartoon'],
@@ -135,6 +125,10 @@ module.exports = {
             } catch (e) {}
         };
 
+        if (!PROXY_SECRET || !TELEGRAM_PROXY_URL) {
+            return safeReply('✘ Telegram proxy not configured. Set TELEGRAM_PROXY_URL and TELEGRAM_PROXY_SECRET in .env');
+        }
+
         if (!link || !link.includes('t.me/addstickers/')) {
             return safeReply(
                 `📦 *TELEGRAM STICKER DOWNLOADER*\n\n` +
@@ -151,30 +145,19 @@ module.exports = {
         const packName = link.split('t.me/addstickers/')[1].split(/[?#]/)[0];
         const { pack: brandPack, author: brandAuthor } = getStickerBranding();
 
-        const botToken = String(
-            process.env.TELEGRAM_BOT_TOKEN ||
-            '8762004383:AAF5uFEe3RDkbgMxiJ5qfC49CoId7-5i-tU'
-        ).trim();
-        if (!botToken) {
-            return safeReply('✘ Telegram sticker support is not configured on this deployment.');
-        }
-
         const tempDir = path.join(__dirname, '../../temp');
         const runDir = path.join(tempDir, `tgpack_${Date.now()}`);
 
         try {
-            const data = await fetchStickerSet(botToken, packName);
+            const data = await fetchStickerSet(packName);
 
             if (!data.ok) {
                 throw new Error(data.description || 'Invalid sticker pack');
             }
 
-            // WhatsApp caps a single pack payload at ~60 stickers.
             const all = data.result.stickers.slice(0, 60);
             if (all.length === 0) throw new Error('Sticker pack is empty');
 
-            // Pre-filter: drop Lottie .tgs before we pay a getFile round-trip
-            // for them. Telegram flags these as is_animated && !is_video.
             const candidates = all.filter(
                 (s) => !(s.is_animated && !s.is_video)
             );
@@ -183,22 +166,22 @@ module.exports = {
                 fs.mkdirSync(runDir, { recursive: true });
             }
 
-            // Each worker handles one sticker: fetch -> normalise -> exif ->
-            // write to disk. Returns the path, or null to skip the sticker.
             const results = await pool(candidates, CONCURRENCY, async (sticker, i) => {
                 try {
                     const fileRes = await fetch(
-                        `https://api.telegram.org/bot${botToken}/getFile?file_id=${sticker.file_id}`
+                        `${TELEGRAM_PROXY_URL}/getFile?file_id=${sticker.file_id}`,
+                        { headers: { 'x-proxy-secret': PROXY_SECRET } }
                     );
                     const fileData = await fileRes.json();
                     if (!fileData.ok) return null;
 
-                    const filePath = fileData.result.file_path || '';
-                    // Belt-and-braces: some packs mislabel .tgs as static.
+                    const filePath = (fileData.result.file_path || '').replace(/^\/+/, '');
+                    if (!filePath) return null;
                     if (filePath.endsWith('.tgs')) return null;
 
                     const imgRes = await fetch(
-                        `https://api.telegram.org/file/bot${botToken}/${filePath}`
+                        `${TELEGRAM_PROXY_URL}/file/bot0/${filePath}`,
+                        { headers: { 'x-proxy-secret': PROXY_SECRET } }
                     );
                     if (!imgRes.ok) return null;
 
@@ -208,12 +191,8 @@ module.exports = {
                     let finalBuffer;
 
                     if (!isVideo && raw.length <= STICKER_LIMIT) {
-                        // Fast path: static webp already small enough. No ffmpeg.
                         finalBuffer = raw;
-
                     } else if (isVideo) {
-                        // Video path: compute a bitrate that fits under the cap
-                        // in one pass, no quality ladder.
                         const input = path.join(runDir, `v_in_${i}.webm`);
                         const output = path.join(runDir, `v_out_${i}.webp`);
                         fs.writeFileSync(input, raw);
@@ -230,9 +209,7 @@ module.exports = {
                             try { fs.unlinkSync(output); } catch {}
                         }
                         if (finalBuffer.length > STICKER_LIMIT) return null;
-
                     } else {
-                        // Oversized static: short quality ladder. Rare.
                         const input = path.join(runDir, `s_in_${i}.webp`);
                         fs.writeFileSync(input, raw);
                         finalBuffer = raw;
@@ -268,7 +245,6 @@ module.exports = {
                 }
             });
 
-            // pool preserves input order, so filtering keeps pack order intact.
             const stickerFiles = results.filter(Boolean);
 
             if (stickerFiles.length === 0) {
