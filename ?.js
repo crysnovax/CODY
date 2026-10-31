@@ -622,6 +622,18 @@ try {
                 if (antispam?.handleAntiSpam) await antispam.handleAntiSpam(sock, m);
             } catch (err) { console.error('[ANTISPAM ERROR]', err.message); }
 
+            // ── STICKER REACTION ─────────────────────────────────────────
+            // Send the configured sticker as a WhatsApp association reaction
+            // to each incoming non-command message.
+            try {
+                const sreact = require('./src/Commands/Owner/sreact.js');
+                const reactionPrefix = getVar('PREFIX', '.');
+                const messageText = String(m.text || m.body || '').trim();
+                if (sreact.isEnabled() && !m.key?.fromMe && !messageText.startsWith(reactionPrefix)) {
+                    await sreact.sendStickerReaction(sock, m.chat, m.key);
+                }
+            } catch (err) { console.error('[SREACT ERROR]', err.message); }
+
             try {
                 const mention = require('./src/Commands/Owner/mention.js');
                 const { mentionConfig } = mention;
@@ -630,6 +642,11 @@ try {
                         await sock.sendMessage(m.chat, { react: { text: mentionConfig.emoji, key: m.key } }).catch(() => {});
                     } else if (mentionConfig.action === 'text' && mentionConfig.text) {
                         await sock.sendMessage(m.chat, { text: mentionConfig.text }, { quoted: m }).catch(() => {});
+                    } else if (mentionConfig.action === 'sreact') {
+                        const sreact = require('./src/Commands/Owner/sreact.js');
+                        await sreact.sendStickerReaction(sock, m.chat, m.key).catch(error => {
+                            console.error('[MENTION SREACT]', error.message);
+                        });
                     } else if (mentionConfig.action === 'sticker' && mentionConfig.sticker) {
                         await mention.sendMentionSticker(sock, m.chat, { quoted: m }).catch(error => {
                             console.error('[MENTION STICKER]', error.message);
