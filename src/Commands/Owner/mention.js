@@ -5,7 +5,6 @@ const { getList } = require('../../Plugin/accessListManager');
 const { getContextInfo, identityVariants, normalizeJid } = require('../../Plugin/identityUtils');
 const { downloadContentFromMessage } = require('plogme');
 const { loadMentionSticker } = require('../../Plugin/mentionSticker');
-const sreact = require('./sreact');
 
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
@@ -213,9 +212,8 @@ module.exports = {
             return reply(`╭─❍ *MENTION*\n│\n│ ✦ Status : ON\n│ 𓄄 Action : REACT\n│ ⚉ Emoji  : ${value}\n╰──────────────────`);
         }
 
-        // STICKER REACTION: use the sticker saved with .sreact add.
+        // STICKER REACTION: use the built-in default sticker reaction.
         if (option === 'sreact' || option === '-sreact') {
-            if (!sreact.hasSticker()) return reply(`╭─❍ *MENTION*\n│ ✘ Save a sticker first with ${prefix}sreact add\n╰──────────────────`);
             mentionConfig.active = true;
             mentionConfig.action = 'sreact';
             mentionConfig.emoji = '';
@@ -321,7 +319,7 @@ module.exports = {
             `│   Auto-react when mentioned\n` +
             `│   Example: ${prefix}mention -react ❤️‍🔥\n│\n` +
             `│ ➫ ${prefix}mention sreact\n` +
-            `│   Use the sticker saved with ${prefix}sreact add\n│\n` +
+            `│   Use the built-in default sticker reaction when mentioned\n│\n` +
             `│ ➫ ${prefix}mention -sticker [url]\n` +
             `│   Reply to a sticker or provide a sticker URL\n│\n` +
             `│ ➫ ${prefix}mention -voice\n` +

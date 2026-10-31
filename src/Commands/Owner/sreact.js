@@ -1,74 +1,30 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-
-const CONFIG_FILE = path.join(__dirname, '../../../database/sreact.json');
-const PROTOCOL_FILE = path.join(__dirname, '../../../database/sreact-message.json');
-
-const config = { enabled: false };
-
-function loadConfig() {
-    try {
-        if (fs.existsSync(CONFIG_FILE)) Object.assign(config, JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')));
-    } catch (error) {
-        console.error('[SREACT] Config load error:', error.message);
-    }
-    return config;
-}
-
-function saveConfig() {
-    fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-}
-
-function bufferReplacer(_key, value) {
-    if (Buffer.isBuffer(value)) return { type: 'Buffer', data: [...value] };
-    if (value instanceof Uint8Array) return { type: 'Buffer', data: [...value] };
-    return value;
-}
-
-function bufferReviver(_key, value) {
-    if (value && value.type === 'Buffer' && Array.isArray(value.data)) return Buffer.from(value.data);
-    return value;
-}
-
-function getPayload(target) {
-    if (!target) return null;
-    const candidates = [
-        ['stickerMessage', target.stickerMessage],
-        ['lottieStickerMessage', target.lottieStickerMessage],
-        ['stickerMessage', target.message?.stickerMessage],
-        ['lottieStickerMessage', target.message?.lottieStickerMessage],
-        ['stickerMessage', target.msg?.stickerMessage],
-        ['lottieStickerMessage', target.msg?.lottieStickerMessage]
-    ];
-    for (const [type, value] of candidates) {
-        if (value) return { type, value };
-    }
-    if (target.mtype === 'stickerMessage' && target.msg) return { type: 'stickerMessage', value: target.msg };
-    if (target.mtype === 'lottieStickerMessage' && target.msg) return { type: 'lottieStickerMessage', value: target.msg };
-    return null;
-}
-
-function savePayload(payload) {
-    fs.mkdirSync(path.dirname(PROTOCOL_FILE), { recursive: true });
-    fs.writeFileSync(PROTOCOL_FILE, JSON.stringify(payload, bufferReplacer, 2));
-}
-
-function readPayload() {
-    if (!fs.existsSync(PROTOCOL_FILE)) return null;
-    try {
-        return JSON.parse(fs.readFileSync(PROTOCOL_FILE, 'utf8'), bufferReviver);
-    } catch (error) {
-        console.error('[SREACT] Sticker load error:', error.message);
-        return null;
-    }
-}
+// Default animated sticker supplied by the repository owner. It is sent as a
+// WhatsApp association reaction to the message targeted by .sreact.
+const DEFAULT_STICKER_MESSAGE = Object.freeze({
+    url: 'https://mmg.whatsapp.net/o1/v/t24/f2/m232/AQPEoFVa7kEaTxJ5N4kBacoDZ1k0IzHqkfsmUhLxV8C4xB11yCktX6UEHvkJnmgTsnEhoRW27_Pma0f92oVnKzwBB4YUsMbtz2HlS_Oxeg?ccb=9-4&oh=01_Q5Aa5wEK3E2DIH-ZBY_naItwmTshYSHL2bClVxX2UUGd6_gOyw&oe=6B0DB1D3&_nc_sid=e6ed6c&mms3=true',
+    fileSha256: 'BsnVlbXyY2a722AugpS5TLIuxPNmaHRU2Hi9vL90USY=',
+    fileEncSha256: 'PQcd/lNPjIt/cbpv3UuTrnd5OH7O1GnASu0C3c+PdQg=',
+    mediaKey: 'j6kvKJ0k1eha91lF+ruW+5TPGP5inpuCePSrFs0nhuI=',
+    mimetype: 'image/webp',
+    height: 64,
+    width: 64,
+    directPath: '/o1/v/t24/f2/m232/AQPEoFVa7kEaTxJ5N4kBacoDZ1k0IzHqkfsmUhLxV8C4xB11yCktX6UEHvkJnmgTsnEhoRW27_Pma0f92oVnKzwBB4YUsMbtz2HlS_Oxeg?ccb=9-4&oh=01_Q5Aa5wEK3E2DIH-ZBY_naItwmTshYSHL2bClVxX2UUGd6_gOyw&oe=6B0DB1D3&_nc_sid=e6ed6c',
+    fileLength: '373112',
+    mediaKeyTimestamp: '1793438486',
+    firstFrameLength: 372742,
+    firstFrameSidecar: 'z4sdmAKy5mcQPA==',
+    isAnimated: true,
+    isLottie: false,
+    isAvatar: false,
+    isAiSticker: false,
+    premium: 0
+});
 
 async function sendStickerReaction(sock, jid, parentMessageKey) {
-    const payload = readPayload();
-    if (!payload || typeof sock.relayMessage !== 'function') return false;
+    if (!parentMessageKey?.id || typeof sock?.relayMessage !== 'function') return false;
+
     await sock.relayMessage(jid, {
         messageContextInfo: {
             messageAssociation: {
@@ -76,49 +32,29 @@ async function sendStickerReaction(sock, jid, parentMessageKey) {
                 parentMessageKey
             }
         },
-        [payload.type]: payload.value
+        stickerMessage: { ...DEFAULT_STICKER_MESSAGE }
     }, {});
     return true;
 }
-
-loadConfig();
 
 module.exports = {
     name: 'sreact',
     alias: ['stickerreact'],
     category: 'Owner',
     privilegedOnly: true,
-    desc: 'React to messages with a saved sticker or Lottie sticker',
-    usage: '.sreact add (reply to a sticker) | .sreact on | .sreact off | .sreact status',
-    execute: async (sock, m, { args, reply }) => {
-        const option = String(args[0] || '').toLowerCase();
-        const target = m.quoted || m;
-        if (option === 'add' || option === 'set' || option === 'replace') {
-            const payload = getPayload(target);
-            if (!payload) return reply('✘ Reply to a sticker or Lottie sticker with .sreact add.');
-            savePayload(payload);
-            config.enabled = true;
-            saveConfig();
-            return reply(`✓ Sticker reaction saved (${payload.type === 'lottieStickerMessage' ? 'Lottie' : 'sticker'}) and enabled.`);
+    desc: 'Send the default sticker reaction to a replied-to message',
+    usage: '.sreact (reply to a message)',
+    execute: async (sock, m, { args = [], reply }) => {
+        if (args.length) {
+            return reply('Usage: reply to a message and use .sreact to send the default sticker reaction.');
         }
-        if (option === 'on') {
-            if (!readPayload()) return reply('✘ Save a sticker first with .sreact add.');
-            config.enabled = true;
-            saveConfig();
-            return reply('✓ Sticker reactions enabled.');
+        const targetKey = m.quoted?.key;
+        if (!targetKey?.id) {
+            return reply('Reply to the message you want to react to, then send .sreact.');
         }
-        if (option === 'off') {
-            config.enabled = false;
-            saveConfig();
-            return reply('✓ Sticker reactions disabled.');
-        }
-        if (option === 'status') {
-            const payload = readPayload();
-            return reply(`SREACT: ${config.enabled ? 'ON' : 'OFF'}\nSticker: ${payload ? (payload.type === 'lottieStickerMessage' ? 'Lottie' : 'saved') : 'not configured'}`);
-        }
-        return reply('Usage:\n.sreact add — reply to a sticker or Lottie sticker\n.sreact on\n.sreact off\n.sreact status');
+        const sent = await sendStickerReaction(sock, m.chat, targetKey);
+        if (!sent) return reply('Could not send the sticker reaction in this chat.');
     },
-    isEnabled: () => Boolean(loadConfig().enabled),
-    hasSticker: () => Boolean(readPayload()),
+    DEFAULT_STICKER_MESSAGE,
     sendStickerReaction
 };
