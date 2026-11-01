@@ -93,8 +93,24 @@ module.exports = {
     category: 'Owner',
     privilegedOnly: true,
     desc: 'Send the saved sticker reaction to a replied-to message, optionally repeating it',
-    usage: '.sreact [count] (reply to a message; reply to a sticker to save it)',
+    usage: '.sreact add (reply to a sticker) | .sreact [count] (reply to a message)',
     execute: async (sock, m, { args = [], reply }) => {
+        if (String(args[0] || '').toLowerCase() === 'add') {
+            if (args.length !== 1) {
+                return reply('Usage: reply to a sticker and send .sreact add.');
+            }
+            const quotedSticker = getQuotedStickerMessage(m.quoted);
+            if (!quotedSticker) {
+                return reply('Reply to a sticker and send .sreact add to save it as the new sreact sticker.');
+            }
+            try {
+                saveStickerReactionMessage(m.quoted);
+                return reply('New sreact sticker saved.');
+            } catch (error) {
+                return reply(`Could not save that sticker reaction: ${error.message}`);
+            }
+        }
+
         const count = args.length <= 1 ? parseReactionCount(args[0]) : null;
         if (!count) {
             return reply(`Usage: reply to a message and use .sreact [1-${MAX_STICKER_REACTION_ATTEMPTS}].`);

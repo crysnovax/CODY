@@ -166,3 +166,31 @@ test('.mention sreact saves a replied sticker for future mention reactions', asy
         Object.assign(mention.mentionConfig, previousConfig);
     }
 });
+
+test('.sreact add saves a replied sticker without sending a reaction', async () => {
+    const stickerPath = path.resolve(sreact.CUSTOM_STICKER_FILE);
+    const originalWriteFileSync = fs.writeFileSync;
+    let saved;
+    const replies = [];
+    fs.writeFileSync = function (file, data, ...rest) {
+        if (path.resolve(String(file)) === stickerPath) {
+            saved = JSON.parse(String(data));
+            return;
+        }
+        return originalWriteFileSync.call(this, file, data, ...rest);
+    };
+    try {
+        let relayed = false;
+        await sreact.execute({ relayMessage: async () => { relayed = true; } }, {
+            quoted: {
+                key: { id: 'source-sticker' },
+                stickerMessage: { url: 'https://example.test/add.webp', mimetype: 'image/webp' }
+            }
+        }, { args: ['add'], reply: async text => replies.push(text) });
+        assert.deepEqual(saved, { url: 'https://example.test/add.webp', mimetype: 'image/webp' });
+        assert.equal(relayed, false);
+        assert.match(replies[0], /saved/i);
+    } finally {
+        fs.writeFileSync = originalWriteFileSync;
+    }
+});
