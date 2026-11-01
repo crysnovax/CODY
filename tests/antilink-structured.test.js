@@ -55,27 +55,27 @@ test('does not scan native-flow response JSON or unsupported rich messages', () 
     assert.deepEqual(texts, []);
 });
 
-test('scans WhatsApp interactive message body links and native-flow CTA URLs', () => {
+test('scans direct WhatsApp interactive messages with the invisible marker intact', () => {
+    const marker = '\u200e';
     const payload = {
-        interactiveMessage: {
-            body: {
-                text: '👑 Owner: *The owner himself*\n📞 wa.me/2347066248340\n✈️ t.me/Lord_CeAser_Himself'
-            },
-            footer: { text: 'Community information' },
-            nativeFlowMessage: {
-                buttons: [{
-                    name: 'cta_url',
-                    buttonParamsJson: JSON.stringify({
-                        display_text: '📢 View Channel',
-                        url: 'https://whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X',
-                        merchant_url: 'https://whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X'
-                    })
-                }]
-            }
+        body: {
+            text: `👑 Owner: *The owner himself*\n📞 wa.me/2347066248340\n✈️ t.me/Lord_CeAser_Himself${marker}`
+        },
+        footer: { text: 'Community information' },
+        nativeFlowMessage: {
+            buttons: [{
+                name: 'cta_url',
+                buttonParamsJson: JSON.stringify({
+                    display_text: '📢 View Channel',
+                    url: `https://whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X${marker}`,
+                    merchant_url: 'https://whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X'
+                })
+            }]
         }
     };
     const texts = getMessageText(payload);
     const combined = texts.join(' ');
+    assert.equal(payload.body.text.endsWith(marker), true, 'scanning must not mutate or remove the marker');
     assert.ok(texts.some(text => text.includes('wa.me/2347066248340')));
     assert.ok(texts.some(text => text.includes('t.me/Lord_CeAser_Himself')));
     assert.ok(texts.some(text => text.includes('whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X')));

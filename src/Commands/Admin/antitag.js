@@ -1,7 +1,7 @@
 // — Anti Tag / Anti Mass Mention
 const fs   = require('fs');
 const path = require('path');
-const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
+const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
@@ -60,6 +60,33 @@ function getMentions(m) {
     collectMentionData(msg, state);
     for (const jid of m.mentionedJid || []) state.mentions.add(jid);
     return { ...state, mentions: [...state.mentions] };
+}
+
+function getTagDetectionText(m = {}) {
+    const message = m.message || {};
+    const rawMessage = m.__rawMessage || {};
+    const candidates = [
+        message.interactiveMessage,
+        rawMessage.interactiveMessage,
+        m.msg?.interactiveMessage,
+        m.msg?.body ? m.msg : null,
+        message.body ? message : null,
+        rawMessage.body ? rawMessage : null,
+    ];
+    const interactive = candidates.find(value => value && typeof value === 'object');
+    const parts = [
+        m.text,
+        m.body,
+        message.conversation,
+        message.extendedTextMessage?.text,
+        interactive?.header?.title,
+        interactive?.body?.text,
+        interactive?.footer?.text,
+    ].filter(value => typeof value === 'string' && value.length > 0);
+    // Keep the marker in this analysis copy. Its presence must not suppress
+    // AntiTag; counting it alongside any other invisible tag characters lets
+    // the marker-bearing message be inspected without changing the message.
+    return [...new Set(parts)].join('\n');
 }
 
 function norm(jid) {
@@ -196,7 +223,7 @@ module.exports.handleAntiTag = async function(sock, m) {
         const mentionCount = uniqueMentions.length;
 
         // Get text for hidetag detection
-        const text = stripBotMarker(m.text || m.body || m.message?.conversation || m.message?.extendedTextMessage?.text || '');
+        const text = getTagDetectionText(m);
         const invisibleCount = (text.match(/[\u200e\u200f\u200b\u2060\u061c\ufeff]/g) || []).length;
         const isHideTag = invisibleCount >= 2;
 
@@ -304,3 +331,4 @@ module.exports.handleAntiTag = async function(sock, m) {
 
 module.exports.getMentions = getMentions;
 module.exports.collectMentionData = collectMentionData;
+module.exports.getTagDetectionText = getTagDetectionText;

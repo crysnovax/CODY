@@ -135,12 +135,17 @@ function getMessageText(value) {
             else if (MESSAGE_WRAPPER_TYPES.has(key) && child && typeof child === 'object') walkRoot(child);
         }
     };
-    walkRoot(value);
+    const isDirectInteractive = value && typeof value === 'object' && value.body && typeof value.body === 'object' &&
+        ('nativeFlowMessage' in value || 'header' in value || 'footer' in value);
+    if (isDirectInteractive) walkInteractive(value);
+    else walkRoot(value);
     return [...new Set(texts)];
 }
 
 function getRootMessageType(value, seen = new WeakSet()) {
     if (!value || typeof value !== 'object' || seen.has(value)) return null;
+    if (value.body && typeof value.body === 'object' &&
+        ('nativeFlowMessage' in value || 'header' in value || 'footer' in value)) return 'interactiveMessage';
     seen.add(value);
     for (const [key, child] of Object.entries(value)) {
         if (IGNORED_MESSAGE_SUBTREES.has(key)) continue;
