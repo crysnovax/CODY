@@ -9,7 +9,7 @@
 
 const chalk = require('chalk');
 const { setupStatusHandler } = require('./src/Plugin/statusHandler');
-const { getVar }             = require('./src/Plugin/configManager');
+const { getVar, resolvePrefix } = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
 const { decryptSecretEdit, findSecretEncrypted } = require('./src/Plugin/editDecrypt');
@@ -617,15 +617,12 @@ setupPromotionGuard(sock);
             } catch {}
 
             try {
-                const typingMode = getVar('FAKE_TYPING', 'off');
-                if (typingMode === 'all') {
-                    await sock.sendPresenceUpdate('composing', m.key.remoteJid);
-                } else if (typingMode === 'cmd') {
-                    const bodyCheck = (mek.message?.conversation || mek.message?.extendedTextMessage?.text || '').trim();
-                    const prefixCheck = getVar('PREFIX', '.');
-                    if (bodyCheck.startsWith(prefixCheck)) {
-                        await sock.sendPresenceUpdate('composing', m.key.remoteJid);
-                    }
+                const typingMode = getVar('FAKE_TYPING', 'cmd');
+                const bodyCheck = (m.text || m.body || '').trim();
+                const { shouldFakeTyping, sendFakeTyping } = require('./library/fake-typing');
+                const { getCommand } = require('./src/Plugin/crysCmd');
+                if (shouldFakeTyping(typingMode, bodyCheck, resolvePrefix(), getCommand)) {
+                    await sendFakeTyping(sock, m.chat || m.key?.remoteJid);
                 }
             } catch {}
 

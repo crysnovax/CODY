@@ -1,3 +1,15 @@
+'use strict';
+
+const { getMessageText, messagePayload, unwrapMessage } = require('../../../library/message-content');
+
+const MEDIA_TYPES = {
+    imageMessage: 'image',
+    videoMessage: 'video',
+    audioMessage: 'audio',
+    documentMessage: 'document',
+    stickerMessage: 'sticker',
+};
+
 module.exports = {
     name: 'deleted',
     alias: ['getdeleted', 'retrieve'],
@@ -23,17 +35,9 @@ module.exports = {
                     : `⊘ *No deleted message #${requested} found in this chat.*`);
             }
 
-            const mek = data.message;
-            const rawMsg = mek.message;
-            const msgType = Object.keys(rawMsg).find(type => type !== 'messageContextInfo' && rawMsg[type]);
-            const innerMsg = rawMsg[msgType] || {};
-            const mediaTypes = {
-                imageMessage: 'image', videoMessage: 'video', audioMessage: 'audio',
-                documentMessage: 'document', stickerMessage: 'sticker',
-            };
-            const mediaKey = Object.keys(mediaTypes).find(key => rawMsg[key]);
-            const text = rawMsg.conversation || innerMsg.text || innerMsg.caption || innerMsg.conversation || '';
-
+            const rawMsg = unwrapMessage(messagePayload(data.message));
+            const mediaKey = Object.keys(MEDIA_TYPES).find(key => rawMsg[key]);
+            const text = getMessageText(rawMsg);
             if (text && !mediaKey) {
                 await sock.sendMessage(m.chat, { text }, { quoted: m });
                 await sock.sendMessage(m.chat, { react: { text: '💬', key: m.key } });
@@ -42,14 +46,15 @@ module.exports = {
             if (mediaKey) {
                 const { downloadContentFromMessage } = require('plogme');
                 const mediaMsg = rawMsg[mediaKey];
-                const stream = await downloadContentFromMessage(mediaMsg, mediaTypes[mediaKey]);
-                let buffer = Buffer.alloc(0);
-                for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+                const stream = await downloadContentFromMessage(mediaMsg, MEDIA_TYPES[mediaKey]);
+                const chunks = [];
+                for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+                const buffer = Buffer.concat(chunks);
                 const caption = mediaMsg.caption || '';
                 const sendOptions = { quoted: m };
                 if (mediaKey === 'imageMessage') await sock.sendMessage(m.chat, { image: buffer, caption }, sendOptions);
-                else if (mediaKey === 'videoMessage') await sock.sendMessage(m.chat, { video: buffer, caption, gifPlayback: mediaMsg.gifPlayback || false }, sendOptions);
-                else if (mediaKey === 'audioMessage') await sock.sendMessage(m.chat, { audio: buffer, mimetype: mediaMsg.mimetype || 'audio/mp4', ptt: mediaMsg.ptt || false }, sendOptions);
+                else if (mediaKey === 'videoMessage') await sock.sendMessage(m.chat, { video: buffer, caption, gifPlayback: Boolean(mediaMsg.gifPlayback) }, sendOptions);
+                else if (mediaKey === 'audioMessage') await sock.sendMessage(m.chat, { audio: buffer, mimetype: mediaMsg.mimetype || 'audio/mp4', ptt: Boolean(mediaMsg.ptt) }, sendOptions);
                 else if (mediaKey === 'documentMessage') await sock.sendMessage(m.chat, { document: buffer, mimetype: mediaMsg.mimetype || 'application/octet-stream', fileName: mediaMsg.fileName || 'file', caption }, sendOptions);
                 else if (mediaKey === 'stickerMessage') await sock.sendMessage(m.chat, { sticker: buffer }, sendOptions);
                 await sock.sendMessage(m.chat, { react: { text: '💬', key: m.key } });
@@ -60,7 +65,7 @@ module.exports = {
         } catch (error) {
             console.error('[DELETED ERROR]', error);
             await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-            reply(`⊘ *Error:* ${error.message}`);
+            return reply(`⊘ *Error:* ${error?.message || 'Unknown error'}`);
         }
     }
 };

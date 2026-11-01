@@ -1,3 +1,66 @@
+'use strict';
+
+const {
+    getContextInfo,
+    getMessageText,
+    getMessageType,
+    messagePayload,
+    unwrapMessage,
+} = require('../../../library/message-content');
+
+const MEDIA_TYPES = {
+    imageMessage: 'image',
+    videoMessage: 'video',
+    audioMessage: 'audio',
+    documentMessage: 'document',
+    stickerMessage: 'sticker',
+};
+
+function rawQuotedMessage(value) {
+    if (!value || typeof value !== 'object') return null;
+    if (value.fakeObj?.message) return value.fakeObj;
+    if (value.message?.key && value.message.message) return value.message;
+    if (value.key && value.message) return value;
+    return null;
+}
+
+function storeEnvelope(value) {
+    if (value?.message?.key && value.message.message) return value.message;
+    if (value?.key && value.message) return value;
+    return null;
+}
+
+async function findRepliedMessage(m, store, sock) {
+    const quoted = m?.quoted;
+    const direct = rawQuotedMessage(quoted);
+    if (direct?.message) return direct;
+
+    const id = quoted?.id || quoted?.key?.id || quoted?.fakeObj?.key?.id;
+    if (!id) return null;
+    const jids = [...new Set([
+        quoted?.chat,
+        quoted?.key?.remoteJid,
+        quoted?.fakeObj?.key?.remoteJid,
+        m?.chat,
+    ].filter(Boolean))];
+
+    for (const jid of jids) {
+        if (typeof store?.loadMessage === 'function') {
+            try {
+                const loaded = storeEnvelope(await store.loadMessage(jid, id, sock));
+                if (loaded?.message) return loaded;
+            } catch {}
+        }
+        if (typeof store?.messages?.get === 'function') {
+            try {
+                const loaded = storeEnvelope(store.messages.get(`${jid}:${id}`));
+                if (loaded?.message) return loaded;
+            } catch {}
+        }
+    }
+    return null;
+}
+
 module.exports = {
     name: 'quoted',
     alias: ['getquoted', 'showquoted'],
@@ -5,11 +68,11 @@ module.exports = {
     category: 'Tools',
     usage: `${prefix}quoted (reply to a message that quotes another)`,
     reactions: { start: '📝', success: '💬', error: '📡' },
-    adminOnly: false,      
-    ownerOnly: true,      
-    groupOnly: false,     
+    adminOnly: false,
+    ownerOnly: true,
+    groupOnly: false,
 
-    execute: async (sock, m, { reply, store }) => {
+    execute: async (sock, m, { reply, store, prefix = '.' }) => {
         await sock.sendMessage(m.chat, { react: { text: '📝', key: m.key } });
 
         if (!m.quoted) {
@@ -18,120 +81,64 @@ module.exports = {
         }
 
         try {
-            const bMsgId = m.quoted.id;
-            const bMsgJid = m.quoted.chat || m.chat;
-            const storeKey = bMsgJid + ':' + bMsgId;
-
-            const stored = store?.messages?.get(storeKey);
-
-            if (!stored?.message?.message) {
+            const stored = await findRepliedMessage(m, store, sock);
+            const target = stored?.message || messagePayload(m.quoted);
+            if (!target || typeof target !== 'object' || !Object.keys(target).length) {
                 await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-                return reply('⊘ *Could not load the replied message from store. It may be too old or the bot just restarted.*');
+                return reply('⊘ *Could not load the replied message. Reply to the message again and retry.*');
             }
 
-            const bRawMsg = stored.message.message;
-            const bContextInfo =
-                bRawMsg?.extendedTextMessage?.contextInfo ||
-                bRawMsg?.imageMessage?.contextInfo ||
-                bRawMsg?.videoMessage?.contextInfo ||
-                bRawMsg?.audioMessage?.contextInfo ||
-                bRawMsg?.documentMessage?.contextInfo ||
-                bRawMsg?.stickerMessage?.contextInfo ||
-                null;
-
-            if (!bContextInfo?.quotedMessage) {
+            const contextInfo = getContextInfo(target);
+            const innerQuoted = contextInfo?.quotedMessage;
+            if (!innerQuoted) {
                 await sock.sendMessage(m.chat, { react: { text: '🙈', key: m.key } });
                 return reply('⊘ *That message has no quoted message inside it.*');
             }
 
-            const { getContentType, downloadContentFromMessage } = require('plogme');
-            const innerQuoted = bContextInfo.quotedMessage;
-            const innerType = getContentType(innerQuoted);
-            const innerMsg = innerQuoted[innerType] || innerQuoted;
+            const message = unwrapMessage(innerQuoted);
+            const type = getMessageType(message);
+            const mediaKey = Object.keys(MEDIA_TYPES).find(key => message[key]);
+            const text = getMessageText(message);
 
-            // Media types map
-            const mediaTypes = {
-                imageMessage:    'image',
-                videoMessage:    'video',
-                audioMessage:    'audio',
-                documentMessage: 'document',
-                stickerMessage:  'sticker',
-            };
-
-            const mediaKey = Object.keys(mediaTypes).find(k => innerQuoted[k]);
-
-            // Pure text only (no media)
-            const innerText =
-                innerQuoted.conversation ||
-                innerMsg.text ||
-                innerMsg.conversation || '';
-
-            if (innerText && !mediaKey) {
-                await sock.sendMessage(m.chat, { text: innerText }, { quoted: m });
+            if (text && !mediaKey) {
+                await sock.sendMessage(m.chat, { text }, { quoted: m });
                 await sock.sendMessage(m.chat, { react: { text: '💬', key: m.key } });
                 return;
             }
 
-            // Media (with or without caption)
             if (mediaKey) {
-                const mediaMsg = innerQuoted[mediaKey];
-                const mediaType = mediaTypes[mediaKey];
-
-                const stream = await downloadContentFromMessage(mediaMsg, mediaType);
-                let buffer = Buffer.alloc(0);
-                for await (const chunk of stream) {
-                    buffer = Buffer.concat([buffer, chunk]);
-                }
-
-                const sendOptions = { quoted: m };
+                const { downloadContentFromMessage } = require('plogme');
+                const mediaMsg = message[mediaKey];
+                const stream = await downloadContentFromMessage(mediaMsg, MEDIA_TYPES[mediaKey]);
+                const chunks = [];
+                for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+                const buffer = Buffer.concat(chunks);
                 const caption = mediaMsg.caption || '';
+                const sendOptions = { quoted: m };
 
                 if (mediaKey === 'imageMessage') {
-                    await sock.sendMessage(m.chat, {
-                        image: buffer,
-                        caption
-                    }, sendOptions);
-
+                    await sock.sendMessage(m.chat, { image: buffer, caption }, sendOptions);
                 } else if (mediaKey === 'videoMessage') {
-                    await sock.sendMessage(m.chat, {
-                        video: buffer,
-                        caption,
-                        gifPlayback: mediaMsg.gifPlayback || false
-                    }, sendOptions);
-
+                    await sock.sendMessage(m.chat, { video: buffer, caption, gifPlayback: Boolean(mediaMsg.gifPlayback) }, sendOptions);
                 } else if (mediaKey === 'audioMessage') {
-                    await sock.sendMessage(m.chat, {
-                        audio: buffer,
-                        mimetype: mediaMsg.mimetype || 'audio/mp4',
-                        ptt: mediaMsg.ptt || false
-                    }, sendOptions);
-
+                    await sock.sendMessage(m.chat, { audio: buffer, mimetype: mediaMsg.mimetype || 'audio/mp4', ptt: Boolean(mediaMsg.ptt) }, sendOptions);
                 } else if (mediaKey === 'documentMessage') {
-                    await sock.sendMessage(m.chat, {
-                        document: buffer,
-                        mimetype: mediaMsg.mimetype || 'application/octet-stream',
-                        fileName: mediaMsg.fileName || 'file',
-                        caption
-                    }, sendOptions);
-
+                    await sock.sendMessage(m.chat, { document: buffer, mimetype: mediaMsg.mimetype || 'application/octet-stream', fileName: mediaMsg.fileName || 'file', caption }, sendOptions);
                 } else if (mediaKey === 'stickerMessage') {
-                    await sock.sendMessage(m.chat, {
-                        sticker: buffer
-                    }, sendOptions);
+                    await sock.sendMessage(m.chat, { sticker: buffer }, sendOptions);
                 }
 
                 await sock.sendMessage(m.chat, { react: { text: '💬', key: m.key } });
                 return;
             }
 
-            // Unknown type
             await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
-            return reply('⊘ *Unsupported message type.*');
-
+            return reply(`⊘ *Unsupported message type${type ? `: ${type}` : ''}.*`);
         } catch (error) {
             console.error('[QUOTED ERROR]', error);
             await sock.sendMessage(m.chat, { react: { text: '🙈', key: m.key } });
-            reply(`${prefix}⊘ *Error:* ${errormessage}`);
+            return reply(`${prefix}⊘ *Error:* ${error?.message || 'Unknown error'}`);
         }
-    }
+    },
+    findRepliedMessage,
 };
