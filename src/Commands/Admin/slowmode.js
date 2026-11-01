@@ -58,14 +58,14 @@ const plugin = {
     },
     handleSlowmode: async function handleSlowmode(sock, m, mek) {
         try {
-            if (!m?.isGroup || m.key?.fromMe || !m.sender) return false;
+            if (!m?.isGroup || (m.key?.fromMe && !m.__editModeration) || !m.sender) return false;
             const cfg = readDB()[m.chat];
             if (!cfg?.enabled || !Number.isFinite(cfg.intervalMs) || cfg.intervalMs < 1000) return false;
             const now = Date.now();
             const metadata = await sock.groupMetadata(m.chat).catch(() => null);
             const senderIds = [m.sender, m.key?.participant, m.key?.participantAlt];
             const sender = groupParticipant(metadata, senderIds);
-            if (sender?.admin === 'admin' || sender?.admin === 'superadmin') return false;
+            if (!m.__editModeration && (sender?.admin === 'admin' || sender?.admin === 'superadmin')) return false;
             const bot = groupParticipant(metadata, [sock.user?.id, sock.user?.lid]);
             if (!bot || !['admin', 'superadmin'].includes(bot.admin)) {
                 const key = `bot-admin:${m.chat}`;

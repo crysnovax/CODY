@@ -320,7 +320,7 @@ module.exports.extractUrls = extractUrls;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
-        if (m.key?.fromMe) return;
+        if (m.key?.fromMe && !m.__editModeration) return;
         const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antilink');
         if (!await shouldApplyAdminwatch(sock, m, 'antilink')) return;
 
@@ -372,7 +372,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const admins = meta.participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
-        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
         let auditAction = action;

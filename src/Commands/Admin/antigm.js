@@ -145,7 +145,7 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiGM = async function(sock, m, mek) {
     try {
-        if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return;
+        if (!m.isGroup || (m.key?.fromMe && !m.__editModeration) || !isModerationEnabled(m.chat)) return;
 
         // Only the message the member sent may trigger moderation. A reply
         // can carry a status-mention envelope inside contextInfo.quotedMessage;
@@ -169,7 +169,7 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
             .map(p => p.id.replace(/:\d+@/, '@'));
         const senderNorm = (m.sender || '').replace(/:\d+@/, '@');
         if (await isAntiPermitted(sock, group, [m.sender, m.key?.participant, m.key?.participantAlt])) return;
-        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
 
         const sender = m.sender;
 

@@ -102,6 +102,10 @@ module.exports = function setupMessageHandler(sock, customStore, handleMessage, 
     ];
 
     const moderateEditedEnvelope = async editedEnvelope => {
+        // Normal anti-systems intentionally ignore ordinary bot-sent
+        // messages. An authenticated edit is different: changing an
+        // already-allowed message can create a violation.
+        editedEnvelope.__editModeration = true;
         const moderated = await smsg(sock, editedEnvelope, customStore);
         if (!moderated) return null;
         const chat = moderated.chat || editedEnvelope.key?.remoteJid;

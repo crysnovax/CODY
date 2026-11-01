@@ -270,7 +270,7 @@ module.exports = {
 module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
   try {
     const chat = m?.chat || mek?.key?.remoteJid;
-    if (!chat || !autoVVChats[chat] || mek?.key?.fromMe) return false;
+    if (!chat || !autoVVChats[chat] || (mek?.key?.fromMe && !m?.__editModeration && !mek?.__editModeration)) return false;
 
     // Build the raw message envelope — check both mek.message and m.message
     // (smsg may have already copied it over). Also try the wrapper keys

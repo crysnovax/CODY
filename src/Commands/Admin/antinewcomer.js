@@ -87,7 +87,7 @@ const plugin = {
     handleParticipantUpdate,
     handleAntiNewcomer: async function handleAntiNewcomer(sock, m, mek) {
         try {
-            if (!m?.isGroup || m.key?.fromMe) return false;
+            if (!m?.isGroup || (m.key?.fromMe && !m.__editModeration)) return false;
             const db = readDB();
             const config = db[m.chat];
             if (!config?.enabled || !Number.isFinite(config.windowMs) || config.windowMs < 1000) return false;
@@ -118,7 +118,7 @@ const plugin = {
             const senderRecord = metadata?.participants?.find(participant =>
                 participantIds(participant).some(jid => candidates.map(normalizeJid).includes(jid))
             );
-            if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
+            if (!adminwatchEnabled && !m.__editModeration && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
             const botIds = [sock.user?.id, sock.user?.lid].filter(Boolean).map(normalizeJid);
             const botRecord = metadata?.participants?.find(participant => participantIds(participant).some(jid => botIds.includes(jid)));
             if (!botRecord || !['admin', 'superadmin'].includes(botRecord.admin)) {

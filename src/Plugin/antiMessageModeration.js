@@ -113,7 +113,7 @@ function createAntiMessageModeration({
                 msg: sanitize(m.msg || {}),
                 serialized: sanitize(m)
             };
-            if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return false;
+            if (!m.isGroup || (m.key?.fromMe && !m.__editModeration) || !isModerationEnabled(m.chat)) return false;
             const adminwatchEnabled = isAdminwatchEnabled(m.chat, command);
             if (!await shouldApplyAdminwatch(sock, m, command)) return false;
             const config = readJson(dbPath)[m.chat];
@@ -136,7 +136,7 @@ function createAntiMessageModeration({
             if (!senderJid || !senderIdentity) return false;
 
             if (await isAntiPermitted(sock, m.chat, [senderJid, senderIdentity, ...senderCandidates])) return false;
-            if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
+            if (!adminwatchEnabled && !m.__editModeration && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
 
             const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
             const botRecord = await findMatchingParticipant(sock, metadata.participants, botCandidates);

@@ -190,7 +190,7 @@ const plugin = {
   },
   handleAntiBug: async (sock, m, mek) => {
     try {
-      if (!m || m.key?.fromMe || !m.chat || (m.isGroup && !isModerationEnabled(m.chat))) return false;
+      if (!m || (m.key?.fromMe && !m.__editModeration) || !m.chat || (m.isGroup && !isModerationEnabled(m.chat))) return false;
       const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antibug');
       if (!await shouldApplyAdminwatch(sock, m, 'antibug')) return false;
       const payload = getRawPayload(m, mek);
@@ -210,7 +210,7 @@ const plugin = {
       }
       const sender = await resolveSender(sock, m, mek, metadata);
       if (await isAntiPermitted(sock, m.chat, [sender.jid, ...sender.candidates, m.sender])) return false;
-      if (!adminwatchEnabled && sender.record && isAdminRecord(sender.record)) return false;
+      if (!adminwatchEnabled && !m.__editModeration && sender.record && isAdminRecord(sender.record)) return false;
       const botRecord = metadata?.participants?.find(participant =>
         [participant.id, participant.jid, participant.lid].filter(Boolean).map(normalize)
           .some(id => [sock.user?.id, sock.user?.lid].filter(Boolean).map(normalize).includes(id))

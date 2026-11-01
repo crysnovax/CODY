@@ -180,7 +180,7 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiTag = async function(sock, m) {
     try {
-        if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return;
+        if (!m.isGroup || (m.key?.fromMe && !m.__editModeration) || !isModerationEnabled(m.chat)) return;
 
         const db    = loadDB();
         const group = m.chat;
@@ -218,10 +218,10 @@ module.exports.handleAntiTag = async function(sock, m) {
             const identities = [participant.id, participant.jid, participant.lid, participant.phoneNumber].filter(Boolean);
             return identities.some(identity => senderCandidates.some(sender => sameIdentity(identity, sender)));
         });
-        if (!adminwatchEnabled && senderRecord?.admin) return;
+        if (!adminwatchEnabled && !m.__editModeration && senderRecord?.admin) return;
 
         const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
-        if (senderCandidates.some(sender => botCandidates.some(bot => sameIdentity(sender, bot)))) return;
+        if (!m.__editModeration && senderCandidates.some(sender => botCandidates.some(bot => sameIdentity(sender, bot)))) return;
 
         const sender = m.sender;
         let triggerReason;

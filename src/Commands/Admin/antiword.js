@@ -194,7 +194,7 @@ module.exports = {
 module.exports.handleAntiWord = async function(sock, m, mek) {
     try {
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
-        if (m.key?.fromMe) return;
+        if (m.key?.fromMe && !m.__editModeration) return;
 
         const db = loadDB();
         const group = m.chat;
@@ -217,7 +217,7 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
         const senderNorm = (sender || '').replace(/:\d+@/, '@');
-        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
 

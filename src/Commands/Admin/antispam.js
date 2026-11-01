@@ -176,7 +176,7 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiSpam = async function(sock, m) {
     try {
-        if (!m.isGroup || m.key?.fromMe || !isModerationEnabled(m.chat)) return;
+        if (!m.isGroup || (m.key?.fromMe && !m.__editModeration) || !isModerationEnabled(m.chat)) return;
 
         const db    = loadDB();
         const group = m.chat;
@@ -240,7 +240,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
             if (meta) {
                 const admins = meta.participants.filter(p => p.admin).map(p => norm(p.id));
                 const senderNorm = norm(sender);
-                if (!adminwatchEnabled && admins.includes(senderNorm)) {
+                if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) {
                     // Admin exempt - reset count
                     userData.count = 0;
                     return;
