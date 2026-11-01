@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { BOT_OUTGOING_MARKER, hasBotOutgoingMarker } = require('../src/Plugin/antiText');
+const { BOT_OUTGOING_MARKER, hasBotOutgoingMarker, isFromMeMessage } = require('../src/Plugin/antiText');
 const { getTagDetectionText } = require('../src/Commands/Admin/antitag');
 
 test('AntiTag inspects interactive body text even when it carries the outgoing marker', () => {
@@ -52,4 +52,10 @@ test('marked own-message detection ignores marker text that exists only in a quo
             quotedMessage: { conversation: BOT_OUTGOING_MARKER },
         } } },
     }), false);
+});
+
+test('fromMe is controlled by message identity, not by the invisible marker', () => {
+    assert.equal(isFromMeMessage({ key: { fromMe: true }, body: `https://example.org${BOT_OUTGOING_MARKER}` }), true);
+    assert.equal(isFromMeMessage({ fromMe: true, body: `@all${BOT_OUTGOING_MARKER}` }), true);
+    assert.equal(isFromMeMessage({ key: { fromMe: false }, fromMe: false, body: `https://example.org${BOT_OUTGOING_MARKER}` }), false);
 });

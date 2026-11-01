@@ -652,8 +652,9 @@ try {
             if (m.mtype === 'reactionMessage') return;
             if (m.body && m.body.includes(AFK_MARKER)) {
                 // This marker is appended to outgoing text and normally keeps
-                // the bot from reprocessing its own messages. Run these two
-                // link/tag guards first so marked content cannot bypass them.
+                // other handlers from reprocessing echoes. Still allow marked
+                // messages from other senders through AntiLink and AntiTag.
+                if (m.key?.fromMe || m.fromMe) return;
                 const markerModerationEnabled = !m.isGroup || require('./src/Plugin/moderationControl').isModerationEnabled(m.chat);
                 if (markerModerationEnabled) {
                     try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, m, mek); } catch (err) { console.error('[ANTILINK ERROR]', err.message); }

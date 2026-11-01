@@ -13,9 +13,13 @@ test('marked messages reach AntiLink and AntiTag before the AFK-marker return', 
     assert.notEqual(branchEnd, -1, 'AFK-marker branch has its expected end');
 
     const branch = source.slice(branchStart, branchEnd);
+    const fromMeGuard = branch.indexOf('if (m.key?.fromMe || m.fromMe) return;');
     const linkCall = branch.indexOf('handleAntiLink?.(sock, m, mek)');
     const tagCall = branch.indexOf('handleAntiTag?.(sock, m)');
-    const earlyReturn = branch.indexOf('return;');
-    assert.ok(linkCall >= 0 && linkCall < earlyReturn);
-    assert.ok(tagCall >= 0 && tagCall < earlyReturn);
+    const firstReturn = branch.indexOf('return;');
+    const fromMeReturn = branch.indexOf('return;', fromMeGuard);
+    const markerReturn = branch.lastIndexOf('return;');
+    assert.ok(fromMeGuard >= 0 && fromMeReturn === firstReturn);
+    assert.ok(linkCall > fromMeGuard && linkCall < markerReturn);
+    assert.ok(tagCall > fromMeGuard && tagCall < markerReturn);
 });

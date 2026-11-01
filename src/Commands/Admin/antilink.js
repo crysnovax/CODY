@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { hasBotOutgoingMarker, stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
+const { isFromMeMessage, stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isViewOnce, unwrap: unwrapViewOnce } = require('../../Plugin/viewOnce');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
@@ -488,15 +488,8 @@ async function deleteTargetMessage(sock, group, ...candidates) {
 module.exports.deleteTargetMessage = deleteTargetMessage;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
-        // Outgoing bot text carries U+200E. Do not let the normal fromMe/admin
-        // exemption hide a marked message from AntiLink; keep the marker in
-        // the original payload and strip it only from the text being scanned.
-        const markerBypass = hasBotOutgoingMarker([
-            m?.text, m?.body, m?.message, m?.msg, m?.__rawMessage, m?.fakeObj,
-            mek?.__rawMessage, mek?.message,
-        ]);
+        if (isFromMeMessage(m)) return;
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
-        if (m.key?.fromMe && !m.__editModeration && !markerBypass) return;
         const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antilink');
         if (!await shouldApplyAdminwatch(sock, m, 'antilink')) return;
 
@@ -573,7 +566,7 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const admins = meta.participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
-        if (!adminwatchEnabled && !m.__editModeration && !markerBypass && admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
         let auditAction = action;

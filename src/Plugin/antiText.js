@@ -4,6 +4,10 @@
 // handlers must not treat the implementation marker as user content.
 const BOT_OUTGOING_MARKER = '\u200e';
 
+function isFromMeMessage(message) {
+    return message?.key?.fromMe === true || message?.fromMe === true;
+}
+
 function stripBotMarker(value) {
     return typeof value === 'string' ? value.split(BOT_OUTGOING_MARKER).join('') : value;
 }
@@ -64,4 +68,4 @@ function stripQuotedDeep(value, seen = new WeakSet()) {
     return out;
 }
 
-module.exports = { BOT_OUTGOING_MARKER, hasBotOutgoingMarker, stripBotMarker, stripBotMarkerDeep, stripQuotedDeep };
+module.exports = { BOT_OUTGOING_MARKER, hasBotOutgoingMarker, isFromMeMessage, stripBotMarker, stripBotMarkerDeep, stripQuotedDeep };
