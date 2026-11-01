@@ -46,12 +46,21 @@ const MESSAGE_TEXT_FIELDS = new Set([
 ]);
 const MESSAGE_JSON_FIELDS = new Set(['buttonParamsJson', 'paramsJson']);
 const MEDIA_MESSAGE_CONTAINERS = new Set([
-    'imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage',
-    'productImage', 'thumbnail', 'image', 'video', 'audio', 'document'
+    'imageMessage', 'videoMessage', 'instantImageMessage', 'ptvMessage',
+    'audioMessage', 'documentMessage', 'stickerMessage', 'lottieStickerMessage',
+    'audioStickerMessage', 'eventCoverImage', 'pollCreationOptionImageMessage',
+    'productImage', 'catalogImage', 'thumbnail', 'image', 'video', 'audio', 'document'
+]);
+// Proto fields that describe delivery/preview media, not a link the sender typed
+// or made clickable. Their URL values can otherwise make every photo/video/GIF
+// look like an antilink violation.
+const MEDIA_PAYLOAD_URL_FIELDS = new Set([
+    'url', 'staticUrl', 'metadataUrl', 'dashManifestUrl', 'qrUrl', 'accessibilityLabel'
 ]);
 const MEDIA_TRANSPORT_FIELDS = new Set([
     'directPath', 'thumbnailDirectPath', 'thumbnailUrl', 'thumbnailURL', 'mediaUrl', 'mediaURL',
-    'mediaKey', 'jpegThumbnail', 'fileSha256', 'fileEncSha256', 'scansSidecar', 'streamingSidecar'
+    'mediaKey', 'jpegThumbnail', 'fileSha256', 'fileEncSha256', 'scansSidecar', 'streamingSidecar',
+    'originalImageUrl', 'adPreviewUrl', 'thumbnailImageUrl', 'profilePictureUrl', 'videoContentUrl'
 ]);
 
 function getMessageText(value, seen = new WeakSet(), parentPath = []) {
@@ -66,7 +75,7 @@ function getMessageText(value, seen = new WeakSet(), parentPath = []) {
             const text = stripBotMarker(child).trim();
             const insideMediaPayload = parentPath.some(part => MEDIA_MESSAGE_CONTAINERS.has(part));
             const isTransportValue = MEDIA_TRANSPORT_FIELDS.has(key)
-                || (key === 'url' && insideMediaPayload);
+                || (insideMediaPayload && MEDIA_PAYLOAD_URL_FIELDS.has(key));
             if (!isTransportValue && text && (MESSAGE_TEXT_FIELDS.has(key) || hasLink(text))) texts.push(text);
             // WhatsApp rich/native-flow buttons serialize their payload as JSON;
             // decode only known parameter fields so escaped URLs are inspected.
