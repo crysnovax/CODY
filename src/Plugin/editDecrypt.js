@@ -74,7 +74,7 @@ async function loadOriginal(customStore, targetKey) {
     if (!targetKey?.remoteJid || !targetKey?.id) return null;
     if (typeof customStore?.loadMessage !== 'function') return null;
     const stored = await customStore.loadMessage(targetKey.remoteJid, targetKey.id);
-    return stored?.message || stored || null;
+    return stored || null;
 }
 
 function unwrapEditedMessage(decoded) {
@@ -123,7 +123,21 @@ async function decryptSecretEdit(message, customStore, sock) {
                 if (!editedMessage) continue;
 
                 message.message = editedMessage;
-                message.key = { ...message.key, ...targetKey };
+                // The target key may omit identity fields, while protobuf
+                // defaults can materialize fromMe as false. Preserve the
+                // authenticated edit identity so revocation uses a valid key
+                // for bot-sent edited messages.
+                const sourceKey = message.key || {};
+                const originalKey = original?.key || {};
+                message.key = {
+                    ...sourceKey,
+                    ...targetKey,
+                    remoteJid: targetKey?.remoteJid || originalKey.remoteJid || sourceKey.remoteJid,
+                    id: targetKey?.id || originalKey.id || sourceKey.id,
+                    fromMe: Boolean(sourceKey.fromMe || targetKey?.fromMe || originalKey.fromMe),
+                    participant: targetKey?.participant || originalKey.participant || sourceKey.participant,
+                    participantAlt: targetKey?.participantAlt || originalKey.participantAlt || sourceKey.participantAlt
+                };
                 message.isEdit = true;
                 return true;
             } catch {

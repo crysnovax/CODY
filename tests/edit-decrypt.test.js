@@ -31,7 +31,7 @@ test('decrypts a targeted SecretEncryptedMessage edit and marks it as an edit', 
         message: { messageContextInfo: { messageSecret: secret } }
     };
     const incoming = {
-        key: { remoteJid: jid, participant: jid, id: 'ENCRYPTED-EDIT' },
+        key: { remoteJid: jid, participant: jid, fromMe: true, id: 'ENCRYPTED-EDIT' },
         message: {
             secretEncryptedMessage: {
                 targetMessageKey: { remoteJid: jid, id: messageId },
@@ -48,6 +48,8 @@ test('decrypts a targeted SecretEncryptedMessage edit and marks it as an edit', 
     assert.equal(result, true);
     assert.equal(incoming.isEdit, true);
     assert.equal(incoming.key.id, messageId);
+    assert.equal(incoming.key.fromMe, true);
+    assert.equal(incoming.key.participant, jid);
     assert.equal(incoming.message.conversation, '.help');
 });
 
