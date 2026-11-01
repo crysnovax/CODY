@@ -650,7 +650,17 @@ try {
             const AFK_MARKER = afkCmd.MARKER;
            
             if (m.mtype === 'reactionMessage') return;
-            if (m.body && m.body.includes(AFK_MARKER)) return;
+            if (m.body && m.body.includes(AFK_MARKER)) {
+                // This marker is appended to outgoing text and normally keeps
+                // the bot from reprocessing its own messages. Run these two
+                // link/tag guards first so marked content cannot bypass them.
+                const markerModerationEnabled = !m.isGroup || require('./src/Plugin/moderationControl').isModerationEnabled(m.chat);
+                if (markerModerationEnabled) {
+                    try { await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, m, mek); } catch (err) { console.error('[ANTILINK ERROR]', err.message); }
+                    try { await require('./src/Commands/Admin/antitag.js').handleAntiTag?.(sock, m); } catch (err) { console.error('[ANTITAG ERROR]', err.message); }
+                }
+                return;
+            }
 
             const _afkSender = await afkCmd.resolveSenderPhoneJid(sock, m);
             if (_afkSender && afkCmd.disableAfk(_afkSender, m.chat)) {

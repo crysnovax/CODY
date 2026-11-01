@@ -68,3 +68,18 @@ for (const [name, target] of [
         assert.deepEqual(replies, []);
     });
 }
+
+test('.quoted returns the content nested in an AntiLink notice when another outer contextInfo exists', async () => {
+    const originalText = '⊘ That message has no quoted message inside it.\nwa.me/2347066248340';
+    const target = {
+        contextInfo: { participant: 'bot@s.whatsapp.net' },
+        extendedTextMessage: {
+            text: 'ⓘ Link detected! Links are not allowed here. Message deleted.',
+            contextInfo: { quotedMessage: { conversation: originalText } },
+        },
+    };
+    const { sock, replies } = await runQuoted(target);
+    const sentText = sock.sent.find(({ content }) => typeof content?.text === 'string')?.content.text;
+    assert.equal(sentText, originalText);
+    assert.deepEqual(replies, []);
+});

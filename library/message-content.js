@@ -41,12 +41,25 @@ function getMessageType(message) {
 }
 
 function getContextInfo(message) {
-    const content = unwrapMessage(message);
-    if (content.contextInfo) return content.contextInfo;
-    for (const value of Object.values(content)) {
-        if (value?.contextInfo) return value.contextInfo;
+    const queue = [message];
+    const seen = new WeakSet();
+    let fallback = null;
+    while (queue.length) {
+        const current = queue.shift();
+        if (!current || typeof current !== 'object' || seen.has(current)) continue;
+        seen.add(current);
+        for (const [key, value] of Object.entries(current)) {
+            if (!value || typeof value !== 'object') continue;
+            if (key === 'contextInfo') {
+                if (value.quotedMessage) return value;
+                fallback ||= value;
+                continue;
+            }
+            if (key === 'quotedMessage' || key === 'quoted') continue;
+            queue.push(value);
+        }
     }
-    return null;
+    return fallback;
 }
 
 function getMessageText(message) {
