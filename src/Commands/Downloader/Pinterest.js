@@ -8,7 +8,7 @@ function findUrl(text) {
 
 module.exports = {
     name: 'pinterest',
-    alias: ['pin', 'pindl'],
+    alias: ['pint', 'pindl'],
     desc: 'Download Pinterest media',
     category: 'downloader',
     usage: '.pinterest <URL>',
