@@ -75,13 +75,13 @@ module.exports = {
             else if (time === 3600) durationText = '1 hour';
 
             await sock.sendMessage(m.chat, { react: { text: '📅', key: m.key } });
-            await reply(
-                `╭─❍ *MESSAGE PINNED*\n│\n` +
-                `│ ⇆ *Status:* Pinned\n` +
-                `│ —͟͟͞͞𖣘 *Duration:* ${durationText}\n│\n` +
-                `│ 𝓬𝓻𝔂𝓼𝓷𝓸𝓿𝓪 𝓿𝓮𝓻𝓲𝓯𝓲𝓮𝓭\n` +
-                `╰──────────────────`
-            );
+         //   await reply(
+        //        `╭─❍ *MESSAGE PINNED*\n│\n` +
+        ///        `│ ⇆ *Status:* Pinned\n` +
+        //        `│ —͟͟͞͞𖣘 *Duration:* ${durationText}\n│\n` +
+        //        `│ 𝓬𝓻𝔂𝓼𝓷𝓸𝓿𝓪 𝓿𝓮𝓻𝓲𝓯𝓲𝓮𝓭\n` +
+      //          `╰──────────────────`
+        //    );
 
         } catch (error) {
             console.error('[PIN ERROR]', error.message);
