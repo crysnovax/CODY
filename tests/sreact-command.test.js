@@ -97,3 +97,72 @@ test('.mention sreact selects the built-in sticker response without requiring se
         Object.assign(mention.mentionConfig, previousConfig);
     }
 });
+
+test('.sreact saves a replied sticker and uses it for the association reaction', async () => {
+    const sticker = {
+        url: 'https://example.test/custom.webp',
+        mimetype: 'image/webp',
+        fileSha256: 'custom-sha256'
+    };
+    const targetKey = { remoteJid: '123@g.us', id: 'sticker-message' };
+    const originalExistsSync = fs.existsSync;
+    const originalReadFileSync = fs.readFileSync;
+    const originalWriteFileSync = fs.writeFileSync;
+    const saved = new Map();
+    fs.existsSync = file => path.resolve(String(file)) === path.resolve(sreact.CUSTOM_STICKER_FILE) || originalExistsSync(file);
+    fs.readFileSync = (file, encoding) => {
+        if (path.resolve(String(file)) === path.resolve(sreact.CUSTOM_STICKER_FILE)) {
+            return JSON.stringify(saved.get(path.resolve(String(file))));
+        }
+        return originalReadFileSync(file, encoding);
+    };
+    fs.writeFileSync = (file, data, ...rest) => {
+        if (path.resolve(String(file)) === path.resolve(sreact.CUSTOM_STICKER_FILE)) {
+            saved.set(path.resolve(String(file)), JSON.parse(String(data)));
+            return;
+        }
+        return originalWriteFileSync.call(this, file, data, ...rest);
+    };
+    try {
+        const calls = [];
+        await sreact.execute({ relayMessage: async (...args) => calls.push(args) }, {
+            chat: '123@g.us',
+            quoted: { key: targetKey, stickerMessage: sticker }
+        }, { args: [], reply: async () => {} });
+        assert.deepEqual(calls[0][1].stickerMessage, sticker);
+    } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        fs.writeFileSync = originalWriteFileSync;
+    }
+});
+
+test('.mention sreact saves a replied sticker for future mention reactions', async () => {
+    const configPath = path.resolve(__dirname, '../database/mention_config.json');
+    const stickerPath = path.resolve(sreact.CUSTOM_STICKER_FILE);
+    const previousConfig = { ...mention.mentionConfig };
+    const originalWriteFileSync = fs.writeFileSync;
+    const writes = new Map();
+    fs.writeFileSync = function (file, data, ...rest) {
+        const resolved = path.resolve(String(file));
+        if (resolved === configPath || resolved === stickerPath) {
+            writes.set(resolved, String(data));
+            return;
+        }
+        return originalWriteFileSync.call(this, file, data, ...rest);
+    };
+    try {
+        await mention.execute({}, {
+            quoted: { key: { id: 'sticker-message' }, stickerMessage: { url: 'https://example.test/mention.webp' } }
+        }, {
+            args: ['sreact'],
+            prefix: '.',
+            reply: async () => {}
+        });
+        assert.deepEqual(JSON.parse(writes.get(stickerPath)), { url: 'https://example.test/mention.webp' });
+        assert.equal(mention.mentionConfig.action, 'sreact');
+    } finally {
+        fs.writeFileSync = originalWriteFileSync;
+        Object.assign(mention.mentionConfig, previousConfig);
+    }
+});

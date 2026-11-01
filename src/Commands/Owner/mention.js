@@ -5,7 +5,12 @@ const { getList } = require('../../Plugin/accessListManager');
 const { getContextInfo, identityVariants, normalizeJid } = require('../../Plugin/identityUtils');
 const { downloadContentFromMessage } = require('plogme');
 const { loadMentionSticker } = require('../../Plugin/mentionSticker');
-const { parseReactionCount, MAX_STICKER_REACTION_ATTEMPTS } = require('./sreact');
+const {
+    parseReactionCount,
+    MAX_STICKER_REACTION_ATTEMPTS,
+    getQuotedStickerMessage,
+    saveStickerReactionMessage
+} = require('./sreact');
 
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
@@ -214,11 +219,20 @@ module.exports = {
             return reply(`╭─❍ *MENTION*\n│\n│ ✦ Status : ON\n│ 𓄄 Action : REACT\n│ ⚉ Emoji  : ${value}\n╰──────────────────`);
         }
 
-        // STICKER REACTION: use the built-in default sticker reaction.
+        // STICKER REACTION: use the saved sticker reaction. Reply to a
+        // sticker here to replace it for both .sreact and mention-sreact.
         if (option === 'sreact' || option === '-sreact') {
             const repeatCount = args.length <= 2 ? parseReactionCount(args[1]) : null;
             if (!repeatCount) {
                 return reply(`Usage: ${prefix}mention sreact [1-${MAX_STICKER_REACTION_ATTEMPTS}].`);
+            }
+            const quotedSticker = getQuotedStickerMessage(m.quoted);
+            if (quotedSticker) {
+                try {
+                    saveStickerReactionMessage(m.quoted);
+                } catch (error) {
+                    return reply(`Could not save that sticker reaction: ${error.message}`);
+                }
             }
             mentionConfig.active = true;
             mentionConfig.action = 'sreact';
