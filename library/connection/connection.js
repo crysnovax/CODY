@@ -212,7 +212,19 @@ async function createSocket(sessionId = process.env.SESSION_ID) {
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
         shouldSyncHistoryMessage: () => false,
-        getMessage: null
+        // Modern WhatsApp edits may require the original messageSecret.
+        // The runtime installs the active CODY store after socket creation;
+        // resolve it lazily so plogme can request the original on demand.
+        getMessage: async key => {
+            const store = global.__codyMessageStore;
+            if (typeof store?.loadMessage !== 'function') return undefined;
+            try {
+                const stored = await store.loadMessage(key?.remoteJid, key?.id);
+                return stored?.message || stored || undefined;
+            } catch {
+                return undefined;
+            }
+        }
     });
 
     installRichTableRelay(sock);

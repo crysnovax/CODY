@@ -12,6 +12,7 @@ const { setupStatusHandler } = require('./src/Plugin/statusHandler');
 const { getVar }             = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
+const { decryptSecretEdit, findSecretEncrypted } = require('./src/Plugin/editDecrypt');
 
 // Polyfill: sock.sendRichText was added as an alias for sock.sendMessage
 // to support chatbot responses that call sock.sendRichText(jid, { text }).
@@ -69,6 +70,10 @@ const ignoredErrors = [
 ];
 
 module.exports = function setupMessageHandler(sock, customStore, handleMessage, smsg, io, config) {
+
+    // plogme's getMessage callback is resolved lazily by the connection
+    // manager. Keep the active CODY store available for messageSecret lookups.
+    global.__codyMessageStore = customStore;
 
     // carry uptime over from an update restart (@crysnovax—FIX06-08-26)
     try {
@@ -262,6 +267,21 @@ setupPromotionGuard(sock);
             }
             const mek = upsertedMessages[0];
             if (!mek || !mek.message) return;
+            let decryptedSecretEdit = false;
+
+            // Newer WhatsApp clients can deliver human edits as a
+            // SecretEncryptedMessage instead of a plaintext ProtocolMessage.
+            // Authenticate/decrypt it before any command or anti-system sees
+            // the envelope. Failed authentication is left untouched so it
+            // cannot be treated as an ordinary user message.
+            if (findSecretEncrypted(mek.message)) {
+                const decrypted = await decryptSecretEdit(mek, customStore, sock).catch(err => {
+                    console.error('[SECRET EDIT DECRYPT ERROR]', err?.message || err);
+                    return false;
+                });
+                if (!decrypted) return;
+                decryptedSecretEdit = true;
+            }
             if (mek.key?.remoteJid === 'status@broadcast') {
                 try {
                     require('./src/Commands/Tools/antidelete.js').cacheMessage?.(mek);
@@ -308,6 +328,23 @@ setupPromotionGuard(sock);
                     console.error('[EDIT MODERATION ERROR]', err?.stack || err?.message || err);
                 }
                 return;
+            }
+
+            // SecretEncryptedMessage edits are delivered as upserts, so they
+            // do not pass through plogme's messages.update edit hook. Feed
+            // the authenticated/decrypted edit to antiedit using the same
+            // normalized shape as plaintext update events.
+            if (decryptedSecretEdit) {
+                try {
+                    const antiedit = require('./src/Commands/Tools/antiedit.js');
+                    const normalized = normalizeEditUpdate({
+                        key: mek.key,
+                        update: { message: { editedMessage: { message: mek.message } } }
+                    });
+                    await antiedit?.onEdit?.(sock, [normalized], customStore);
+                } catch (err) {
+                    console.error('[SECRET ANTIEDIT ROUTE ERROR]', err?.message || err);
+                }
             }
 
             if (mek.message) {
