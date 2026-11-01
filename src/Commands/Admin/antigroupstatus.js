@@ -18,10 +18,17 @@ function isGroupStatusMessage(message, seen = new WeakSet()) {
 
     // The envelope WhatsApp wraps around a group story.
     if (message.groupStatusMessage || message.groupStatusMessageV2) return true;
-    // Marker plogme adds with the `groupStatus: true` send flag.
-    if (message.contextInfo?.isGroupStatus === true) return true;
+    // Marker plogme adds with the `groupStatus: true` send flag. WhatsApp can
+    // also copy this marker onto a reply to a group status. Do not classify a
+    // node that contains ordinary reply content as a status post; actual posts
+    // use the groupStatusMessage envelope checked above.
+    const hasReplyContent = ['conversation', 'text', 'caption', 'extendedTextMessage', 'imageMessage', 'videoMessage', 'documentMessage']
+        .some(key => Object.prototype.hasOwnProperty.call(message, key));
+    if (message.contextInfo?.isGroupStatus === true && !hasReplyContent) return true;
 
-    return Object.values(message).some(value => isGroupStatusMessage(value, visited));
+    return Object.entries(message).some(([key, value]) =>
+        key !== 'quotedMessage' && key !== 'quoted' && key !== 'contextInfo' && isGroupStatusMessage(value, visited)
+    );
 }
 
 function isUserJid(jid = '') {

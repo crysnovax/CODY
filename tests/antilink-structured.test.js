@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getMessageText, hasLink, extractUrls, shouldScanSerializedText, getEditedImageCaptionText } = require('../src/Commands/Admin/antilink');
+const { getMessageText, hasLink, extractUrls, shouldScanSerializedText, getEditedImageCaptionText, getViewOnceText } = require('../src/Commands/Admin/antilink');
 
 test('checks normal text plus poll/product links, but ignores other rich payloads', () => {
     const payload = {
@@ -102,6 +102,34 @@ test('checks image captions only on edit events and never scans adjacent media f
         productMessage: { product: { productImage: { caption: 'https://product-image.example.org/not-scanned' } } }
     }, true);
     assert.deepEqual(nonImageMediaEdit, []);
+});
+
+test('scans link text/captions in view-once messages but ignores ordinary media and quoted view-once content', () => {
+    const viewOnce = {
+        ephemeralMessage: {
+            message: {
+                viewOnceMessageV2: {
+                    message: {
+                        imageMessage: {
+                            caption: 'Private link https://chat.whatsapp.com/ViewOnceInvite',
+                            url: 'https://mmg.whatsapp.net/image/transport'
+                        }
+                    }
+                }
+            }
+        }
+    };
+    const viewOnceText = getViewOnceText(viewOnce);
+    assert.ok(viewOnceText.some(text => text.includes('chat.whatsapp.com/ViewOnceInvite')));
+    assert.ok(!viewOnceText.some(text => text.includes('mmg.whatsapp.net')));
+    assert.deepEqual(getViewOnceText({ imageMessage: { caption: 'https://normal.example.org/not-view-once' } }), []);
+    assert.deepEqual(getViewOnceText({
+        conversation: 'Reply',
+        contextInfo: { quotedMessage: viewOnce }
+    }), []);
+    assert.deepEqual(getViewOnceText({
+        viewOnceMessageV2: { message: { extendedTextMessage: { text: 'https://private.example.org/text' } } }
+    }), ['https://private.example.org/text']);
 });
 
 test('ignores Baileys media payloads for images, videos, GIFs, live photos, stickers and wrapped media', () => {

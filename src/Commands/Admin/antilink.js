@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
+const { isViewOnce, unwrap: unwrapViewOnce } = require('../../Plugin/viewOnce');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
@@ -154,6 +155,25 @@ function getEditedImageCaptionText(value, isEdited = false) {
         }
     };
     walk(value);
+    return [...new Set(texts)];
+}
+
+function getViewOnceText(value) {
+    const message = stripQuotedDeep(value);
+    if (!isViewOnce(message)) return [];
+    const content = unwrapViewOnce(message);
+    if (!content || typeof content !== 'object') return [];
+
+    const texts = [];
+    const add = value => {
+        const text = stripBotMarker(typeof value === 'string' ? value : '').trim();
+        if (text) texts.push(text);
+    };
+    add(content.conversation);
+    add(content.extendedTextMessage?.text);
+    for (const key of ['imageMessage', 'instantImageMessage', 'videoMessage', 'documentMessage']) {
+        add(content[key]?.caption);
+    }
     return [...new Set(texts)];
 }
 
@@ -419,6 +439,7 @@ module.exports.hasLink = hasLink;
 module.exports.extractUrls = extractUrls;
 module.exports.shouldScanSerializedText = shouldScanSerializedText;
 module.exports.getEditedImageCaptionText = getEditedImageCaptionText;
+module.exports.getViewOnceText = getViewOnceText;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
@@ -461,11 +482,16 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
                 ? { [messageType]: m.msg }
                 : {})
         }, Boolean(m.__editModeration));
+        const viewOnceTextParts = [
+            ...getViewOnceText(rawMessage),
+            ...getViewOnceText(m.message || {}),
+        ];
 
         const parts = [
             ...(canScanSerializedText ? [stripBotMarker(m.text), stripBotMarker(m.body)] : []),
             ...getMessageText(msg),
             ...editedImageCaptionParts,
+            ...viewOnceTextParts,
         ].filter(Boolean);
         const text = [...new Set(parts)].join(' ');
 

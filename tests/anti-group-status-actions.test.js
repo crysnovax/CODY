@@ -100,3 +100,29 @@ test('replying to a group status does not trigger antigroupstatus or kick the re
     assert.deepEqual(socket.removed, []);
     assert.deepEqual(socket.sent, []);
 });
+
+test('reply text with an inherited group-status context marker is not treated as a status post', async () => {
+    writeConfig('kick');
+    const socket = createSocket();
+    const reply = {
+        extendedTextMessage: {
+            text: 'That was a nice status',
+            contextInfo: { isGroupStatus: true }
+        }
+    };
+    const currentMessage = {
+        ...message(),
+        key: { ...message().key, id: 'reply-marker-1' },
+        message: reply,
+        msg: reply.extendedTextMessage
+    };
+
+    const handled = await groupStatus.handleAntiGroupStatus(socket, currentMessage, {
+        key: currentMessage.key,
+        message: reply
+    });
+
+    assert.equal(handled, false);
+    assert.deepEqual(socket.removed, []);
+    assert.deepEqual(socket.sent, []);
+});
