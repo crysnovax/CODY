@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { BOT_OUTGOING_MARKER } = require('../src/Plugin/antiText');
+const { BOT_OUTGOING_MARKER, hasBotOutgoingMarker } = require('../src/Plugin/antiText');
 const { getTagDetectionText } = require('../src/Commands/Admin/antitag');
 
 test('AntiTag inspects interactive body text even when it carries the outgoing marker', () => {
@@ -37,4 +37,19 @@ test('AntiTag accepts the serializer’s direct InteractiveMessage object shape'
     const analyzedText = getTagDetectionText({ mtype: 'interactiveMessage', msg: directInteractive });
     assert.ok(analyzedText.includes('hidden'));
     assert.ok(analyzedText.includes(BOT_OUTGOING_MARKER));
+});
+
+test('marked own-message detection ignores marker text that exists only in a quoted message', () => {
+    const marked = {
+        message: { interactiveMessage: { body: { text: `link https://example.org${BOT_OUTGOING_MARKER}` } } },
+    };
+    assert.equal(hasBotOutgoingMarker(marked), true);
+    assert.equal(hasBotOutgoingMarker({
+        fakeObj: { message: { interactiveMessage: { body: { text: `own text${BOT_OUTGOING_MARKER}` } } } },
+    }), true, 'the serializer raw envelope can carry the marker');
+    assert.equal(hasBotOutgoingMarker({
+        message: { extendedTextMessage: { text: 'reply', contextInfo: {
+            quotedMessage: { conversation: BOT_OUTGOING_MARKER },
+        } } },
+    }), false);
 });

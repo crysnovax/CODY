@@ -8,6 +8,19 @@ function stripBotMarker(value) {
     return typeof value === 'string' ? value.split(BOT_OUTGOING_MARKER).join('') : value;
 }
 
+function hasBotOutgoingMarker(value, seen = new WeakSet(), depth = 0) {
+    if (typeof value === 'string') return value.includes(BOT_OUTGOING_MARKER);
+    if (!value || typeof value !== 'object' || depth > 16 || seen.has(value) ||
+        Buffer.isBuffer(value) || ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return false;
+    seen.add(value);
+    if (Array.isArray(value)) return value.some(item => hasBotOutgoingMarker(item, seen, depth + 1));
+    for (const [key, child] of Object.entries(value)) {
+        if (['quotedMessage', 'quoted', 'contextInfo', 'messageContextInfo'].includes(key)) continue;
+        if (hasBotOutgoingMarker(child, seen, depth + 1)) return true;
+    }
+    return false;
+}
+
 function stripBotMarkerDeep(value, seen = new WeakSet()) {
     if (typeof value === 'string') return stripBotMarker(value);
     if (!value || typeof value !== 'object' || seen.has(value)) return value;
@@ -51,4 +64,4 @@ function stripQuotedDeep(value, seen = new WeakSet()) {
     return out;
 }
 
-module.exports = { BOT_OUTGOING_MARKER, stripBotMarker, stripBotMarkerDeep, stripQuotedDeep };
+module.exports = { BOT_OUTGOING_MARKER, hasBotOutgoingMarker, stripBotMarker, stripBotMarkerDeep, stripQuotedDeep };

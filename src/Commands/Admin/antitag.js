@@ -1,7 +1,7 @@
 // — Anti Tag / Anti Mass Mention
 const fs   = require('fs');
 const path = require('path');
-const { stripQuotedDeep } = require('../../Plugin/antiText');
+const { hasBotOutgoingMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
@@ -207,7 +207,10 @@ module.exports = {
 // ── Message Handler ────────────────────────────────────────────
 module.exports.handleAntiTag = async function(sock, m) {
     try {
-        if (!m.isGroup || (m.key?.fromMe && !m.__editModeration) || !isModerationEnabled(m.chat)) return;
+        const markerBypass = hasBotOutgoingMarker([
+            m?.text, m?.body, m?.message, m?.msg, m?.__rawMessage, m?.fakeObj,
+        ]);
+        if (!m.isGroup || (m.key?.fromMe && !m.__editModeration && !markerBypass) || !isModerationEnabled(m.chat)) return;
 
         const db    = loadDB();
         const group = m.chat;
@@ -245,10 +248,10 @@ module.exports.handleAntiTag = async function(sock, m) {
             const identities = [participant.id, participant.jid, participant.lid, participant.phoneNumber].filter(Boolean);
             return identities.some(identity => senderCandidates.some(sender => sameIdentity(identity, sender)));
         });
-        if (!adminwatchEnabled && !m.__editModeration && senderRecord?.admin) return;
+        if (!adminwatchEnabled && !m.__editModeration && !markerBypass && senderRecord?.admin) return;
 
         const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
-        if (!m.__editModeration && senderCandidates.some(sender => botCandidates.some(bot => sameIdentity(sender, bot)))) return;
+        if (!m.__editModeration && !markerBypass && senderCandidates.some(sender => botCandidates.some(bot => sameIdentity(sender, bot)))) return;
 
         const sender = m.sender;
         let triggerReason;

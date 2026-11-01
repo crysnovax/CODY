@@ -35,6 +35,8 @@ function messagePayload(value) {
 
 function getMessageType(message) {
     const content = unwrapMessage(message);
+    if (content.body && typeof content.body === 'object' &&
+        ('nativeFlowMessage' in content || 'header' in content || 'footer' in content)) return 'interactiveMessage';
     return Object.keys(content).find(key => key !== 'messageContextInfo' && key !== 'contextInfo' && content[key]) || null;
 }
 
@@ -52,6 +54,19 @@ function getMessageText(message) {
     if (typeof content.conversation === 'string') return content.conversation;
     const type = getMessageType(content);
     const value = type ? content[type] : {};
+    if (type === 'interactiveMessage' || (content.body && typeof content.body === 'object' && 'nativeFlowMessage' in content)) {
+        const interactive = type === 'interactiveMessage' && content.interactiveMessage ? content.interactiveMessage : content;
+        const parts = [interactive.header?.title, interactive.body?.text, interactive.footer?.text];
+        for (const button of interactive.nativeFlowMessage?.buttons || []) {
+            parts.push(button?.url, button?.merchant_url);
+            if (typeof button?.buttonParamsJson !== 'string') continue;
+            try {
+                const params = JSON.parse(button.buttonParamsJson);
+                parts.push(params?.url, params?.merchant_url);
+            } catch {}
+        }
+        return [...new Set(parts.filter(part => typeof part === 'string' && part.length > 0))].join('\n');
+    }
     return value?.text || value?.caption || value?.conversation || '';
 }
 

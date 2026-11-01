@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
+const { hasBotOutgoingMarker, stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isViewOnce, unwrap: unwrapViewOnce } = require('../../Plugin/viewOnce');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
@@ -466,10 +466,37 @@ module.exports.extractUrls = extractUrls;
 module.exports.shouldScanSerializedText = shouldScanSerializedText;
 module.exports.getEditedImageCaptionText = getEditedImageCaptionText;
 module.exports.getViewOnceText = getViewOnceText;
+
+async function deleteTargetMessage(sock, group, ...candidates) {
+    const attempted = new Set();
+    for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== 'object' || !candidate.id) continue;
+        const key = candidate.remoteJid ? candidate : { ...candidate, remoteJid: group };
+        const signature = [key.remoteJid, key.id, key.participant || '', key.fromMe ? '1' : '0'].join('|');
+        if (attempted.has(signature)) continue;
+        attempted.add(signature);
+        try {
+            await sock.sendMessage(group, { delete: key });
+            return true;
+        } catch (error) {
+            console.error('[ANTILINK DELETE ERROR]', error?.stack || error?.message || error);
+        }
+    }
+    return false;
+}
+
+module.exports.deleteTargetMessage = deleteTargetMessage;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
+        // Outgoing bot text carries U+200E. Do not let the normal fromMe/admin
+        // exemption hide a marked message from AntiLink; keep the marker in
+        // the original payload and strip it only from the text being scanned.
+        const markerBypass = hasBotOutgoingMarker([
+            m?.text, m?.body, m?.message, m?.msg, m?.__rawMessage, m?.fakeObj,
+            mek?.__rawMessage, mek?.message,
+        ]);
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
-        if (m.key?.fromMe && !m.__editModeration) return;
+        if (m.key?.fromMe && !m.__editModeration && !markerBypass) return;
         const adminwatchEnabled = isAdminwatchEnabled(m.chat, 'antilink');
         if (!await shouldApplyAdminwatch(sock, m, 'antilink')) return;
 
@@ -546,21 +573,15 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const admins = meta.participants
             .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
             .map(p => p.id.replace(/:\d+@/, '@'));
-        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
+        if (!adminwatchEnabled && !m.__editModeration && !markerBypass && admins.includes(senderNorm)) return;
 
         const action = cfg.action || 'delete';
         let auditAction = action;
 
         // Revoke the original target message, not the encrypted edit
         // transport envelope. Keep a fallback for non-encrypted edits.
-        const deleteKey = mek?.__deleteKey || m.__deleteKey || mek?.key || m.key;
-        let deleted = false;
-        try {
-            await sock.sendMessage(group, { delete: deleteKey });
-            deleted = true;
-        } catch (error) {
-            console.error('[ANTILINK DELETE ERROR]', error?.stack || error?.message || error);
-        }
+        const deleted = await deleteTargetMessage(sock, group,
+            mek?.__deleteKey, m.__deleteKey, mek?.key, m.key);
 
         if (action === 'delete') {
             await sock.sendMessage(group, {

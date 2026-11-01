@@ -66,7 +66,7 @@ module.exports = {
     alias: ['getquoted', 'showquoted'],
     desc: 'Get the exact quoted message content',
     category: 'Tools',
-    usage: `${prefix}quoted (reply to a message that quotes another)`,
+    usage: `${prefix}quoted (reply to a message; unwraps its quote when present)`,
     reactions: { start: '📝', success: '💬', error: '📡' },
     adminOnly: false,
     ownerOnly: true,
@@ -88,14 +88,11 @@ module.exports = {
                 return reply('⊘ *Could not load the replied message. Reply to the message again and retry.*');
             }
 
-            const contextInfo = getContextInfo(target);
-            const innerQuoted = contextInfo?.quotedMessage;
-            if (!innerQuoted) {
-                await sock.sendMessage(m.chat, { react: { text: '🙈', key: m.key } });
-                return reply('⊘ *That message has no quoted message inside it.*');
-            }
-
-            const message = unwrapMessage(innerQuoted);
+            const targetPayload = messagePayload(target);
+            const contextInfo = getContextInfo(targetPayload);
+            // Prefer the nested quote when the replied-to message contains one;
+            // otherwise return the replied-to message itself instead of failing.
+            const message = unwrapMessage(contextInfo?.quotedMessage || targetPayload);
             const type = getMessageType(message);
             const mediaKey = Object.keys(MEDIA_TYPES).find(key => message[key]);
             const text = getMessageText(message);
