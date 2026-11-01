@@ -42,56 +42,93 @@ function ensureGroupConfig(db, group) {
 }
 
 const MESSAGE_TEXT_FIELDS = new Set([
-    'conversation', 'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title'
+    'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title', 'canonicalUrl'
 ]);
-const MESSAGE_JSON_FIELDS = new Set(['buttonParamsJson', 'paramsJson']);
-const MEDIA_MESSAGE_CONTAINERS = new Set([
-    'imageMessage', 'videoMessage', 'instantImageMessage', 'ptvMessage',
-    'audioMessage', 'documentMessage', 'stickerMessage', 'lottieStickerMessage',
-    'audioStickerMessage', 'eventCoverImage', 'pollCreationOptionImageMessage',
-    'productImage', 'catalogImage', 'thumbnail', 'image', 'video', 'audio', 'document'
+const TEXT_MESSAGE_TYPES = new Set(['conversation', 'extendedTextMessage']);
+const POLL_MESSAGE_TYPES = new Set([
+    'pollCreationMessage', 'pollCreationMessageV2', 'pollCreationMessageV3',
+    'pollCreationMessageV4', 'pollCreationMessageV5', 'pollResultSnapshotMessage'
 ]);
-// Proto fields that describe delivery/preview media, not a link the sender typed
-// or made clickable. Their URL values can otherwise make every photo/video/GIF
-// look like an antilink violation.
-const MEDIA_PAYLOAD_URL_FIELDS = new Set([
-    'url', 'staticUrl', 'metadataUrl', 'dashManifestUrl', 'qrUrl', 'accessibilityLabel'
+const PRODUCT_MESSAGE_TYPES = new Set(['productMessage']);
+const STRUCTURED_LINK_MESSAGE_TYPES = new Set([...POLL_MESSAGE_TYPES, ...PRODUCT_MESSAGE_TYPES]);
+const MEDIA_MESSAGE_TYPES = new Set([
+    'imageMessage', 'videoMessage', 'instantImageMessage', 'ptvMessage', 'audioMessage',
+    'documentMessage', 'documentWithCaptionMessage', 'stickerMessage', 'stickerPackMessage',
+    'stickerSyncRmrMessage', 'lottieStickerMessage', 'audioStickerMessage', 'albumMessage',
+    'eventCoverImage', 'pollCreationOptionImageMessage', 'statusStickerInteractionMessage'
 ]);
-const MEDIA_TRANSPORT_FIELDS = new Set([
-    'directPath', 'thumbnailDirectPath', 'thumbnailUrl', 'thumbnailURL', 'mediaUrl', 'mediaURL',
-    'mediaKey', 'jpegThumbnail', 'fileSha256', 'fileEncSha256', 'scansSidecar', 'streamingSidecar',
-    'originalImageUrl', 'adPreviewUrl', 'thumbnailImageUrl', 'profilePictureUrl', 'videoContentUrl'
+const IGNORED_MESSAGE_SUBTREES = new Set([
+    'quotedMessage', 'quoted', 'contextInfo', 'messageContextInfo', 'productImage', 'catalogImage',
+    'image', 'video', 'audio', 'document', 'sticker', 'thumbnail', 'externalAdReply'
+]);
+const MESSAGE_WRAPPER_TYPES = new Set([
+    'raw', 'message', 'msg', 'ephemeralMessage', 'deviceSentMessage', 'viewOnceMessage',
+    'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'editedMessage', 'protocolMessage'
+]);
+const MESSAGE_ROOT_TYPES = new Set([
+    ...TEXT_MESSAGE_TYPES, ...STRUCTURED_LINK_MESSAGE_TYPES, ...MEDIA_MESSAGE_TYPES
 ]);
 
-function getMessageText(value, seen = new WeakSet(), parentPath = []) {
-    if (!value || typeof value !== 'object' || seen.has(value)) return [];
-    seen.add(value);
+function shouldScanSerializedText(messageType) {
+    return !messageType || TEXT_MESSAGE_TYPES.has(messageType) || STRUCTURED_LINK_MESSAGE_TYPES.has(messageType);
+}
+
+function getMessageText(value) {
     const texts = [];
-    for (const [key, child] of Object.entries(value)) {
-        // Never follow the quoted message — a reply that quotes a link is not
-        // itself sending a link. (@crysnovax—FIX22-09-26)
-        if (key === 'quotedMessage' || key === 'quoted') continue;
-        if (typeof child === 'string') {
-            const text = stripBotMarker(child).trim();
-            const insideMediaPayload = parentPath.some(part => MEDIA_MESSAGE_CONTAINERS.has(part));
-            const isTransportValue = MEDIA_TRANSPORT_FIELDS.has(key)
-                || (insideMediaPayload && MEDIA_PAYLOAD_URL_FIELDS.has(key));
-            if (!isTransportValue && text && (MESSAGE_TEXT_FIELDS.has(key) || hasLink(text))) texts.push(text);
-            // WhatsApp rich/native-flow buttons serialize their payload as JSON;
-            // decode only known parameter fields so escaped URLs are inspected.
-            if (MESSAGE_JSON_FIELDS.has(key)) {
-                try {
-                    const parsed = JSON.parse(child);
-                    if (parsed && typeof parsed === 'object') {
-                        texts.push(...getMessageText(parsed, seen, [...parentPath, key]));
-                    }
-                } catch {}
+    const seen = new WeakSet();
+    const add = value => {
+        const text = stripBotMarker(String(value || '')).trim();
+        if (text) texts.push(text);
+    };
+    const walkText = node => {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+        for (const [key, child] of Object.entries(node)) {
+            if (IGNORED_MESSAGE_SUBTREES.has(key) || MEDIA_MESSAGE_TYPES.has(key)) continue;
+            if (typeof child === 'string' && MESSAGE_TEXT_FIELDS.has(key)) add(child);
+            else if (child && typeof child === 'object' && key === 'text') walkText(child);
+        }
+    };
+    const walkStructured = node => {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+        for (const [key, child] of Object.entries(node)) {
+            if (IGNORED_MESSAGE_SUBTREES.has(key) || MEDIA_MESSAGE_TYPES.has(key)) continue;
+            if (typeof child === 'string') {
+                const text = stripBotMarker(child).trim();
+                if (text && hasLink(text)) texts.push(text);
+            } else if (child && typeof child === 'object') {
+                walkStructured(child);
             }
-        } else if (child && typeof child === 'object') {
-            texts.push(...getMessageText(child, seen, [...parentPath, key]));
+        }
+    };
+    const walkRoot = node => {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+        for (const [key, child] of Object.entries(node)) {
+            if (IGNORED_MESSAGE_SUBTREES.has(key)) continue;
+            if (typeof child === 'string' && key === 'conversation') add(child);
+            else if (TEXT_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkText(child);
+            else if (STRUCTURED_LINK_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkStructured(child);
+            else if (MESSAGE_WRAPPER_TYPES.has(key) && child && typeof child === 'object') walkRoot(child);
+        }
+    };
+    walkRoot(value);
+    return [...new Set(texts)];
+}
+
+function getRootMessageType(value, seen = new WeakSet()) {
+    if (!value || typeof value !== 'object' || seen.has(value)) return null;
+    seen.add(value);
+    for (const [key, child] of Object.entries(value)) {
+        if (IGNORED_MESSAGE_SUBTREES.has(key)) continue;
+        if (MESSAGE_ROOT_TYPES.has(key)) return key;
+        if (MESSAGE_WRAPPER_TYPES.has(key) && child && typeof child === 'object') {
+            const nested = getRootMessageType(child, seen);
+            if (nested) return nested;
         }
     }
-    return [...new Set(texts)];
+    return null;
 }
 
 function hasLink(text) {
@@ -354,6 +391,7 @@ module.exports = {
 module.exports.getMessageText = getMessageText;
 module.exports.hasLink = hasLink;
 module.exports.extractUrls = extractUrls;
+module.exports.shouldScanSerializedText = shouldScanSerializedText;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
@@ -368,18 +406,30 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const cfg = db[group];
         if (!cfg.enabled) return;
 
-        // ── Extract text from ALL message types + extendedTextMessage fix ──
-        // Quoted content is stripped first: replying to a link must not be
-        // treated as sending one. (@crysnovax—FIX22-09-26)
+        // Keep ordinary text moderation, but only recurse through poll/product
+        // structured payloads. Media, stickers, previews, events and other rich
+        // payloads are deliberately excluded to prevent proto transport URLs
+        // from being mistaken for links sent by the user.
+        const rawMessage = mek?.__rawMessage || mek?.message || {};
+        const messageType = [m.mtype, getRootMessageType(m.message), getRootMessageType(rawMessage)]
+            .filter(Boolean)
+            .find(type => MEDIA_MESSAGE_TYPES.has(type))
+            || [m.mtype, getRootMessageType(m.message), getRootMessageType(rawMessage)]
+                .filter(Boolean)
+                .find(type => MESSAGE_ROOT_TYPES.has(type))
+            || m.mtype
+            || null;
+        const canScanSerializedText = shouldScanSerializedText(messageType);
         const msg = stripQuotedDeep({
-            ...(mek?.message || {}),
+            ...(rawMessage || {}),
             ...(m.message || {}),
-            ...(m.msg || {})
+            ...(STRUCTURED_LINK_MESSAGE_TYPES.has(messageType) && m.msg
+                ? { [messageType]: m.msg }
+                : {})
         });
 
         const parts = [
-            stripBotMarker(m.text),
-            stripBotMarker(m.body),
+            ...(canScanSerializedText ? [stripBotMarker(m.text), stripBotMarker(m.body)] : []),
             ...getMessageText(msg),
         ].filter(Boolean);
         const text = [...new Set(parts)].join(' ');

@@ -1,15 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getMessageText, hasLink, extractUrls } = require('../src/Commands/Admin/antilink');
+const { getMessageText, hasLink, extractUrls, shouldScanSerializedText } = require('../src/Commands/Admin/antilink');
 
-test('finds URLs in nested poll, event, product, and rich/table payloads', () => {
+test('checks normal text plus poll/product links, but ignores other rich payloads', () => {
     const payload = {
+        conversation: 'Plain text: https://plain.example.org/page',
+        extendedTextMessage: { text: 'Edited text: https://edited.example.org/page' },
         pollCreationMessage: {
             options: [{ optionName: 'Join https://chat.whatsapp.com/AbCdEf123456' }]
-        },
-        eventMessage: {
-            eventName: 'Community meetup',
-            description: 'Details: https://events.example.org/invite'
         },
         productMessage: {
             product: {
@@ -18,8 +16,9 @@ test('finds URLs in nested poll, event, product, and rich/table payloads', () =>
                 productImage: { url: 'https://mmg.whatsapp.net/catalog/product-image' }
             }
         },
+        eventMessage: { eventName: 'Community meetup', description: 'https://events.example.org/invite' },
         richResponseMessage: {
-            table: { rows: [{ cells: ['Open https://tables.example.com/access'] }] },
+            table: { rows: [{ cells: ['https://tables.example.com/access'] }] },
             cards: [{ buttons: [{ text: 'Open', url: 'https://buttons.example.org/card' }] }]
         }
     };
@@ -28,26 +27,32 @@ test('finds URLs in nested poll, event, product, and rich/table payloads', () =>
     const combined = texts.join(' ');
     assert.ok(hasLink(combined));
     for (const url of [
+        'plain.example.org/page',
+        'edited.example.org/page',
         'chat.whatsapp.com/AbCdEf123456',
-        'events.example.org/invite',
-        'shop.example.net/item/42',
-        'tables.example.com/access',
-        'buttons.example.org/card'
+        'shop.example.net/item/42'
     ]) {
         assert.ok(texts.some(text => text.includes(url)), `expected to find ${url}`);
     }
-    assert.ok(!combined.includes('mmg.whatsapp.net'));
+    for (const ignoredUrl of [
+        'events.example.org/invite',
+        'tables.example.com/access',
+        'buttons.example.org/card',
+        'mmg.whatsapp.net'
+    ]) {
+        assert.ok(!combined.includes(ignoredUrl), `did not expect to scan ${ignoredUrl}`);
+    }
     assert.ok(extractUrls(combined).some(url => url.includes('chat.whatsapp.com/AbCdEf123456')));
 });
 
-test('parses escaped URLs in known rich/native-flow JSON fields', () => {
-    const buttonParamsJson = JSON.stringify({ url: 'https://native.example.org/join' }).replaceAll('/', '\\/');
+test('does not scan native-flow JSON or unsupported interactive/rich messages', () => {
+    const buttonParamsJson = JSON.stringify({ url: 'https://native.example.org/join' }).replaceAll('/', '\/');
     const texts = getMessageText({
-        interactiveResponseMessage: {
-            nativeFlowResponseMessage: { buttonParamsJson }
-        }
+        interactiveResponseMessage: { nativeFlowResponseMessage: { buttonParamsJson } },
+        eventMessage: { description: 'https://events.example.org/invite' },
+        richResponseMessage: { table: { cells: ['https://tables.example.com/access'] } }
     });
-    assert.ok(texts.some(text => text.includes('native.example.org/join')));
+    assert.deepEqual(texts, []);
 });
 
 test('continues to ignore URLs found only inside a quoted message', () => {
@@ -60,59 +65,32 @@ test('continues to ignore URLs found only inside a quoted message', () => {
     assert.deepEqual(texts, ['This is a reply, not a link']);
 });
 
-test('ignores Baileys media transport URLs for images, videos, GIFs, live photos and wrapped media', () => {
+test('only permits serialized-text scanning for plain text, poll and product message types', () => {
+    for (const type of ['imageMessage', 'videoMessage', 'instantImageMessage', 'ptvMessage', 'stickerMessage']) {
+        assert.equal(shouldScanSerializedText(type), false, `${type} must not scan m.text or m.body`);
+    }
+    for (const type of ['conversation', 'extendedTextMessage', 'pollCreationMessageV3', 'productMessage']) {
+        assert.equal(shouldScanSerializedText(type), true, `${type} should remain eligible for link checks`);
+    }
+});
+
+test('ignores Baileys media payloads for images, videos, GIFs, live photos, stickers and wrapped media', () => {
     const mediaOnly = {
-        imageMessage: {
-            url: 'https://mmg.whatsapp.net/image/transport',
-            staticUrl: 'https://mmg.whatsapp.net/image/static',
-            directPath: '/v/t62/image/path',
-            qrUrl: 'https://qr.example.org/from-image',
-            accessibilityLabel: 'https://alt.example.org/image'
-        },
-        instantImageMessage: {
-            url: 'https://mmg.whatsapp.net/instant-image/transport',
-            staticUrl: 'https://mmg.whatsapp.net/instant-image/static'
-        },
+        imageMessage: { url: 'https://mmg.whatsapp.net/image/transport', caption: 'https://image-caption.example.org' },
+        instantImageMessage: { url: 'https://mmg.whatsapp.net/instant-image/transport' },
         videoMessage: {
             url: 'https://mmg.whatsapp.net/video/transport',
-            staticUrl: 'https://mmg.whatsapp.net/video/static',
             metadataUrl: 'https://mmg.whatsapp.net/video/metadata',
             dashManifestUrl: 'https://mmg.whatsapp.net/video/manifest',
             gifPlayback: true,
             motionPhotoPresentationOffsetMs: 12
         },
-        ptvMessage: {
-            url: 'https://mmg.whatsapp.net/live-photo/transport',
-            metadataUrl: 'https://mmg.whatsapp.net/live-photo/metadata'
-        },
-        eventCoverImage: {
-            message: { imageMessage: { url: 'https://mmg.whatsapp.net/event-cover/transport' } }
-        },
-        contextInfo: {
-            externalAdReply: {
-                thumbnailUrl: 'https://mmg.whatsapp.net/ad/thumbnail',
-                mediaUrl: 'https://mmg.whatsapp.net/ad/media',
-                originalImageUrl: 'https://mmg.whatsapp.net/ad/original',
-                adPreviewUrl: 'https://mmg.whatsapp.net/ad/preview'
-            }
-        }
+        ptvMessage: { url: 'https://mmg.whatsapp.net/live-photo/transport' },
+        stickerMessage: { url: 'https://mmg.whatsapp.net/sticker/transport' },
+        eventCoverImage: { message: { imageMessage: { url: 'https://mmg.whatsapp.net/event-cover/transport' } } },
+        pollCreationOptionImageMessage: { message: { imageMessage: { url: 'https://mmg.whatsapp.net/poll-image/transport' } } }
     };
     assert.deepEqual(getMessageText(mediaOnly), []);
-
-    const texts = getMessageText({
-        ...mediaOnly,
-        imageMessage: { ...mediaOnly.imageMessage, caption: 'Caption has https://shared.example.org/page' },
-        contextInfo: {
-            externalAdReply: {
-                ...mediaOnly.contextInfo.externalAdReply,
-                sourceUrl: 'https://advert.example.com/offer'
-            }
-        }
-    });
-    const combined = texts.join(' ');
-    assert.ok(combined.includes('shared.example.org/page'));
-    assert.ok(combined.includes('advert.example.com/offer'));
-    assert.ok(!combined.includes('mmg.whatsapp.net'));
 });
 
 test('ignores unrelated arbitrary string metadata without a link', () => {
