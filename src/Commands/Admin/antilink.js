@@ -131,6 +131,32 @@ function getRootMessageType(value, seen = new WeakSet()) {
     return null;
 }
 
+const IMAGE_CAPTION_MESSAGE_TYPES = new Set(['imageMessage', 'instantImageMessage']);
+
+function getEditedImageCaptionText(value, isEdited = false) {
+    if (!isEdited) return [];
+    const texts = [];
+    const seen = new WeakSet();
+    const walk = node => {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+        for (const [key, child] of Object.entries(node)) {
+            if (IGNORED_MESSAGE_SUBTREES.has(key)) continue;
+            if (IMAGE_CAPTION_MESSAGE_TYPES.has(key) && child && typeof child === 'object') {
+                const caption = child.caption;
+                if (typeof caption === 'string') {
+                    const text = stripBotMarker(caption).trim();
+                    if (text) texts.push(text);
+                }
+                continue;
+            }
+            if (MESSAGE_WRAPPER_TYPES.has(key) && child && typeof child === 'object') walk(child);
+        }
+    };
+    walk(value);
+    return [...new Set(texts)];
+}
+
 function hasLink(text) {
     if (/(?:https?:\/\/|www\.|chat\.whatsapp\.com|wa\.me)/i.test(text)) return true;
     // Bare domains — require whitespace or line start before the domain so
@@ -392,6 +418,7 @@ module.exports.getMessageText = getMessageText;
 module.exports.hasLink = hasLink;
 module.exports.extractUrls = extractUrls;
 module.exports.shouldScanSerializedText = shouldScanSerializedText;
+module.exports.getEditedImageCaptionText = getEditedImageCaptionText;
 module.exports.handleAntiLink = async function(sock, m, mek) {
     try {
         if (!m.isGroup || !isModerationEnabled(m.chat)) return;
@@ -427,10 +454,18 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
                 ? { [messageType]: m.msg }
                 : {})
         });
+        const editedImageCaptionParts = getEditedImageCaptionText({
+            raw: rawMessage,
+            message: m.message || {},
+            ...(IMAGE_CAPTION_MESSAGE_TYPES.has(messageType) && m.msg
+                ? { [messageType]: m.msg }
+                : {})
+        }, Boolean(m.__editModeration));
 
         const parts = [
             ...(canScanSerializedText ? [stripBotMarker(m.text), stripBotMarker(m.body)] : []),
             ...getMessageText(msg),
+            ...editedImageCaptionParts,
         ].filter(Boolean);
         const text = [...new Set(parts)].join(' ');
 

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getMessageText, hasLink, extractUrls, shouldScanSerializedText } = require('../src/Commands/Admin/antilink');
+const { getMessageText, hasLink, extractUrls, shouldScanSerializedText, getEditedImageCaptionText } = require('../src/Commands/Admin/antilink');
 
 test('checks normal text plus poll/product links, but ignores other rich payloads', () => {
     const payload = {
@@ -72,6 +72,36 @@ test('only permits serialized-text scanning for plain text, poll and product mes
     for (const type of ['conversation', 'extendedTextMessage', 'pollCreationMessageV3', 'productMessage']) {
         assert.equal(shouldScanSerializedText(type), true, `${type} should remain eligible for link checks`);
     }
+});
+
+test('checks image captions only on edit events and never scans adjacent media fields', () => {
+    const editedImage = {
+        raw: {
+            protocolMessage: {
+                editedMessage: {
+                    imageMessage: {
+                        caption: 'Edited caption: https://chat.whatsapp.com/EditedImageInvite',
+                        url: 'https://mmg.whatsapp.net/image/transport'
+                    }
+                }
+            }
+        },
+        contextInfo: {
+            quotedMessage: { imageMessage: { caption: 'https://quoted.example.org/not-the-edit' } }
+        }
+    };
+    assert.deepEqual(getEditedImageCaptionText(editedImage), []);
+    const editedCaptions = getEditedImageCaptionText(editedImage, true);
+    assert.ok(editedCaptions.some(text => text.includes('chat.whatsapp.com/EditedImageInvite')));
+    assert.ok(!editedCaptions.some(text => text.includes('mmg.whatsapp.net')));
+    assert.ok(!editedCaptions.some(text => text.includes('quoted.example.org')));
+
+    const nonImageMediaEdit = getEditedImageCaptionText({
+        videoMessage: { caption: 'https://video.example.org/not-scanned' },
+        stickerMessage: { caption: 'https://sticker.example.org/not-scanned' },
+        productMessage: { product: { productImage: { caption: 'https://product-image.example.org/not-scanned' } } }
+    }, true);
+    assert.deepEqual(nonImageMediaEdit, []);
 });
 
 test('ignores Baileys media payloads for images, videos, GIFs, live photos, stickers and wrapped media', () => {
