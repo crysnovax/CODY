@@ -20,8 +20,8 @@ module.exports = {
             const vcard = `
 BEGIN:VCARD
 VERSION:3.0
-FN:${botName}
-ORG:${ownerName}
+FN:${ownerName}
+ORG:${botName}
 TEL;type=CELL;type=VOICE;waid=${ownerNumber}:+${ownerNumber}
 END:VCARD
             `.trim();
