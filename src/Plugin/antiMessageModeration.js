@@ -155,7 +155,7 @@ function createAntiMessageModeration({
             };
             const removeMessage = deleteMessage
                 ? () => deleteMessage(sock, m, mek, removalContext)
-                : () => sock.sendMessage(m.chat, { delete: mek?.key || m.key });
+                : () => sock.sendMessage(m.chat, { delete: mek?.__deleteKey || mek?.key || m.key });
             const action = ['delete', 'warn', 'kick', 'tkick'].includes(config.action) ? config.action : 'delete';
             let removalError;
             try {

@@ -50,6 +50,7 @@ test('decrypts a targeted SecretEncryptedMessage edit and marks it as an edit', 
     assert.equal(incoming.key.id, messageId);
     assert.equal(incoming.key.fromMe, true);
     assert.equal(incoming.key.participant, jid);
+    assert.deepEqual(incoming.__deleteKey, original.key);
     assert.equal(incoming.message.conversation, '.help');
 });
 

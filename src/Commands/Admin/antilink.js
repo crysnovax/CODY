@@ -377,12 +377,20 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const action = cfg.action || 'delete';
         let auditAction = action;
 
-        // Delete the message FIRST for all actions
-        await sock.sendMessage(group, { delete: mek?.key || m.key }).catch(() => {});
+        // Revoke the original target message, not the encrypted edit
+        // transport envelope. Keep a fallback for non-encrypted edits.
+        const deleteKey = mek?.__deleteKey || m.__deleteKey || mek?.key || m.key;
+        let deleted = false;
+        try {
+            await sock.sendMessage(group, { delete: deleteKey });
+            deleted = true;
+        } catch (error) {
+            console.error('[ANTILINK DELETE ERROR]', error?.stack || error?.message || error);
+        }
 
         if (action === 'delete') {
             await sock.sendMessage(group, {
-                text: `ⓘ @${sender.split('@')[0]} *Link detected!*\nLinks are not allowed here. Message deleted. ಥ⁠‿⁠ಥ`,
+                text: `ⓘ @${sender.split('@')[0]} *Link detected!*\nLinks are not allowed here. ${deleted ? 'Message deleted.' : 'I detected it, but WhatsApp rejected deletion.'} ಥ⁠‿⁠ಥ`,
                 mentions: [sender]
             }, { quoted: mek || m }).catch(() => {});
         }

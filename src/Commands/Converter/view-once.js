@@ -340,7 +340,7 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
       await sock.sendMessage(recipient, { text: viewOnceText });
     }
     if (chat.endsWith('@g.us') && (typeof sock.sendMessage === 'function')) {
-      await sock.sendMessage(chat, { delete: m?.key || mek?.key }).catch(() => {});
+      await sock.sendMessage(chat, { delete: mek?.__deleteKey || m?.__deleteKey || m?.key || mek?.key }).catch(() => {});
     }
     await sock.sendMessage(chat, { react: { text: '👁️', key: m?.key || mek?.key } }).catch(() => {});
     return true;

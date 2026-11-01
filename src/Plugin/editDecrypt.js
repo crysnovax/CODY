@@ -129,6 +129,12 @@ async function decryptSecretEdit(message, customStore, sock) {
                 // for bot-sent edited messages.
                 const sourceKey = message.key || {};
                 const originalKey = original?.key || {};
+                // Keep the exact key that was stored for the original
+                // message. Moderation must revoke that message, not the
+                // transport envelope created for the edit.
+                if (originalKey?.id && originalKey?.remoteJid) {
+                    message.__deleteKey = { ...originalKey };
+                }
                 message.key = {
                     ...sourceKey,
                     ...targetKey,
