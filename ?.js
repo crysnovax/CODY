@@ -75,6 +75,49 @@ module.exports = function setupMessageHandler(sock, customStore, handleMessage, 
     // manager. Keep the active CODY store available for messageSecret lookups.
     global.__codyMessageStore = customStore;
 
+    // Keep plaintext ProtocolMessage edits, messages.update edits, and
+    // SecretEncryptedMessage edits on exactly the same moderation path.
+    const editAntiHandlers = [
+        ['antivv.js', 'handleAntiVV'],
+        ['antiimage.js', 'handleAntiImage'],
+        ['antivideo.js', 'handleAntiVideo'],
+        ['antiaudio.js', 'handleAntiAudio'],
+        ['antilocation.js', 'handleAntiLocation'],
+        ['anticontact.js', 'handleAntiContact'],
+        ['slowmode.js', 'handleSlowmode'],
+        ['antivoice.js', 'handleAntiVoice'],
+        ['antidoc.js', 'handleAntiDoc'],
+        ['antipoll.js', 'handleAntiPoll'],
+        ['antievent.js', 'handleAntiEvent'],
+        ['antinewcomer.js', 'handleAntiNewcomer'],
+        ['nosticker.js', 'handleNoSticker'],
+        ['antiforward.js', 'handleAntiForward'],
+        ['antilink.js', 'handleAntiLink'],
+        ['antitag.js', 'handleAntiTag'],
+        ['antispam.js', 'handleAntiSpam'],
+        ['antiword.js', 'handleAntiWord'],
+        ['antigroupstatus.js', 'handleAntiGroupStatus'],
+        ['antigm.js', 'handleAntiGM'],
+        ['antibot.js', 'handleAntiBot'],
+        ['antibug.js', 'handleAntiBug']
+    ];
+
+    const moderateEditedEnvelope = async editedEnvelope => {
+        const moderated = await smsg(sock, editedEnvelope, customStore);
+        if (!moderated) return null;
+        const chat = moderated.chat || editedEnvelope.key?.remoteJid;
+        if (!chat || !require('./src/Plugin/moderationControl').isModerationEnabled(chat)) return moderated;
+        for (const [moduleName, handlerName] of editAntiHandlers) {
+            try {
+                const anti = require(`./src/Commands/Admin/${moduleName}`);
+                await anti?.[handlerName]?.(sock, moderated, editedEnvelope);
+            } catch (err) {
+                console.error(`[${handlerName.toUpperCase()} EDIT ERROR]`, err?.message || err);
+            }
+        }
+        return moderated;
+    };
+
     // carry uptime over from an update restart (@crysnovax—FIX06-08-26)
     try {
         if (global.crysStats) require('./src/Plugin/uptime').restoreOnBoot(global.crysStats);
@@ -312,18 +355,7 @@ setupPromotionGuard(sock);
                     console.error('[ANTIEDIT ROUTE ERROR]', err?.message || err);
                 }
                 try {
-                    const edited = await smsg(sock, editedEnvelope, customStore);
-                    if (edited) {
-                        await require('./src/Commands/Admin/antigm.js').handleAntiGM?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antigroupstatus.js').handleAntiGroupStatus?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antibug.js').handleAntiBug?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antibot.js').handleAntiBot?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antiforward.js').handleAntiForward?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antilink.js').handleAntiLink?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antitag.js').handleAntiTag?.(sock, edited, editedEnvelope);
-                        await require('./src/Commands/Admin/antiword.js').handleAntiWord?.(sock, edited, editedEnvelope);
-                    }
+                    await moderateEditedEnvelope(editedEnvelope);
                 } catch (err) {
                     console.error('[EDIT MODERATION ERROR]', err?.stack || err?.message || err);
                 }
@@ -345,6 +377,12 @@ setupPromotionGuard(sock);
                 } catch (err) {
                     console.error('[SECRET ANTIEDIT ROUTE ERROR]', err?.message || err);
                 }
+                try {
+                    await moderateEditedEnvelope(mek);
+                } catch (err) {
+                    console.error('[SECRET EDIT MODERATION ERROR]', err?.stack || err?.message || err);
+                }
+                return;
             }
 
             if (mek.message) {
@@ -826,39 +864,7 @@ try {
   const edited = extractEditedMessage(entry?.message || entry?.update);
   if (!edited || !entry?.key?.remoteJid || entry.key.remoteJid === 'status@broadcast') continue;
   const editedEnvelope = { key: entry.key, message: edited, __rawMessage: edited };
-  const moderated = await smsg(sock, editedEnvelope, customStore);
-  if (!moderated) continue;
-  const editAntiHandlers = [
-  ['antivv.js', 'handleAntiVV'],
-  ['antiimage.js', 'handleAntiImage'],
-  ['antivideo.js', 'handleAntiVideo'],
-  ['antiaudio.js', 'handleAntiAudio'],
-  ['antilocation.js', 'handleAntiLocation'],
-  ['anticontact.js', 'handleAntiContact'],
-  ['slowmode.js', 'handleSlowmode'],
-  ['antivoice.js', 'handleAntiVoice'],
-  ['antidoc.js', 'handleAntiDoc'],
-  ['antipoll.js', 'handleAntiPoll'],
-  ['antievent.js', 'handleAntiEvent'],
-  ['antinewcomer.js', 'handleAntiNewcomer'],
-  ['nosticker.js', 'handleNoSticker'],
-  ['antiforward.js', 'handleAntiForward'],
-  ['antilink.js', 'handleAntiLink'],
-  ['antitag.js', 'handleAntiTag'],
-  ['antispam.js', 'handleAntiSpam'],
-  ['antiword.js', 'handleAntiWord'],
-  ['antigroupstatus.js', 'handleAntiGroupStatus'],
-  ['antigm.js', 'handleAntiGM'],
-  ['antibot.js', 'handleAntiBot'],
-  ['antibug.js', 'handleAntiBug']
-  ];
-  const editedChat = edited.chat || edited.remoteJid;
-  if (editedChat && require('./src/Plugin/moderationControl').isModerationEnabled(editedChat)) for (const [moduleName, handlerName] of editAntiHandlers) {
-  try {
-  const anti = require(`./src/Commands/Admin/${moduleName}`);
-  await anti?.[handlerName]?.(sock, moderated, editedEnvelope);
-  } catch (err) { console.error(`[${handlerName.toUpperCase()} EDIT ERROR]`, err.message); }
-  }
+  await moderateEditedEnvelope(editedEnvelope);
   }
   } catch (err) { console.error('[EDIT MODERATION ERROR]', err?.message || err); }
   try {
