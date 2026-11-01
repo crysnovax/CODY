@@ -33,10 +33,11 @@ function storeEnvelope(value) {
 async function findRepliedMessage(m, store, sock) {
     const quoted = m?.quoted;
     const direct = rawQuotedMessage(quoted);
-    if (direct?.message) return direct;
+    if (direct?.message && getContextInfo(direct.message)?.quotedMessage) return direct;
+    let fallback = direct?.message ? direct : null;
 
     const id = quoted?.id || quoted?.key?.id || quoted?.fakeObj?.key?.id;
-    if (!id) return null;
+    if (!id) return fallback;
     const jids = [...new Set([
         quoted?.chat,
         quoted?.key?.remoteJid,
@@ -48,17 +49,23 @@ async function findRepliedMessage(m, store, sock) {
         if (typeof store?.loadMessage === 'function') {
             try {
                 const loaded = storeEnvelope(await store.loadMessage(jid, id, sock));
-                if (loaded?.message) return loaded;
+                if (loaded?.message) {
+                    if (getContextInfo(loaded.message)?.quotedMessage) return loaded;
+                    fallback ||= loaded;
+                }
             } catch {}
         }
         if (typeof store?.messages?.get === 'function') {
             try {
                 const loaded = storeEnvelope(store.messages.get(`${jid}:${id}`));
-                if (loaded?.message) return loaded;
+                if (loaded?.message) {
+                    if (getContextInfo(loaded.message)?.quotedMessage) return loaded;
+                    fallback ||= loaded;
+                }
             } catch {}
         }
     }
-    return null;
+    return fallback;
 }
 
 module.exports = {

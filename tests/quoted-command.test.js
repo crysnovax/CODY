@@ -2,6 +2,7 @@
 
 const { after, test } = require('node:test');
 const assert = require('node:assert/strict');
+const { smsg } = require('../library/serialize');
 const Module = require('node:module');
 const originalLoad = Module._load;
 Module._load = function patchedLoad(request, parent, isMain) {
@@ -65,6 +66,78 @@ test('.quoted loads by message key when the direct quoted envelope is absent and
     await context.run();
     assert.deepEqual(context.replies, []);
     assert.ok(context.sock.sent.some(({ content }) => content?.text === 'recovered through store lookup'));
+});
+
+test('.quoted prefers a stored complete reply over an incomplete embedded copy', async () => {
+    const originalText = 'the original link message from the complete cached notice';
+    const direct = {
+        key: { remoteJid: 'reply-chat@g.us', id: 'outer-incomplete' },
+        message: {
+            extendedTextMessage: {
+                text: 'Link detected',
+                contextInfo: { participant: 'bot@s.whatsapp.net' },
+            },
+        },
+    };
+    const stored = targetMessage('reply-chat@g.us', 'outer-incomplete', { conversation: originalText });
+    const context = invocation({
+        quoted: { id: 'outer-incomplete', chat: 'reply-chat@g.us', fakeObj: direct },
+        store: {
+            async loadMessage() { return direct; },
+            messages: new Map([['reply-chat@g.us:outer-incomplete', { message: stored, timestamp: Date.now() }]]),
+        },
+    });
+    await context.run();
+    assert.deepEqual(context.replies, []);
+    assert.ok(context.sock.sent.some(({ content }) => content?.text === originalText));
+});
+
+test('.quoted returns yes for the serialized chain yes → y → .quoted', async () => {
+    const chat = 'reply-chat@g.us';
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    sock.groupMetadata = async () => ({ participants: [] });
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'user@s.whatsapp.net', fromMe: false, id: 'command-2' },
+        message: {
+            extendedTextMessage: {
+                text: '.quoted',
+                contextInfo: {
+                    stanzaId: 'reply-y',
+                    participant: 'user@s.whatsapp.net',
+                    remoteJid: chat,
+                    quotedMessage: {
+                        extendedTextMessage: {
+                            text: 'y',
+                            contextInfo: {
+                                stanzaId: 'original-yes',
+                                participant: 'user@s.whatsapp.net',
+                                remoteJid: chat,
+                                quotedMessage: { conversation: 'yes' },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }, null);
+    const replies = [];
+    await command.execute(sock, commandMessage, { reply: text => replies.push(text), store: null, prefix: '.' });
+    assert.deepEqual(replies, []);
+    assert.ok(sock.sent.some(({ content }) => content?.text === 'yes'));
+});
+
+test('.quoted chooses the text message context over an outer stale quote', async () => {
+    const target = targetMessage('reply-chat@g.us', 'outer-conflict', { conversation: 'yes' });
+    target.message.contextInfo = { quotedMessage: { conversation: 'u' } };
+    const context = invocation({
+        quoted: { id: 'outer-conflict', chat: 'reply-chat@g.us', fakeObj: target },
+    });
+    await context.run();
+    assert.deepEqual(context.replies, []);
+    assert.ok(context.sock.sent.some(({ content }) => content?.text === 'yes'));
+    assert.ok(!context.sock.sent.some(({ content }) => content?.text === 'u'));
 });
 
 test('.quoted passes the socket to loadMessage for persistent stores', async () => {

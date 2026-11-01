@@ -41,7 +41,13 @@ function getMessageType(message) {
 }
 
 function getContextInfo(message) {
-    const queue = [message];
+    const payload = unwrapMessage(messagePayload(message));
+    for (const [key, value] of Object.entries(payload)) {
+        if (key !== 'contextInfo' && key !== 'messageContextInfo' && value?.contextInfo?.quotedMessage) {
+            return value.contextInfo;
+        }
+    }
+    const queue = [payload];
     const seen = new WeakSet();
     let fallback = null;
     while (queue.length) {
