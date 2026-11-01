@@ -78,7 +78,6 @@ module.exports = function setupMessageHandler(sock, customStore, handleMessage, 
     // Keep plaintext ProtocolMessage edits, messages.update edits, and
     // SecretEncryptedMessage edits on exactly the same moderation path.
     const editAntiHandlers = [
-        ['antivv.js', 'handleAntiVV'],
         ['antiimage.js', 'handleAntiImage'],
         ['antivideo.js', 'handleAntiVideo'],
         ['antiaudio.js', 'handleAntiAudio'],
@@ -107,6 +106,25 @@ module.exports = function setupMessageHandler(sock, customStore, handleMessage, 
         if (!moderated) return null;
         const chat = moderated.chat || editedEnvelope.key?.remoteJid;
         if (!chat || !require('./src/Plugin/moderationControl').isModerationEnabled(chat)) return moderated;
+        // Match the normal-message order: AntiVV gets first refusal. AutoVV
+        // only runs when AntiVV did not consume/delete the view-once message.
+        let antiVVHandled = false;
+        try {
+            antiVVHandled = await require('./src/Commands/Admin/antivv.js').handleAntiVV?.(
+                sock, moderated, editedEnvelope
+            ) || false;
+        } catch (err) {
+            console.error('[ANTIVV EDIT ERROR]', err?.message || err);
+        }
+        if (!antiVVHandled) {
+            try {
+                await require('./src/Commands/Converter/view-once.js').handleAutoVV?.(
+                    sock, moderated, editedEnvelope
+                );
+            } catch (err) {
+                console.error('[AUTOVV EDIT ERROR]', err?.message || err);
+            }
+        }
         for (const [moduleName, handlerName] of editAntiHandlers) {
             try {
                 const anti = require(`./src/Commands/Admin/${moduleName}`);
