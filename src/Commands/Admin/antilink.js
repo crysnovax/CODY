@@ -41,20 +41,48 @@ function ensureGroupConfig(db, group) {
     return db[group];
 }
 
-function getMessageText(value, seen = new WeakSet()) {
+const MESSAGE_TEXT_FIELDS = new Set([
+    'conversation', 'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title'
+]);
+const MESSAGE_JSON_FIELDS = new Set(['buttonParamsJson', 'paramsJson']);
+const MEDIA_MESSAGE_CONTAINERS = new Set([
+    'imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage',
+    'productImage', 'thumbnail', 'image', 'video', 'audio', 'document'
+]);
+const MEDIA_TRANSPORT_FIELDS = new Set([
+    'directPath', 'thumbnailDirectPath', 'thumbnailUrl', 'thumbnailURL', 'mediaUrl', 'mediaURL',
+    'mediaKey', 'jpegThumbnail', 'fileSha256', 'fileEncSha256', 'scansSidecar', 'streamingSidecar'
+]);
+
+function getMessageText(value, seen = new WeakSet(), parentPath = []) {
     if (!value || typeof value !== 'object' || seen.has(value)) return [];
     seen.add(value);
     const texts = [];
-    for (const key of ['conversation', 'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title']) {
-        if (typeof value[key] === 'string' && stripBotMarker(value[key]).trim()) texts.push(stripBotMarker(value[key]).trim());
-    }
     for (const [key, child] of Object.entries(value)) {
         // Never follow the quoted message — a reply that quotes a link is not
         // itself sending a link. (@crysnovax—FIX22-09-26)
         if (key === 'quotedMessage' || key === 'quoted') continue;
-        if (child && typeof child === 'object') texts.push(...getMessageText(child, seen));
+        if (typeof child === 'string') {
+            const text = stripBotMarker(child).trim();
+            const insideMediaPayload = parentPath.some(part => MEDIA_MESSAGE_CONTAINERS.has(part));
+            const isTransportValue = MEDIA_TRANSPORT_FIELDS.has(key)
+                || (key === 'url' && insideMediaPayload);
+            if (!isTransportValue && text && (MESSAGE_TEXT_FIELDS.has(key) || hasLink(text))) texts.push(text);
+            // WhatsApp rich/native-flow buttons serialize their payload as JSON;
+            // decode only known parameter fields so escaped URLs are inspected.
+            if (MESSAGE_JSON_FIELDS.has(key)) {
+                try {
+                    const parsed = JSON.parse(child);
+                    if (parsed && typeof parsed === 'object') {
+                        texts.push(...getMessageText(parsed, seen, [...parentPath, key]));
+                    }
+                } catch {}
+            }
+        } else if (child && typeof child === 'object') {
+            texts.push(...getMessageText(child, seen, [...parentPath, key]));
+        }
     }
-    return texts;
+    return [...new Set(texts)];
 }
 
 function hasLink(text) {
