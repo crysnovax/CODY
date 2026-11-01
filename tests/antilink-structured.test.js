@@ -45,7 +45,7 @@ test('checks normal text plus poll/product links, but ignores other rich payload
     assert.ok(extractUrls(combined).some(url => url.includes('chat.whatsapp.com/AbCdEf123456')));
 });
 
-test('does not scan native-flow JSON or unsupported interactive/rich messages', () => {
+test('does not scan native-flow response JSON or unsupported rich messages', () => {
     const buttonParamsJson = JSON.stringify({ url: 'https://native.example.org/join' }).replaceAll('/', '\/');
     const texts = getMessageText({
         interactiveResponseMessage: { nativeFlowResponseMessage: { buttonParamsJson } },
@@ -53,6 +53,34 @@ test('does not scan native-flow JSON or unsupported interactive/rich messages', 
         richResponseMessage: { table: { cells: ['https://tables.example.com/access'] } }
     });
     assert.deepEqual(texts, []);
+});
+
+test('scans WhatsApp interactive message body links and native-flow CTA URLs', () => {
+    const payload = {
+        interactiveMessage: {
+            body: {
+                text: '👑 Owner: *The owner himself*\n📞 wa.me/2347066248340\n✈️ t.me/Lord_CeAser_Himself'
+            },
+            footer: { text: 'Community information' },
+            nativeFlowMessage: {
+                buttons: [{
+                    name: 'cta_url',
+                    buttonParamsJson: JSON.stringify({
+                        display_text: '📢 View Channel',
+                        url: 'https://whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X',
+                        merchant_url: 'https://whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X'
+                    })
+                }]
+            }
+        }
+    };
+    const texts = getMessageText(payload);
+    const combined = texts.join(' ');
+    assert.ok(texts.some(text => text.includes('wa.me/2347066248340')));
+    assert.ok(texts.some(text => text.includes('t.me/Lord_CeAser_Himself')));
+    assert.ok(texts.some(text => text.includes('whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X')));
+    assert.ok(hasLink(combined));
+    assert.ok(extractUrls(combined).some(url => url.includes('whatsapp.com/channel/0029VbDJkwbB4hdbezuO9s2X')));
 });
 
 test('continues to ignore URLs found only inside a quoted message', () => {

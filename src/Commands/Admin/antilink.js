@@ -46,6 +46,7 @@ const MESSAGE_TEXT_FIELDS = new Set([
     'text', 'caption', 'matchedText', 'contentText', 'selectedDisplayText', 'title', 'canonicalUrl'
 ]);
 const TEXT_MESSAGE_TYPES = new Set(['conversation', 'extendedTextMessage']);
+const INTERACTIVE_MESSAGE_TYPES = new Set(['interactiveMessage']);
 const POLL_MESSAGE_TYPES = new Set([
     'pollCreationMessage', 'pollCreationMessageV2', 'pollCreationMessageV3',
     'pollCreationMessageV4', 'pollCreationMessageV5', 'pollResultSnapshotMessage'
@@ -67,7 +68,7 @@ const MESSAGE_WRAPPER_TYPES = new Set([
     'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'editedMessage', 'protocolMessage'
 ]);
 const MESSAGE_ROOT_TYPES = new Set([
-    ...TEXT_MESSAGE_TYPES, ...STRUCTURED_LINK_MESSAGE_TYPES, ...MEDIA_MESSAGE_TYPES
+    ...TEXT_MESSAGE_TYPES, ...INTERACTIVE_MESSAGE_TYPES, ...STRUCTURED_LINK_MESSAGE_TYPES, ...MEDIA_MESSAGE_TYPES
 ]);
 
 function shouldScanSerializedText(messageType) {
@@ -103,6 +104,25 @@ function getMessageText(value) {
             }
         }
     };
+    const walkInteractive = node => {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+        add(node.header?.title);
+        add(node.body?.text);
+        add(node.footer?.text);
+        const buttons = node.nativeFlowMessage?.buttons;
+        if (!Array.isArray(buttons)) return;
+        for (const button of buttons) {
+            add(button?.url);
+            add(button?.merchant_url);
+            if (typeof button?.buttonParamsJson !== 'string') continue;
+            try {
+                const params = JSON.parse(button.buttonParamsJson);
+                add(params?.url);
+                add(params?.merchant_url);
+            } catch {}
+        }
+    };
     const walkRoot = node => {
         if (!node || typeof node !== 'object' || seen.has(node)) return;
         seen.add(node);
@@ -110,6 +130,7 @@ function getMessageText(value) {
             if (IGNORED_MESSAGE_SUBTREES.has(key)) continue;
             if (typeof child === 'string' && key === 'conversation') add(child);
             else if (TEXT_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkText(child);
+            else if (INTERACTIVE_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkInteractive(child);
             else if (STRUCTURED_LINK_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkStructured(child);
             else if (MESSAGE_WRAPPER_TYPES.has(key) && child && typeof child === 'object') walkRoot(child);
         }
