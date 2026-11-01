@@ -42,6 +42,18 @@ test('.sreact relays the supplied default sticker as a reaction to the replied-t
         'https://mmg.whatsapp.net/o1/v/t24/f2/m232/AQPEoFVa7kEaTxJ5N4kBacoDZ1k0IzHqkfsmUhLxV8C4xB11yCktX6UEHvkJnmgTsnEhoRW27_Pma0f92oVnKzwBB4YUsMbtz2HlS_Oxeg?ccb=9-4&oh=01_Q5Aa5wEK3E2DIH-ZBY_naItwmTshYSHL2bClVxX2UUGd6_gOyw&oe=6B0DB1D3&_nc_sid=e6ed6c&mms3=true');
 });
 
+test('.sreact 10 makes ten reaction attempts on the replied-to message', async () => {
+    const calls = [];
+    const targetKey = { remoteJid: '123@g.us', id: 'target-message' };
+    await sreact.execute({ relayMessage: async (...args) => calls.push(args) }, {
+        chat: '123@g.us',
+        quoted: { key: targetKey }
+    }, { args: ['10'], reply: async () => {} });
+
+    assert.equal(calls.length, 10);
+    assert.ok(calls.every(call => call[1].messageContextInfo.messageAssociation.parentMessageKey === targetKey));
+});
+
 test('.sreact asks for a reply instead of reacting to its own command', async () => {
     const replies = [];
     let relayed = false;
@@ -69,14 +81,17 @@ test('.mention sreact selects the built-in sticker response without requiring se
     };
     try {
         await mention.execute({}, {}, {
-            args: ['sreact'],
+            args: ['sreact', '2'],
             prefix: '.',
             reply: async text => replies.push(text)
         });
         assert.equal(mention.mentionConfig.active, true);
         assert.equal(mention.mentionConfig.action, 'sreact');
         assert.equal(JSON.parse(savedConfig).action, 'sreact');
+        assert.equal(mention.mentionConfig.sreactCount, 2);
+        assert.equal(JSON.parse(savedConfig).sreactCount, 2);
         assert.match(replies[0], /STICKER REACTION/);
+        assert.match(replies[0], /2/);
     } finally {
         fs.writeFileSync = originalWriteFileSync;
         Object.assign(mention.mentionConfig, previousConfig);

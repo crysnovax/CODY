@@ -22,18 +22,35 @@ const DEFAULT_STICKER_MESSAGE = Object.freeze({
     premium: 0
 });
 
-async function sendStickerReaction(sock, jid, parentMessageKey) {
-    if (!parentMessageKey?.id || typeof sock?.relayMessage !== 'function') return false;
+const MAX_STICKER_REACTION_ATTEMPTS = 10;
+const STICKER_REACTION_DELAY_MS = 250;
 
-    await sock.relayMessage(jid, {
-        messageContextInfo: {
-            messageAssociation: {
-                associationType: 11,
-                parentMessageKey
-            }
-        },
-        stickerMessage: { ...DEFAULT_STICKER_MESSAGE }
-    }, {});
+function parseReactionCount(value) {
+    if (value === undefined) return 1;
+    if (!/^[1-9]\d*$/.test(String(value))) return null;
+    const count = Number(value);
+    return Number.isSafeInteger(count) && count <= MAX_STICKER_REACTION_ATTEMPTS ? count : null;
+}
+
+async function sendStickerReaction(sock, jid, parentMessageKey, count = 1) {
+    const attempts = parseReactionCount(count);
+    if (!attempts || !parentMessageKey?.id || typeof sock?.relayMessage !== 'function') return false;
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+        await sock.relayMessage(jid, {
+            messageContextInfo: {
+                messageAssociation: {
+                    associationType: 11,
+                    parentMessageKey
+                }
+            },
+            stickerMessage: { ...DEFAULT_STICKER_MESSAGE }
+        }, {});
+
+        if (attempt + 1 < attempts) {
+            await new Promise(resolve => setTimeout(resolve, STICKER_REACTION_DELAY_MS));
+        }
+    }
     return true;
 }
 
@@ -42,19 +59,22 @@ module.exports = {
     alias: ['stickerreact'],
     category: 'Owner',
     privilegedOnly: true,
-    desc: 'Send the default sticker reaction to a replied-to message',
-    usage: '.sreact (reply to a message)',
+    desc: 'Send the default sticker reaction to a replied-to message, optionally repeating it',
+    usage: '.sreact [count] (reply to a message; count 1-10)',
     execute: async (sock, m, { args = [], reply }) => {
-        if (args.length) {
-            return reply('Usage: reply to a message and use .sreact to send the default sticker reaction.');
+        const count = args.length <= 1 ? parseReactionCount(args[0]) : null;
+        if (!count) {
+            return reply(`Usage: reply to a message and use .sreact [1-${MAX_STICKER_REACTION_ATTEMPTS}].`);
         }
         const targetKey = m.quoted?.key;
         if (!targetKey?.id) {
-            return reply('Reply to the message you want to react to, then send .sreact.');
+            return reply('Reply to the message you want to react to, then send .sreact [count].');
         }
-        const sent = await sendStickerReaction(sock, m.chat, targetKey);
+        const sent = await sendStickerReaction(sock, m.chat, targetKey, count);
         if (!sent) return reply('Could not send the sticker reaction in this chat.');
     },
     DEFAULT_STICKER_MESSAGE,
+    MAX_STICKER_REACTION_ATTEMPTS,
+    parseReactionCount,
     sendStickerReaction
 };

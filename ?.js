@@ -632,7 +632,7 @@ try {
                         await sock.sendMessage(m.chat, { text: mentionConfig.text }, { quoted: m }).catch(() => {});
                     } else if (mentionConfig.action === 'sreact') {
                         const sreact = require('./src/Commands/Owner/sreact.js');
-                        await sreact.sendStickerReaction(sock, m.chat, m.key).catch(error => {
+                        await sreact.sendStickerReaction(sock, m.chat, m.key, mentionConfig.sreactCount || 1).catch(error => {
                             console.error('[MENTION SREACT]', error.message);
                         });
                     } else if (mentionConfig.action === 'sticker' && mentionConfig.sticker) {

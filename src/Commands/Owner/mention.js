@@ -5,6 +5,7 @@ const { getList } = require('../../Plugin/accessListManager');
 const { getContextInfo, identityVariants, normalizeJid } = require('../../Plugin/identityUtils');
 const { downloadContentFromMessage } = require('plogme');
 const { loadMentionSticker } = require('../../Plugin/mentionSticker');
+const { parseReactionCount, MAX_STICKER_REACTION_ATTEMPTS } = require('./sreact');
 
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
@@ -17,6 +18,7 @@ const MAX_VOICE_BYTES = 16 * 1024 * 1024;
 const mentionConfig = {
     active: false,
     action: '',
+    sreactCount: 1,
     emoji:  '❤️‍🔥',
     text:   '',
     sticker: '',
@@ -214,12 +216,17 @@ module.exports = {
 
         // STICKER REACTION: use the built-in default sticker reaction.
         if (option === 'sreact' || option === '-sreact') {
+            const repeatCount = args.length <= 2 ? parseReactionCount(args[1]) : null;
+            if (!repeatCount) {
+                return reply(`Usage: ${prefix}mention sreact [1-${MAX_STICKER_REACTION_ATTEMPTS}].`);
+            }
             mentionConfig.active = true;
             mentionConfig.action = 'sreact';
+            mentionConfig.sreactCount = repeatCount;
             mentionConfig.emoji = '';
             mentionConfig.text = '';
             saveMentionConfig();
-            return reply(`╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : STICKER REACTION\n╰──────────────────`);
+            return reply(`╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : STICKER REACTION\n│ Repeat attempts : ${repeatCount}\n╰──────────────────`);
         }
 
         // STICKER: quote a sticker, or provide a direct sticker URL.
@@ -318,8 +325,8 @@ module.exports = {
             `│ ➫ ${prefix}mention -react <emoji>\n` +
             `│   Auto-react when mentioned\n` +
             `│   Example: ${prefix}mention -react ❤️‍🔥\n│\n` +
-            `│ ➫ ${prefix}mention sreact\n` +
-            `│   Use the built-in default sticker reaction when mentioned\n│\n` +
+            `│ ➫ ${prefix}mention sreact [count]\n` +
+            `│   Repeat the built-in sticker reaction on mentions (1-${MAX_STICKER_REACTION_ATTEMPTS}; default 1)\n│\n` +
             `│ ➫ ${prefix}mention -sticker [url]\n` +
             `│   Reply to a sticker or provide a sticker URL\n│\n` +
             `│ ➫ ${prefix}mention -voice\n` +
