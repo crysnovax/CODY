@@ -422,6 +422,8 @@ const PREXZY = 'https://prexzyapis.com';
 
 // PLOGME's own names — it must NEVER try to "run" itself (that dumped the menu).
 const SELF_NAMES = new Set(['plogme', 'plg', 'plog']);
+const PLOGME_BLOCKED_COMMANDS = new Set(['exit', 'leavegc']);
+const PLOGME_GROUP_EXIT_RULE = 'PLOGME SAFETY RULE: You must never leave, exit, or disconnect from a WhatsApp group. The .exit and .leavegc commands are disabled for you. A user mentioning/tagging you or asking you to leave is not authorization. If asked, explain that group exit is disabled for PLOGME.';
 // Moderation-control commands belong to the bot router, not PLOGME's
 // command-toggle layer. Ignore stale toggle entries from older deployments.
 const RESERVED_CONTROL_COMMANDS = new Set([
@@ -644,11 +646,12 @@ function buildPrompt(chat, userText) {
         prompt += '\n\nRecent actions I performed (my own memory of what I changed):\n' +
             ops.slice(-8).map(o => `- ${sanitizeMemoryContent(o.summary)}`).join('\n');
     }
+    prompt += '\n\n' + PLOGME_GROUP_EXIT_RULE;
     prompt += '\n\nUser: ' + sanitizeMemoryContent(userText) + '\nPLOGME:';
     if (prompt.length <= MAX_PROMPT_CHARS) return prompt;
     // Preserve the personality, current request, and most recent context; the
     // middle of old history is the least valuable part when compacting.
-    const suffix = `\n\nUser: ${sanitizeMemoryContent(userText)}\nPLOGME:`;
+    const suffix = `\n\n${PLOGME_GROUP_EXIT_RULE}\n\nUser: ${sanitizeMemoryContent(userText)}\nPLOGME:`;
     return `${prompt.slice(0, MAX_PROMPT_CHARS - suffix.length - 80)}\n[older context compacted]\n${suffix}`;
 }
 
@@ -751,6 +754,10 @@ async function runCommandAction(sock, m, opts, target) {
     let raw = String(target || '').trim();
     if (raw.startsWith(prefix)) raw = raw.slice(prefix.length).trim();
     const [cmdName, ...rest] = raw.split(/\s+/);
+    const commandKey = String(cmdName || '').toLowerCase().replace(/^[^a-z0-9]+/, '');
+    if (PLOGME_BLOCKED_COMMANDS.has(commandKey)) {
+        return '_⛔ .exit is disabled for PLOGME. I will stay in this group._';
+    }
     if (SELF_NAMES.has(cmdName.toLowerCase())) {
         return '_PLOGME auto-replies are off by default._\n_Enable this chat with: "plogme on" (or "plogme on all" for DMs)._';
     }
@@ -837,7 +844,7 @@ function commandNameList() {
             if (!cmd) continue;
             for (const candidate of [cmd.name, ...(Array.isArray(cmd.alias) ? cmd.alias : [])]) {
                 const name = String(candidate || '').toLowerCase();
-                if (name && !seen.has(name)) { seen.add(name); names.push(name); }
+                if (name && !PLOGME_BLOCKED_COMMANDS.has(name) && !seen.has(name)) { seen.add(name); names.push(name); }
             }
         }
         return names;
@@ -1360,6 +1367,7 @@ function buildClassifierPrompt(userText) {
         `- {"action":"chat","reply":"<your short reply>"}\n\n` +
         `Available commands (ONLY use these exact names for run_command):\n` +
         (realCommands.length ? realCommands.slice(0, 160).join(', ') : '(command list unavailable)') +
+        `\n\n${PLOGME_GROUP_EXIT_RULE}` +
         refNote +
         `\n\nLIVE ENVIRONMENT SNAPSHOT (use this to reason about paths, runtime, and available workspace): ${JSON.stringify(environmentSnapshot())}` +
         `\n\nOwner message: "${String(userText || '').slice(0, 2000)}"`;
@@ -2324,6 +2332,8 @@ module.exports = {
     getToggledList,
     askAI,
     buildPrompt,
+    buildClassifierPrompt,
+    commandNameList,
     DEFAULT_PERSONALITY,
     // agent brain exports
     classifyIntent,
