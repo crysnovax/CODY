@@ -11,7 +11,7 @@ const chalk = require('chalk');
 const { setupStatusHandler } = require('./src/Plugin/statusHandler');
 const { getVar }             = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
-const { extractEditedMessage, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
+const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
 const { decryptSecretEdit, findSecretEncrypted } = require('./src/Plugin/editDecrypt');
 
 // Polyfill: sock.sendRichText was added as an alias for sock.sendMessage
@@ -54,6 +54,24 @@ function directCallbackAuthorization(message) {
 // plogme dedupe set
 const _plogmeHandled = new Set();
 setInterval(() => _plogmeHandled.clear(), 60_000);
+
+// The same human edit can be delivered through both messages.upsert and
+// messages.update. Keep a short-lived content signature so moderation does
+// not post twice or attempt deletion once with the wrong transport key.
+const editedModerationSeen = new Map();
+setInterval(() => {
+    const cutoff = Date.now() - 30_000;
+    for (const [signature, timestamp] of editedModerationSeen) {
+        if (timestamp < cutoff) editedModerationSeen.delete(signature);
+    }
+}, 30_000).unref?.();
+const editOriginalKeys = new Map();
+setInterval(() => {
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+    for (const [key, value] of editOriginalKeys) {
+        if ((value?.timestamp || 0) < cutoff) editOriginalKeys.delete(key);
+    }
+}, 60 * 60 * 1000).unref?.();
 
 const translationCache = new Map();
 const CACHE_TTL = 3600000;
@@ -106,6 +124,31 @@ module.exports = function setupMessageHandler(sock, customStore, handleMessage, 
         // messages. An authenticated edit is different: changing an
         // already-allowed message can create a violation.
         editedEnvelope.__editModeration = true;
+
+        // Resolve the original message before moderation. An edit notification
+        // is a transport event; its outer key can be CODY's own key even when
+        // the original group message belonged to another participant.
+        const transportKey = editedEnvelope.key || {};
+        let original = editOriginalKeys.get(`${transportKey.remoteJid}:${transportKey.id}`) || null;
+        try {
+            if (!original && transportKey.remoteJid && transportKey.id) {
+                original = await customStore?.loadMessage?.(transportKey.remoteJid, transportKey.id, sock);
+                if (!original && customStore?.messages?.get) {
+                    original = customStore.messages.get(`${transportKey.remoteJid}:${transportKey.id}`);
+                }
+            }
+        } catch (error) {
+            console.error('[EDIT ORIGINAL LOOKUP ERROR]', error?.message || error);
+        }
+        const originalKey = original?.key;
+        const effectiveKey = mergeEditAuthorKey(transportKey, originalKey);
+        editedEnvelope.key = effectiveKey;
+        editedEnvelope.__deleteKey = { ...effectiveKey };
+
+        const signature = `${effectiveKey.remoteJid || ''}:${effectiveKey.id || ''}:${JSON.stringify(editedEnvelope.message || {})}`;
+        if (editedModerationSeen.has(signature)) return null;
+        editedModerationSeen.set(signature, Date.now());
+
         const moderated = await smsg(sock, editedEnvelope, customStore);
         if (!moderated) return null;
         const chat = moderated.chat || editedEnvelope.key?.remoteJid;
@@ -325,7 +368,20 @@ setupPromotionGuard(sock);
             const upsertedMessages = Array.isArray(chatUpdate?.messages) ? chatUpdate.messages : [];
             for (const incoming of upsertedMessages) {
                 try {
-                    require('./library/quoted.js').cacheMessage?.(incoming);
+                    if (incoming?.key?.remoteJid && incoming?.key?.id
+                        && !extractEditedMessage(incoming?.message)
+                        && !findSecretEncrypted(incoming?.message)) {
+                        editOriginalKeys.set(
+                            `${incoming.key.remoteJid}:${incoming.key.id}`,
+                            { key: { ...incoming.key }, timestamp: Date.now() }
+                        );
+                    }
+                    // Do not replace the original message in the cache with an
+                    // edit transport envelope; moderation needs its author key
+                    // to delete and mention the actual culprit.
+                    if (!extractEditedMessage(incoming?.message) && !findSecretEncrypted(incoming?.message)) {
+                        require('./library/quoted.js').cacheMessage?.(incoming);
+                    }
                 } catch (err) {
                     console.error('[DELETED MESSAGE CACHE ERROR]', err?.message || err);
                 }

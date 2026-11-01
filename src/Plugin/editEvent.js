@@ -22,6 +22,23 @@ const EDITED_MESSAGE_PATHS = [
 
 const readPath = (value, path) => path.reduce((node, key) => node?.[key], value);
 
+function mergeEditAuthorKey(editKey, originalKey) {
+    if (!editKey || !originalKey) return editKey || originalKey || {};
+    const sameTarget = (!editKey.remoteJid || !originalKey.remoteJid || editKey.remoteJid === originalKey.remoteJid)
+        && (!editKey.id || !originalKey.id || editKey.id === originalKey.id);
+    if (!sameTarget) return editKey;
+
+    // The cached original key is authoritative for participant/fromMe. The
+    // edit transport envelope may be bot-authored even when a group member
+    // performed the edit, which makes moderation mention/delete the bot.
+    return {
+        ...editKey,
+        ...originalKey,
+        remoteJid: editKey.remoteJid || originalKey.remoteJid,
+        id: editKey.id || originalKey.id
+    };
+}
+
 function extractEditedMessage(value) {
     for (const path of EDITED_MESSAGE_PATHS) {
         const candidate = readPath(value, path);
@@ -63,6 +80,7 @@ function normalizeEditUpdates(updates) {
 module.exports = {
     EDITED_MESSAGE_PATHS,
     extractEditedMessage,
+    mergeEditAuthorKey,
     normalizeEditUpdate,
     normalizeEditUpdates
 };

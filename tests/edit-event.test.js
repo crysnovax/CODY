@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
     extractEditedMessage,
+    mergeEditAuthorKey,
     normalizeEditUpdate,
     normalizeEditUpdates
 } = require('../src/Plugin/editEvent');
@@ -46,6 +47,22 @@ test('normalizes edits when plogme nests the target key inside update.key', () =
     assert.equal(result.update.id, key.id);
     assert.equal(result.update.participant, key.participant);
     assert.deepEqual(result.message.editedMessage, edited);
+});
+
+test('preserves the original participant when the edit transport key is bot-authored', () => {
+    const transportKey = {
+        remoteJid: 'group@g.us',
+        id: 'edited-message',
+        fromMe: true,
+        participant: 'bot@s.whatsapp.net'
+    };
+    const originalKey = {
+        remoteJid: 'group@g.us',
+        id: 'edited-message',
+        fromMe: false,
+        participant: 'culprit@s.whatsapp.net'
+    };
+    assert.deepEqual(mergeEditAuthorKey(transportKey, originalKey), originalKey);
 });
 
 test('normalizes protocol edit batches without changing unrelated updates', () => {
