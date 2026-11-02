@@ -244,8 +244,8 @@ module.exports = {
         text += `⎔ Uptime  · ⇆ ${formatUptime(uptimeMin)}\n`;
         text += `⎔ Chat  .  ⇆ ${chatType}\n`;
         text += `⎔ Day  .  ⇆ ${dayName} ${dayIcon}\n`;
-        text += `⎔ Time   · ⇆ ${time}\n`;
-        text += `⎔ RAM    · ⇆ ${storage}\n`;
+        text += `⎔ Time   ·  ⇆ ${time}\n`;
+        text += `⎔ RAM    ·  ⇆ ${storage}\n`;
         text += `${DIVIDER}\n`;
         text += READMORE;
         
