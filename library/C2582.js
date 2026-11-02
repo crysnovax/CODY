@@ -66,14 +66,14 @@ const sendConnectedMessage = async (sock, config, port, options = {}) => {
         // Build caption
         const caption = 
             `┏━〔 ✦𓂋⃝⃟⃟⃝⃪⃔ *CODY AI* 〕━━\n\n` +
-            `❏▸ *⟁⃝𓋎 Status* ⇆ *ONLINE* ×͜×☠︎︎\n` +
+            `❏▸ *♲ Status* ⇆ *ONLINE* ×͜×☠︎︎\n` +
             `❏▸ *彡 Prefix* ⇆ [ ${config.settings?.prefix || '.'} ]\n` +
             `❏▸ *⎔ Mode* ⇆ ${config.status?.public ? 'Public' : 'Private'}\n` +
             `❏▸ *ⓘ Version* ⇆ CODY AI v2.0.0\n` +
             `❏▸ *℘ Owner* ⇆ ${config.settings?.ownerName || 'CRYSNOVA'}\n` +
             `❏▸ *ஃ𖠃 Dashboard* ⇆ http://localhost:${port}\n\n` +
             `⃠⃝⃪⃔⃕ *BOT IS LIVE!* ✧\n` +
-            `𓋴 Type *${config.settings?.prefix || '.'}menu* to get started\n\n`;
+            `➲ Type *${config.settings?.prefix || '.'}menu* to get started\n\n`;
 
         // Send with externalAdReply
         if (thumbnail) {
