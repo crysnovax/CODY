@@ -30,15 +30,15 @@ const CATEGORY_ICONS = {
     'downloader': '⎙',
     'economy': '𓃼',
     'fun': 'ಥ⁠‿⁠ಥ',
-    'games': '◈',
+    'games': '𓋎⚇',
     'group': '⃝⃘̉̉̉━⋆',
     'media': '( ͡❛ ₃ ͡❛)',
     'media-editor': '✐',
     'overlays': '彡',
-    'owner': '𓋎⚇',
+    'owner': '➲',
     'quiz': '◈',
-    'reaction': '◈',
-    'system': '◈',
+    'reaction': 'ᯤ',
+    'system': '♲',
     'tools': '⎔',
     'utils': '❂'
 };
@@ -238,14 +238,14 @@ module.exports = {
         text += `‎ㅤ   ⚫︎  ${botName}  ⚫︎\n\n`;
         text += `˗ˏˋ ☏ ˎˊ˗  *Hello, ${userName}*  ✦\n`;
         text += `${DIVIDER}\n`;
-        text += `⎔ Number  · ⇆ ${userNum}\n`;
-        text += `⎔ Prefix  ·  ⇆ [ ${prefix} ]\n`;
-        text += `⎔ Cmds    · ⇆ ${totalCmds} commands\n`;
-        text += `⎔ Uptime  · ⇆ ${formatUptime(uptimeMin)}\n`;
-        text += `⎔ Chat  .  ⇆ ${chatType}\n`;
-        text += `⎔ Day  .  ⇆ ${dayName} ${dayIcon}\n`;
-        text += `⎔ Time    · ⇆ ${time}\n`;
-        text += `⎔ RAM     · ⇆ ${storage}\n`;
+        text += `⎔ Number  · ➲ ${userNum}\n`;
+        text += `⎔ Prefix  ·  ➲ [ ${prefix} ]\n`;
+        text += `⎔ Cmds    ·  ➲ ${totalCmds} commands\n`;
+        text += `⎔ Uptime  · ➲ ${formatUptime(uptimeMin)}\n`;
+        text += `⎔ Chat  .  ➲ ${chatType}\n`;
+        text += `⎔ Day  .  ➲ ${dayName} ${dayIcon}\n`;
+        text += `⎔ Time    · ➲ ${time}\n`;
+        text += `⎔ RAM     · ➲ ${storage}\n`;
         text += `${DIVIDER}\n`;
         text += READMORE;
         
