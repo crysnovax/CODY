@@ -154,7 +154,7 @@ const backupCmd = {
     execute: async (sock, m, { args, reply, prefix }) => {
         const userId = m.sender; const text = args.join(' ').trim(); const current = backupSession.get(userId) || { phone: '' };
         if (!text || text.toLowerCase() === 'help') {
-            return sendTable(sock, m.chat, '## 💾 Cloud Backup', 'Commands', [['1. Select number', `${prefix}backup 2348077528901`], ['2. Save a new version', `${prefix}backup save`], ['Show versions', `${prefix}backup history`]], 'Every save creates a new encrypted version; previous versions are kept.');
+            return sendTable(sock, m.chat, '## ♲ Cloud Backup', 'Commands', [['1. Select number', `${prefix}backup 2348077528901`], ['2. Save a new version', `${prefix}backup save`], ['Show versions', `${prefix}backup history`]], 'Every save creates a new encrypted version; previous versions are kept.');
         }
         if (text.toLowerCase() === 'cancel') { backupSession.delete(userId); return reply('Backup selection cleared.'); }
         if (text.toLowerCase() === 'save') {
@@ -167,7 +167,7 @@ const backupCmd = {
                 backupSession.set(userId, current);
                 const result = response.data;
                 const envIncluded = Boolean(data.env);
-                await sendTable(sock, m.chat, '## ✅ Backup Version Saved', 'Cloudflare R2', [['📱 Phone', current.phone], ['🆔 Version', result.backupId], ['📅 Saved', formatBotDateTime(result.timestamp)], ['📂 Database JSON files', Object.keys(data.database).length], ['⚙️ Safe settings', envIncluded ? 'Included (secrets/session values omitted)' : 'No safe .env settings found'], ['🔐 Encryption', 'AES-256-GCM'], ['🧾 Session data', 'Excluded']], `${prefix}backup save creates another version; it does not overwrite history.`);
+                await sendTable(sock, m.chat, '## ➲ Backup Version Saved', 'Cloudflare R2', [['📱 Phone', current.phone], ['🆔 Version', result.backupId], ['📅 Saved', formatBotDateTime(result.timestamp)], ['📂 Database JSON files', Object.keys(data.database).length], ['⚙️ Safe settings', envIncluded ? 'Included (secrets/session values omitted)' : 'No safe .env settings found'], ['🔐 Encryption', 'AES-256-GCM'], ['🧾 Session data', 'Excluded']], `${prefix}backup save creates another version; it does not overwrite history.`);
                 await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } }); return;
             } catch (error) { console.error('[BACKUP]', error.message); await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } }); return reply(`❌ Backup failed: ${commandError(error)}`); }
         }
@@ -176,7 +176,7 @@ const backupCmd = {
             try {
                 const history = await getBackupHistory(current.phone);
                 if (!history.length) return reply(`No saved versions found for ${current.phone}. Use ${prefix}backup save to create the first one.`);
-                return sendTable(sock, m.chat, '## 🗂️ Backup History', current.phone, historyRows(history), 'Each .backup save adds a separate version; nothing is overwritten.');
+                return sendTable(sock, m.chat, '## ➲ Backup History', current.phone, historyRows(history), 'Each .backup save adds a separate version; nothing is overwritten.');
             } catch (error) { return reply(`✘ Could not load backup history: ${commandError(error)}`); }
         }
         let phone; try { phone = normalizePhone(text); } catch (error) { return reply(`✘ ${error.message}\nUse ${prefix}backup <phone>.`); }
@@ -184,7 +184,7 @@ const backupCmd = {
             const history = await getBackupHistory(phone);
             backupSession.set(userId, { phone });
             if (!history.length) { return sendTable(sock, m.chat, '## 📱 Backup Number Selected', phone, [['Saved versions', 'None yet'], ['Next step', `${prefix}backup save`]], 'The first save creates a new encrypted version.'); }
-            return sendTable(sock, m.chat, '## 🗂️ Existing Backup History', phone, historyRows(history), `Selection saved. Use ${prefix}backup save to add a new version; existing versions stay unchanged.`);
+            return sendTable(sock, m.chat, '## ⓘ Existing Backup History', phone, historyRows(history), `Selection saved. Use ${prefix}backup save to add a new version; existing versions stay unchanged.`);
         } catch (error) { return reply(`✘ Could not connect to backup service: ${commandError(error)}`); }
     }
 };
@@ -193,7 +193,7 @@ const restoreCmd = {
     execute: async (sock, m, { args, reply, prefix }) => {
         const userId = m.sender; const text = args.join(' ').trim(); const current = restoreSession.get(userId) || { phone: '', history: [] };
         if (!text || text.toLowerCase() === 'help') {
-            return sendTable(sock, m.chat, '## 📥 Cloud Restore', 'Commands', [['1. List versions', `${prefix}restore 2348077528901`], ['2. Restore latest', `${prefix}restore load`], ['Restore version #N', `${prefix}restore load 2`], ['Refresh history', `${prefix}restore history`]], 'Restoring replaces matching database files and safe settings on this deployment.');
+            return sendTable(sock, m.chat, '## ♲ Cloud Restore', 'Commands', [['1. List versions', `${prefix}restore 2348077528901`], ['2. Restore latest', `${prefix}restore load`], ['Restore version #N', `${prefix}restore load 2`], ['Refresh history', `${prefix}restore history`]], 'Restoring replaces matching database files and safe settings on this deployment.');
         }
         if (text.toLowerCase() === 'cancel') { restoreSession.delete(userId); return reply('Restore selection cleared.'); }
         if (text.toLowerCase() === 'history') {
@@ -202,7 +202,7 @@ const restoreCmd = {
                 current.history = await getBackupHistory(current.phone);
                 restoreSession.set(userId, current);
                 if (!current.history.length) return reply(`No backup versions found for ${current.phone}.`);
-                return sendTable(sock, m.chat, '## 🗂️ Restore History', current.phone, historyRows(current.history), `Use ${prefix}restore load for latest, or ${prefix}restore load <number> for a listed version.`);
+                return sendTable(sock, m.chat, '## ➲ Restore History', current.phone, historyRows(current.history), `Use ${prefix}restore load for latest, or ${prefix}restore load <number> for a listed version.`);
             } catch (error) { return reply(`✘ Could not load backup history: ${commandError(error)}`); }
         }
         if (/^load(?:\s|$)/i.test(text)) {
@@ -221,7 +221,7 @@ const restoreCmd = {
                 const response = await backupApiPost('/restore/load', { phone: current.phone, backupId: selected.backupId });
                 if (!response.data?.data || typeof response.data.data !== 'object') throw new Error('No backup data received.');
                 const result = restoreBackupFiles(response.data.data);
-                await sendTable(sock, m.chat, '## ✅ Restore Complete', 'Selected version', [['📱 Phone', current.phone], ['🆔 Version', response.data.backupId || selected.backupId], ['📅 Saved', formatBotDateTime(response.data.timestamp || selected.timestamp)], ['📂 Database JSON files', result.dbCount], ['⚙️ Safe settings', result.env ? 'Merged; secrets/session values kept local' : 'No safe settings in this version'], ['🔐 Session data', 'Not included or restored'], ['🔄 Action', 'Restarting bot shortly']], 'Matching database JSON files are replaced. Files absent from the backup are left as they are.');
+                await sendTable(sock, m.chat, '## ➲ Restore Complete', 'Selected version', [['📱 Phone', current.phone], ['🆔 Version', response.data.backupId || selected.backupId], ['📅 Saved', formatBotDateTime(response.data.timestamp || selected.timestamp)], ['📂 Database JSON files', result.dbCount], ['⚙️ Safe settings', result.env ? 'Merged; secrets/session values kept local' : 'No safe settings in this version'], ['🔐 Session data', 'Not included or restored'], ['🔄 Action', 'Restarting bot shortly']], 'Matching database JSON files are replaced. Files absent from the backup are left as they are.');
                 await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
                 restoreSession.delete(userId);
                 setTimeout(() => process.exit(0), 3000); return;
@@ -232,7 +232,7 @@ const restoreCmd = {
             const history = await getBackupHistory(phone);
             restoreSession.set(userId, { phone, history });
             if (!history.length) return reply(`No backup versions found for ${phone}.`);
-            return sendTable(sock, m.chat, '## 🗂️ Available Restore Versions', phone, historyRows(history), `Use ${prefix}restore load for latest, or ${prefix}restore load <number> for an older version.`);
+            return sendTable(sock, m.chat, '## ♲ Available Restore Versions', phone, historyRows(history), `Use ${prefix}restore load for latest, or ${prefix}restore load <number> for an older version.`);
         } catch (error) { return reply(`✘ Could not connect to backup service: ${commandError(error)}`); }
     }
 };
