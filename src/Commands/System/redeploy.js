@@ -101,7 +101,7 @@ const redeployCmd = {
             });
 
             await reply(
-                '⚉ *Local recovery cache verified. Redeploy is starting.*\n\n' +
+                '♲ *Local recovery cache verified. Redeploy is starting.*\n\n' +
                 `Database files: ${Object.keys(data.database).length}\n` +
                 `Settings: ${data.env ? 'included' : 'none found'}\n` +
                 'Backup location: local deployment storage\n' +
