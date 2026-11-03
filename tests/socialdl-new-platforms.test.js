@@ -48,6 +48,20 @@ test('new platform command URL parsers recognize their provider links', () => {
     assert.equal(audiomack.findUrl('https://audiomack.com/user/song/test'), 'https://audiomack.com/user/song/test');
 });
 
+test('Audiomack album extraction keeps public song links and excludes the album canonical slug', () => {
+    const albumUrl = 'https://audiomack.com/officialcorneliusben/album/mmiri-ndu-vol-2';
+    const html = [
+        '<a href="/officialcorneliusben/song/first-track">first</a>',
+        '<a href="https://www.audiomack.com/officialcorneliusben/song/second-track">second</a>',
+        '<a href="/officialcorneliusben/album/mmiri-ndu-vol-2">album</a>',
+        '<a href="https://example.com/song/not-audiomack">external</a>'
+    ].join(' ');
+    assert.deepEqual(socialDl.extractAudiomackTrackUrls(html, albumUrl), [
+        'https://audiomack.com/officialcorneliusben/song/first-track',
+        'https://www.audiomack.com/officialcorneliusben/song/second-track'
+    ]);
+});
+
 test('Apple Music downloader sends audio and identifies a preview fallback clearly', async () => {
     const { command, restore } = loadWithStub('../src/Commands/Downloader/applemusic', 'downloadAppleMusic', async () => ({
         buffer: Buffer.from('preview-audio'), title: 'Example track', artist: 'Example artist', thumbnail: 'https://example.com/cover.jpg',

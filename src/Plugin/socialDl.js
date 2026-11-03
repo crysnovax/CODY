@@ -67,6 +67,31 @@ async function downloadUrlToFile(url, file, referer) {
     return { contentType: response.headers.get('content-type') || null };
 }
 
+const MAX_AUDIOMACK_ALBUM_TRACKS = 30;
+
+function isAudiomackAlbumUrl(url) {
+    try { return /\/(?:album|playlist)\//i.test(new URL(String(url)).pathname); } catch { return false; }
+}
+
+function extractAudiomackTrackUrls(html, albumUrl) {
+    const urls = [];
+    let albumSlug = '';
+    try { albumSlug = new URL(String(albumUrl)).pathname.split('/').filter(Boolean).pop()?.toLowerCase() || ''; } catch {}
+    const add = value => {
+        try {
+            const parsed = new URL(String(value).replace(/\\u0026/g, '&').replace(/\\\//g, '/'), albumUrl);
+            if (!/^https?:$/.test(parsed.protocol) || !/audiomack\.com$/i.test(parsed.hostname.replace(/^www\./i, ''))) return;
+            if (!/\/song\//i.test(parsed.pathname)) return;
+            if (albumSlug && parsed.pathname.split('/').filter(Boolean).pop()?.toLowerCase() === albumSlug) return;
+            parsed.hash = '';
+            const normalized = parsed.href;
+            if (!urls.includes(normalized)) urls.push(normalized);
+        } catch {}
+    };
+    for (const match of String(html || '').matchAll(/https?:\/\/(?:www\.)?audiomack\.com\/[^"'\\\s]+\/song\/[^"'\\\s]+|\/[^"'\\\s]+\/song\/[^"'\\\s]+/gi)) add(match[0]);
+    return urls.slice(0, MAX_AUDIOMACK_ALBUM_TRACKS);
+}
+
 async function downloadImageBuffer(url, referer) {
     let parsed;
     try { parsed = new URL(String(url)); } catch { throw new Error('INVALID_IMAGE_URL'); }
@@ -220,7 +245,7 @@ async function downloadAppleMusic(url) {
     };
 }
 
-async function downloadAudiomack(url) {
+async function downloadAudiomackTrack(url) {
     const socialDl = await loadSocialDl();
     const info = await socialDl.audiomackDl(url);
     const format = info.formats?.find(item => item?.url && /^audio\//i.test(item.contentType || '')) || info.formats?.[0];
@@ -236,6 +261,22 @@ async function downloadAudiomack(url) {
         extension: info.downloadExtension || 'm4a',
         mediaType: 'audio'
     };
+}
+
+async function downloadAudiomack(url) {
+    if (!isAudiomackAlbumUrl(url)) return downloadAudiomackTrack(url);
+    const response = await fetch(url, { headers: { Accept: 'text/html,application/xhtml+xml', Referer: 'https://audiomack.com/' }, signal: AbortSignal.timeout(30_000), redirect: 'follow' });
+    if (!response.ok) throw new Error(`Audiomack album page returned ${response.status}.`);
+    const trackUrls = extractAudiomackTrackUrls(await response.text(), url);
+    if (!trackUrls.length) throw new Error('AUDIOMACK_ALBUM_TRACKS_NOT_FOUND');
+    const tracks = [];
+    const failures = [];
+    for (const trackUrl of trackUrls) {
+        try { tracks.push(await downloadAudiomackTrack(trackUrl)); }
+        catch (error) { failures.push({ url: trackUrl, error }); }
+    }
+    if (!tracks.length) throw new Error('AUDIOMACK_ALBUM_NO_DOWNLOADABLE_TRACKS');
+    return { mediaType: 'audio-album', title: 'Audiomack album', albumUrl: url, tracks, totalTracks: trackUrls.length, failedTracks: failures.length };
 }
 
 async function sendDownloadedMedia(sock, m, media, caption = '⬇️ *Social Downloader*') {
@@ -298,6 +339,7 @@ module.exports = {
     downloadSpotify,
     downloadAppleMusic,
     downloadAudiomack,
+    extractAudiomackTrackUrls,
     downloadImageBuffer,
     sendDownloadedMedia,
     saveToBuffer,
