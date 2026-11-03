@@ -1,6 +1,6 @@
 'use strict';
 
-const { downloadFacebook } = require('../../Plugin/socialDl');
+const { downloadFacebook, sendDownloadedMedia } = require('../../Plugin/socialDl');
 
 function findUrl(text) {
     return String(text || '').match(/https?:\/\/[^\s]+(?:facebook\.com|fb\.watch)[^\s]*/i)?.[0]?.replace(/[)\]>.,;!?]+$/, '') || null;
@@ -24,12 +24,8 @@ module.exports = {
 
         await reply('_*✪ Downloading Facebook media...*_');
         try {
-            const { buffer, mimetype } = await downloadFacebook(url);
-            await sock.sendMessage(m.chat, {
-                video: buffer,
-                mimetype,
-                caption: '📘 *Facebook Downloader*'
-            }, { quoted: m });
+            const media = await downloadFacebook(url);
+            await sendDownloadedMedia(sock, m, media, '📘 *Facebook Downloader*');
         } catch (error) {
             console.error('[FB DOWNLOAD]', error.message || error);
             return reply(`✘ Facebook download failed: ${error.message || error}`);

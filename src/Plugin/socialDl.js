@@ -201,6 +201,8 @@ async function downloadTikTok(url) {
 
 async function downloadInstagram(url, format = 'mp4') {
     const socialDl = await loadSocialDl();
+    const info = await socialDl.instagramDl(url);
+    if (info?.mediaType === 'photo' || Array.isArray(info?.images)) return downloadPhotoGallery(info, url);
     const audio = format === 'mp3';
     const extension = audio ? 'mp3' : 'mp4';
     const buffer = await saveToBuffer(file => socialDl.instagramSave(url, file), { extension, audio });
@@ -209,6 +211,8 @@ async function downloadInstagram(url, format = 'mp4') {
 
 async function downloadFacebook(url, format = 'mp4') {
     const socialDl = await loadSocialDl();
+    const info = await socialDl.facebookDl(url);
+    if (info?.mediaType === 'photo' || Array.isArray(info?.images)) return downloadPhotoGallery(info, url);
     const audio = format === 'mp3';
     const extension = audio ? 'mp3' : 'mp4';
     const buffer = await saveToBuffer(file => socialDl.facebookSave(url, file), { extension, audio });

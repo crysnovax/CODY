@@ -1,6 +1,6 @@
 'use strict';
 
-const { downloadInstagram } = require('../../Plugin/socialDl');
+const { downloadInstagram, sendDownloadedMedia } = require('../../Plugin/socialDl');
 
 function findUrl(text) {
     return String(text || '').match(/https?:\/\/[^\s]+instagram\.com[^\s]*/i)?.[0]?.replace(/[)\]>.,;!?]+$/, '') || null;
@@ -24,12 +24,8 @@ module.exports = {
 
         await reply('_*✪ Downloading Instagram media...*_');
         try {
-            const { buffer, mimetype } = await downloadInstagram(url);
-            await sock.sendMessage(m.chat, {
-                video: buffer,
-                mimetype,
-                caption: '📸 *Instagram Downloader*'
-            }, { quoted: m });
+            const media = await downloadInstagram(url);
+            await sendDownloadedMedia(sock, m, media, '📸 *Instagram Downloader*');
         } catch (error) {
             console.error('[IG DOWNLOAD]', error.message || error);
             return reply(`✘ Instagram download failed: ${error.message || error}`);
