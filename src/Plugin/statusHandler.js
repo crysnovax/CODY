@@ -117,19 +117,32 @@ async function sendStatusReaction(sock, msg) {
 }
 
 const setupStatusHandler = (sock) => {
+    console.log('[STATUS] Handler attached; waiting for status updates');
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        for (const msg of messages) {
+    sock.ev.on('messages.upsert', async ({ messages, type } = {}) => {
+        const incoming = Array.isArray(messages) ? messages : [];
+        const statusUpdates = incoming.filter(msg => msg?.key?.remoteJid === 'status@broadcast');
+        if (statusUpdates.length) {
+            console.log(`[STATUS] Received ${statusUpdates.length} status update(s)${type ? ` (${type})` : ''}`);
+        }
+
+        for (const msg of incoming) {
             try {
                 if (msg.key?.remoteJid !== 'status@broadcast') continue;
-                if (!msg.message) continue;
+                if (!msg.message) {
+                    console.warn('[STATUS] Ignored update without a message payload');
+                    continue;
+                }
 
                 const msgId = msg.key?.id;
                 if (msgId && seen.has(msgId)) continue;
                 if (msgId) seen.add(msgId);
 
                 const posterJid = msg.key.participant;
-                if (!posterJid) continue;
+                if (!posterJid) {
+                    console.warn('[STATUS] Ignored update without a participant JID');
+                    continue;
+                }
 
                 // Read fresh from runtime every time
                 const autoView = getVar('AUTO_STATUS_VIEW', true);
@@ -163,4 +176,3 @@ const setupStatusHandler = (sock) => {
 };
 
 module.exports = { setupStatusHandler };
-
