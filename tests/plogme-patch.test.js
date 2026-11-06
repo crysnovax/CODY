@@ -17,7 +17,8 @@ test('every plogme patch is recognised and already applied after install', { ski
 test('patched plogme sources no longer reference undefined bindings', { skip: !hasPlogme }, () => {
   const send = fs.readFileSync(path.join(plogmeRoot, 'lib', 'Socket', 'messages-send.js'), 'utf8');
   assert.equal(send.includes('originalSend('), false);
-  assert.equal(send.includes('\n                userJid,\n'), false);
+  assert.match(send, /const userJid = authState\?\.creds\?\.me\?\.id;\s*if \(!userJid\) \{\s*throw new Boom\('Not authenticated'/);
+  assert.match(send, /generateWAMessage\(jid, withNewsletterStatusAttribution\(content\), \{[\s\S]*?\n\s*userJid,\n\s*upload,/);
 });
 
 test('rich responses build a code block when no language is given', { skip: !hasPlogme }, async () => {
