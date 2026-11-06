@@ -119,6 +119,17 @@ async function sendStatusReaction(sock, msg) {
 const setupStatusHandler = (sock) => {
     console.log('[STATUS] Handler attached; waiting for status updates');
 
+    // Observe status stanzas at the transport boundary as well as the decoded
+    // messages.upsert event. This tells us whether WhatsApp delivered the
+    // stanza but Plogme failed to emit the corresponding upsert.
+    if (typeof sock.ws?.on === 'function') {
+        sock.ws.on('CB:message', node => {
+            if (node?.attrs?.from === 'status@broadcast') {
+                console.log('[STATUS TRACE] Raw status stanza received from WhatsApp');
+            }
+        });
+    }
+
     sock.ev.on('messages.upsert', async ({ messages, type } = {}) => {
         const incoming = Array.isArray(messages) ? messages : [];
         const statusUpdates = incoming.filter(msg => msg?.key?.remoteJid === 'status@broadcast');
