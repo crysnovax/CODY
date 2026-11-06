@@ -34,6 +34,7 @@ module.exports = {
     alias: ['autosave', 'autostatus'],
     desc: 'Auto‑save all statuses to a specified chat or DM',
     category: 'Owner',
+    ownerOnly: true,
     usage: '.ass on/off | .ass mode dm/chat/number | .ass set <number/chatJid> | .ass status',
 
     execute: async (sock, m, { args, reply }) => {
@@ -60,7 +61,7 @@ module.exports = {
             }
             config.mode = mode;
             saveConfig();
-            return reply(`${prefix}Mode set to: *${modetoUpperCase()}*`);
+            return reply(`Mode set to: *${mode.toUpperCase()}*`);
         }
 
         // --- SET TARGET ---

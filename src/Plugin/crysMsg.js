@@ -383,7 +383,7 @@ const handleMessage = async (sock, m, store) => {
 
         try {
             await cmd.execute(sock, m, {
-                args, text, prefix, isOwner, isSudo, isDual, isAdmin, isGroupAdmin: isAdmin,
+                args, text, prefix, command: cmdName, isOwner, isSudo, isDual, isAdmin, isGroupAdmin: isAdmin,
                 isBotAdmin, isOwnerAdmin, isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar
             });
 

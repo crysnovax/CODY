@@ -10,8 +10,12 @@ module.exports = {
     examples: ['.statusview on', '.statuslike off'],
     reactions: { start: '⚙️', success: '🐾', error: '😪' },
 
-    execute: async (sock, m, { args, reply }) => {
-        const cmd = (m.body || '').toLowerCase().split(/\s+/)[0].replace(/^[^a-z0-9]+/, '');
+    execute: async (sock, m, { args, reply, command }) => {
+        // The router supplies the parsed command separately; `m.body` is not
+        // guaranteed to exist on normalized WhatsApp messages. Falling back
+        // to text also supports direct invocation by tests and older callers.
+        const cmd = String(command || m.body || m.text || '')
+            .toLowerCase().trim().split(/\s+/)[0].replace(/^[^a-z0-9]+/, '');
         const arg = args[0]?.toLowerCase();
 
         const settings = [
