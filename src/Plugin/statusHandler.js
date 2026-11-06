@@ -95,7 +95,7 @@ async function markStatusViewed(sock, msg) {
 // ── SEND LIKE ─────────────────────────────────────────────────────
 async function sendStatusReaction(sock, msg) {
     try {
-        const reactJid = msg.key.remoteJidAlt || msg.key.participant;
+        const reactJid = msg.key.remoteJidAlt || msg.key.participant || msg.key.participantAlt;
 
         const likeEmoji = getVar('STATUS_EMOJI', '💚');
 
@@ -137,14 +137,16 @@ const setupStatusHandler = (sock) => {
 
     sock.ev.on('messages.upsert', async ({ messages, type } = {}) => {
         const incoming = Array.isArray(messages) ? messages : [];
-        const statusUpdates = incoming.filter(msg => msg?.key?.remoteJid === 'status@broadcast');
+        const statusUpdates = incoming.filter(msg =>
+            msg?.key?.remoteJid === 'status@broadcast' || msg?.key?.remoteJidAlt === 'status@broadcast'
+        );
         if (statusUpdates.length) {
             console.log(`[STATUS] Received ${statusUpdates.length} status update(s)${type ? ` (${type})` : ''}`);
         }
 
         for (const msg of incoming) {
             try {
-                if (msg.key?.remoteJid !== 'status@broadcast') continue;
+                if (msg.key?.remoteJid !== 'status@broadcast' && msg.key?.remoteJidAlt !== 'status@broadcast') continue;
                 if (!msg.message) {
                     console.warn('[STATUS] Ignored update without a message payload');
                     continue;
