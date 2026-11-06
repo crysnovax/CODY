@@ -69,17 +69,22 @@ async function autoSaveStatus(sock, msg) {
 // ── MARK AS VIEWED ────────────────────────────────────────────────
 async function markStatusViewed(sock, msg) {
     try {
-        const reactJid = msg.key.remoteJidAlt || msg.key.participant;
+        const key = msg?.key;
+        const posterJid = key?.remoteJidAlt || key?.participant;
+        if (!key?.id || !posterJid) throw new Error('status message is missing its id or participant');
 
-        await sock.sendReceipt(
-            'status@broadcast',
-            reactJid,
-            [msg.key.id],
-            'read'
-        );
+        // Recent Plogme/Baileys releases expose readMessages() for receipts;
+        // sendReceipt() was removed from the public socket API. Keep the old
+        // call as a compatibility fallback for older deployments.
+        if (typeof sock.readMessages === 'function') {
+            await sock.readMessages([key]);
+        } else if (typeof sock.sendReceipt === 'function') {
+            await sock.sendReceipt('status@broadcast', posterJid, [key.id], 'read');
+        } else {
+            throw new Error('socket has no supported status-read method');
+        }
 
-        const poster = msg.key.participant || '';
-        console.log(chalk.cyan(`[STATUS] Viewed: ${poster.split('@')[0]}`));
+        console.log(chalk.cyan(`[STATUS] Viewed: ${posterJid.split('@')[0]}`));
         return true;
     } catch (err) {
         console.log(chalk.red(`[STATUS] View failed: ${err.message}`));

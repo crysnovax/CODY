@@ -14,9 +14,9 @@ module.exports = {
         // The router supplies the parsed command separately; `m.body` is not
         // guaranteed to exist on normalized WhatsApp messages. Falling back
         // to text also supports direct invocation by tests and older callers.
-        const cmd = String(command || m.body || m.text || '')
+        const cmd = String(command || m?.body || m?.text || '')
             .toLowerCase().trim().split(/\s+/)[0].replace(/^[^a-z0-9]+/, '');
-        const arg = args[0]?.toLowerCase();
+        const arg = String(args?.[0] || '').toLowerCase();
 
         const settings = [
             { cmd: 'statusview', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
