@@ -28,6 +28,11 @@ function getOwnerJid() {
     return num ? `${num}@s.whatsapp.net` : null;
 }
 
+function getStatusAuthorJid(key) {
+    const candidates = [key?.remoteJidAlt, key?.participant, key?.participantAlt, key?.remoteJid];
+    return candidates.find(jid => typeof jid === 'string' && jid.trim() && jid !== 'status@broadcast') || null;
+}
+
 // ── AUTO SAVE STATUS ──────────────────────────────────────────────
 async function autoSaveStatus(sock, msg) {
     const config = getAssConfig();
@@ -59,7 +64,7 @@ async function autoSaveStatus(sock, msg) {
             ...(sendType === 'audio' ? { mimetype: 'audio/mpeg', ptt: false } : {})
         });
 
-        const posterNum = (msg.key.participant || '').split('@')[0];
+        const posterNum = (getStatusAuthorJid(msg.key) || 'unknown').split('@')[0];
         console.log(chalk.cyan(`[ASS] Saved from ${posterNum} → ${targetJid.split('@')[0]}`));
     } catch (err) {
         console.error('[ASS ERROR]', err.message);
@@ -70,21 +75,21 @@ async function autoSaveStatus(sock, msg) {
 async function markStatusViewed(sock, msg) {
     try {
         const key = msg?.key;
-        const posterJid = key?.remoteJidAlt || key?.participant;
-        if (!key?.id || !posterJid) throw new Error('status message is missing its id or participant');
+        const posterJid = getStatusAuthorJid(key);
+        if (!key?.id) throw new Error('status message is missing its id');
 
         // Recent Plogme/Baileys releases expose readMessages() for receipts;
         // sendReceipt() was removed from the public socket API. Keep the old
         // call as a compatibility fallback for older deployments.
         if (typeof sock.readMessages === 'function') {
             await sock.readMessages([key]);
-        } else if (typeof sock.sendReceipt === 'function') {
+        } else if (typeof sock.sendReceipt === 'function' && posterJid) {
             await sock.sendReceipt('status@broadcast', posterJid, [key.id], 'read');
         } else {
             throw new Error('socket has no supported status-read method');
         }
 
-        console.log(chalk.cyan(`[STATUS] Viewed: ${posterJid.split('@')[0]}`));
+        console.log(chalk.cyan(`[STATUS] Viewed: ${(posterJid || 'unknown').split('@')[0]}`));
         return true;
     } catch (err) {
         console.log(chalk.red(`[STATUS] View failed: ${err.message}`));
@@ -95,7 +100,9 @@ async function markStatusViewed(sock, msg) {
 // ── SEND LIKE ─────────────────────────────────────────────────────
 async function sendStatusReaction(sock, msg) {
     try {
-        const reactJid = msg.key.remoteJidAlt || msg.key.participant || msg.key.participantAlt;
+        const key = msg?.key;
+        const reactJid = getStatusAuthorJid(key);
+        if (!key?.id || !reactJid) throw new Error('status message is missing its id or author JID');
 
         const likeEmoji = getVar('STATUS_EMOJI', '💚');
 
@@ -104,7 +111,7 @@ async function sendStatusReaction(sock, msg) {
             {
                 react: {
                     text: likeEmoji,
-                    key:  msg.key
+                    key
                 }
             },
             {
@@ -112,8 +119,7 @@ async function sendStatusReaction(sock, msg) {
             }
         );
 
-        const poster = msg.key.participant || '';
-        console.log(chalk.magenta(`[STATUS] Liked: ${poster.split('@')[0]}`));
+        console.log(chalk.magenta(`[STATUS] Liked: ${reactJid.split('@')[0]}`));
         return true;
     } catch (err) {
         console.log(chalk.red(`[STATUS] Like failed: ${err.message}`));
@@ -152,14 +158,16 @@ const setupStatusHandler = (sock) => {
                     continue;
                 }
 
+                const posterJid = getStatusAuthorJid(msg.key);
                 const msgId = msg.key?.id;
-                if (msgId && seen.has(msgId)) continue;
-                if (msgId) seen.add(msgId);
+                const seenKey = msgId
+                    ? `${msg.key?.remoteJid || ''}:${msg.key?.remoteJidAlt || ''}:${posterJid || ''}:${msgId}`
+                    : null;
+                if (seenKey && seen.has(seenKey)) continue;
+                if (seenKey) seen.add(seenKey);
 
-                const posterJid = msg.key.participant;
                 if (!posterJid) {
-                    console.warn('[STATUS] Ignored update without a participant JID');
-                    continue;
+                    console.warn('[STATUS] Author JID unavailable; read and media-save actions may still be attempted');
                 }
 
                 // Read fresh from runtime every time
