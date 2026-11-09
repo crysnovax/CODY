@@ -168,7 +168,7 @@
 - AFK system with auto-disable & timer
 - Auto-read, anti-call, auto-react
 - Fake typing (all messages or commands only)
-- Status view, status like, save status, post status
+- Baileys-backed status view/like, media download, auto-comment, autosave, and manual status saving
 - Sudo system (3-layer permission)
 - Bot font (per-chat + global)
 - Auto-translation (per-chat + global)
@@ -176,6 +176,17 @@
 - Live reload — no restart needed
 
 </details>
+
+### Status automation commands
+
+- `.readstatus on/off` (alias: `.statusview`) enables or disables automatic status views.
+- `.likestatus on/off` (alias: `.statuslike`) enables or disables automatic emoji reactions; the emoji comes from `STATUS_EMOJI`.
+- `.ass on/off`, `.ass mode dm|chat|number`, and `.ass set <target>` configure automatic media-status saving.
+- `.acs text <text>` sets an automatic text comment. Reply to a sticker with `.acs sticker` to use that sticker instead; then run `.acs on`. Use `.acs status`, `.acs off`, or `.acs clear` to manage it.
+- `.as` is a shortcut for `.savestatus`; reply to a status to save it using the existing manual-save behavior.
+- `.sscmd <emoji>` sets an emoji trigger for saving a replied-to status; `.sscmd off` removes it and `.sscmd status` shows it.
+
+Status detection and actions are delegated to Plogme's `onStatusMessage()`, `viewStatus()`, `likeStatus()`, `commentStatus()`, and `downloadStatus()` APIs. `acs` uses the experimental native status-comment envelope, so verify text and sticker comment rendering in a live WhatsApp client before enabling it broadly.
 
 <details>
 <summary><b>🛠️ Tools & Utilities</b></summary>

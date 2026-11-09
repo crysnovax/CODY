@@ -58,8 +58,10 @@ async function handleSSReply(sock, m) {
         ];
         if (!validTypes.includes(mtype)) return;
 
-        // ═══ SAME AS .savestatus ═══
-        const buffer = await quoted.download();
+        // Prefer Baileys' status-aware media path; preserve old deployments as a fallback.
+        const buffer = typeof sock.downloadStatus === 'function'
+            ? await sock.downloadStatus(quoted, 'buffer')
+            : await quoted.download();
         if (!buffer || !buffer.length) return;
 
         const caption = quoted.text || quoted.caption || '';

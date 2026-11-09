@@ -17,13 +17,6 @@ Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'chalk') {
         return { cyan: value => value, magenta: value => value, red: value => value };
     }
-    if (request === 'plogme') {
-        return {
-            downloadContentFromMessage: async function* () {
-                yield Buffer.from('status-media-bytes');
-            }
-        };
-    }
     if (request === './configManager' && parent?.filename?.endsWith('/src/Plugin/statusHandler.js')) {
         return {
             getVar: (key, fallback) => Object.prototype.hasOwnProperty.call(statusFlags, key)
@@ -41,29 +34,43 @@ process.chdir(previousCwd);
 
 test.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
-function writeAssConfig(config) {
-    fs.writeFileSync(
-        path.join(tempRoot, 'database', 'autosavestatus.json'),
-        JSON.stringify(config),
-        'utf8'
-    );
+function writeJson(name, value) {
+    fs.writeFileSync(path.join(tempRoot, 'database', name), JSON.stringify(value), 'utf8');
 }
 
 function makeSocket() {
-    const calls = { reads: [], messages: [] };
-    const sock = {
-        ev: new EventEmitter(),
-        ws: new EventEmitter(),
-        readMessages: async keys => calls.reads.push(keys),
-        sendMessage: async (...args) => calls.messages.push(args)
+    const calls = {
+        subscription: null,
+        views: [],
+        groupViews: [],
+        likes: [],
+        groupLikes: [],
+        comments: [],
+        downloads: [],
+        messages: []
     };
-    setupStatusHandler(sock);
-    return { sock, calls };
+    const sock = {
+        ws: new EventEmitter(),
+        onStatusMessage: (listener, options) => {
+            calls.subscription = { listener, options };
+            return () => { calls.subscription = null; };
+        },
+        viewStatus: async message => { calls.views.push(message); },
+        viewGroupStatus: async message => { calls.groupViews.push(message); },
+        likeStatus: async (message, emoji) => { calls.likes.push([message, emoji]); },
+        likeGroupStatus: async (message, emoji) => { calls.groupLikes.push([message, emoji]); },
+        commentStatus: async (message, comment) => { calls.comments.push([message, comment]); },
+        downloadStatus: async (...args) => {
+            calls.downloads.push(args);
+            return Buffer.from('status-media-bytes');
+        },
+        sendMessage: async (...args) => { calls.messages.push(args); }
+    };
+    const unsubscribe = setupStatusHandler(sock);
+    return { sock, calls, unsubscribe };
 }
 
-async function dispatchWithoutReactionDelay(sock, update) {
-    const listener = sock.ev.listeners('messages.upsert')[0];
-    assert.ok(listener, 'status handler should register messages.upsert');
+async function dispatchWithoutReactionDelay(listener, event) {
     const originalSetTimeout = global.setTimeout;
     global.setTimeout = (callback, milliseconds, ...args) => {
         if (milliseconds === 1000) {
@@ -73,72 +80,133 @@ async function dispatchWithoutReactionDelay(sock, update) {
         return originalSetTimeout(callback, milliseconds, ...args);
     };
     try {
-        await listener(update);
+        await listener(event);
     } finally {
         global.setTimeout = originalSetTimeout;
     }
 }
 
-test('status view and like process alternate author JIDs even when participant is absent', async () => {
-    writeAssConfig({ enabled: false, mode: 'dm', target: null });
-    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
-    const { sock, calls } = makeSocket();
-    const participantAltMessage = {
-        key: { remoteJid: 'status@broadcast', participantAlt: '15550001111@lid', id: 'alt-participant-1' },
-        message: { conversation: 'Status from an alternate participant key' }
+function statusMessage(id, message = { conversation: 'status text' }, key = {}) {
+    return {
+        key: { remoteJid: 'status@broadcast', id, ...key },
+        message
     };
-    const remoteJidMessage = {
-        key: { remoteJid: '15550002222@s.whatsapp.net', remoteJidAlt: 'status@broadcast', id: 'alt-remote-1' },
-        message: { conversation: 'Status where the alternate remote JID marks the broadcast' }
-    };
+}
 
-    await dispatchWithoutReactionDelay(sock, {
-        type: 'notify',
-        messages: [participantAltMessage, remoteJidMessage]
+test('status handler subscribes through Baileys and delegates personal view/like actions', async () => {
+    writeJson('autosavestatus.json', { enabled: false, mode: 'dm', target: null });
+    writeJson('autocommentstatus.json', { enabled: false, mode: 'text', text: '' });
+    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true, STATUS_EMOJI: '💜' };
+    const { calls } = makeSocket();
+    assert.equal(calls.subscription.options.from, 'all');
+    assert.equal(calls.subscription.options.includeGroupStatus, true);
+
+    const message = statusMessage('personal-1', { imageMessage: { caption: 'photo' } });
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message,
+        authorJid: '15550001111@lid',
+        kind: 'status',
+        type: 'notify'
     });
 
-    assert.deepEqual(calls.reads, [[participantAltMessage.key], [remoteJidMessage.key]]);
-    const reactions = calls.messages.filter(([jid, content]) => jid === 'status@broadcast' && content?.react);
-    assert.equal(reactions.length, 2);
-    assert.deepEqual(reactions[0][2].statusJidList, ['15550001111@lid']);
-    assert.deepEqual(reactions[1][2].statusJidList, ['15550002222@s.whatsapp.net']);
+    assert.deepEqual(calls.views, [message]);
+    assert.deepEqual(calls.likes, [[message, '💜']]);
 });
 
-test('a later enriched status key is not suppressed by an earlier incomplete key with the same message ID', async () => {
-    writeAssConfig({ enabled: false, mode: 'dm', target: null });
+test('enriched status author keys are not suppressed after an incomplete update', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
     statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
-    const { sock, calls } = makeSocket();
-    const sparse = {
-        key: { remoteJid: 'status@broadcast', id: 'enriched-status-1' },
-        message: { conversation: 'Status with initially incomplete key data' }
-    };
-    const enriched = {
-        key: { remoteJid: 'status@broadcast', participantAlt: '15550004444@lid', id: 'enriched-status-1' },
-        message: { conversation: 'Same status with alternate author key data' }
-    };
+    const { calls } = makeSocket();
+    const sparse = statusMessage('enriched-1');
+    const enriched = statusMessage('enriched-1', { conversation: 'status text' }, {
+        participantAlt: '15550004444@lid'
+    });
 
-    await dispatchWithoutReactionDelay(sock, { type: 'notify', messages: [sparse] });
-    await dispatchWithoutReactionDelay(sock, { type: 'notify', messages: [enriched] });
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message: sparse, kind: 'status'
+    });
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message: enriched, authorJid: '15550004444@lid', kind: 'status'
+    });
 
-    assert.equal(calls.reads.length, 2);
-    const reactions = calls.messages.filter(([jid, content]) => jid === 'status@broadcast' && content?.react);
-    assert.equal(reactions.length, 1);
-    assert.deepEqual(reactions[0][2].statusJidList, ['15550004444@lid']);
+    assert.equal(calls.views.length, 2);
+    assert.equal(calls.likes.length, 2);
 });
 
-test('ASS auto-save still processes media when the status author is only in an alternate key field', async () => {
-    writeAssConfig({ enabled: true, mode: 'chat', target: 'archive@g.us' });
+test('ASS auto-save uses downloadStatus and forwards media to its configured archive target', async () => {
+    writeJson('autosavestatus.json', { enabled: true, mode: 'chat', target: 'archive@g.us' });
+    writeJson('autocommentstatus.json', { enabled: false });
     statusFlags = { AUTO_STATUS_VIEW: false, AUTO_STATUS_LIKE: false };
-    const { sock, calls } = makeSocket();
-    const message = {
-        key: { remoteJid: 'status@broadcast', participantAlt: '15550003333@lid', id: 'alt-media-1' },
-        message: { imageMessage: { caption: 'Saved status image' } }
-    };
+    const { calls } = makeSocket();
+    const message = statusMessage('autosave-1', { imageMessage: { caption: 'Saved status image' } });
 
-    await dispatchWithoutReactionDelay(sock, { type: 'notify', messages: [message] });
+    await calls.subscription.listener({ message, authorJid: '15550003333@lid', kind: 'status' });
 
+    assert.deepEqual(calls.downloads, [[message, 'buffer']]);
     const saved = calls.messages.find(([jid]) => jid === 'archive@g.us');
-    assert.ok(saved, 'ASS should send the saved media to its configured archive target');
+    assert.ok(saved);
     assert.equal(saved[1].caption, 'Saved status image');
     assert.equal(saved[1].image.toString(), 'status-media-bytes');
+});
+
+test('ACS sends configured text comments through commentStatus', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: true, mode: 'text', text: 'Nice status!' });
+    statusFlags = { AUTO_STATUS_VIEW: false, AUTO_STATUS_LIKE: false };
+    const { calls } = makeSocket();
+    const message = statusMessage('acs-text-1');
+
+    await calls.subscription.listener({ message, authorJid: '15550005555@s.whatsapp.net', kind: 'status' });
+
+    assert.deepEqual(calls.comments, [[message, 'Nice status!']]);
+});
+
+test('ACS sends a saved sticker template through commentStatus and ignores group statuses', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: true, mode: 'sticker', text: '' });
+    fs.writeFileSync(path.join(tempRoot, 'database', 'autocommentstatus-sticker.webp'), Buffer.from('sticker-template'));
+    statusFlags = { AUTO_STATUS_VIEW: false, AUTO_STATUS_LIKE: false };
+    const { calls } = makeSocket();
+    const personal = statusMessage('acs-sticker-1');
+    await calls.subscription.listener({ message: personal, authorJid: '15550005555@s.whatsapp.net', kind: 'status' });
+    const group = {
+        key: { remoteJid: '120363000000000001@g.us', participant: '15550005555@lid', id: 'acs-group-1' },
+        message: { groupStatusMessageV2: { message: { conversation: 'group status' } } }
+    };
+    await calls.subscription.listener({ message: group, authorJid: '15550005555@lid', kind: 'group' });
+
+    assert.equal(calls.comments.length, 1);
+    assert.deepEqual(calls.comments[0][1], { sticker: Buffer.from('sticker-template'), mimetype: 'image/webp' });
+});
+
+test('group status automation delegates to group-specific Baileys methods', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
+    const { calls } = makeSocket();
+    const message = {
+        key: { remoteJid: '120363000000000001@g.us', participant: '15550005555@lid', id: 'group-1' },
+        message: { groupStatusMessageV2: { message: { conversation: 'group status' } } }
+    };
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message, authorJid: '15550005555@lid', kind: 'group'
+    });
+
+    assert.deepEqual(calls.groupViews, [message]);
+    assert.deepEqual(calls.groupLikes, [[message, '💚']]);
+    assert.equal(calls.comments.length, 0);
+});
+
+test('returned unsubscribe detaches the CODY status callback', () => {
+    statusFlags = {};
+    const { calls, unsubscribe } = makeSocket();
+    assert.equal(typeof unsubscribe, 'function');
+    const options = calls.subscription.options;
+    unsubscribe();
+    // The captured subscription is owned by the Baileys API and CODY does not
+    // install an independent messages.upsert listener.
+    assert.equal(options.includeGroupStatus, true);
+    assert.equal(calls.subscription, null);
 });

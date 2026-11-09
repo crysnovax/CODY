@@ -2,12 +2,12 @@ const { getVar, setVar } = require('../../Plugin/configManager');
 
 module.exports = {
     name: 'statusview',
-    alias: ['statuslike', 'autoview', 'autolike'],
+    alias: ['statuslike', 'autoview', 'autolike', 'readstatus', 'likestatus'],
     desc: 'Toggle auto status view / like',
     category: 'Owner',
     ownerOnly: true,
-    usage: '.statusview on/off  OR  .statuslike on/off',
-    examples: ['.statusview on', '.statuslike off'],
+    usage: '.statusview/.readstatus on/off  OR  .statuslike/.likestatus on/off',
+    examples: ['.readstatus on', '.likestatus off'],
     reactions: { start: '⚙️', success: '🐾', error: '😪' },
 
     execute: async (sock, m, { args, reply, command }) => {
@@ -21,8 +21,10 @@ module.exports = {
         const settings = [
             { cmd: 'statusview', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
             { cmd: 'autoview', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
+            { cmd: 'readstatus', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
             { cmd: 'statuslike', key: 'AUTO_STATUS_LIKE', label: 'Status Like' },
-            { cmd: 'autolike', key: 'AUTO_STATUS_LIKE', label: 'Status Like' }
+            { cmd: 'autolike', key: 'AUTO_STATUS_LIKE', label: 'Status Like' },
+            { cmd: 'likestatus', key: 'AUTO_STATUS_LIKE', label: 'Status Like' }
         ];
 
         const setting = settings.find(s => s.cmd === cmd);
