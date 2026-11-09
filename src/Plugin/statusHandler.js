@@ -19,6 +19,37 @@ const WRAPPER_FIELDS = new Set([
     'groupMentionedMessage', 'groupStatusMessage', 'groupStatusMessageV2', 'message',
     'viewOnceMessage', 'viewOnceMessageV2', 'viewOnceMessageV2Extension'
 ]);
+const GROUP_STATUS_FIELDS = new Set(['groupStatusMessage', 'groupStatusMessageV2']);
+
+function jidKind(jid) {
+    if (typeof jid !== 'string' || !jid) return 'missing';
+    if (jid === 'status@broadcast') return 'status-broadcast';
+    const server = jid.split('@')[1]?.split(':')[0];
+    if (server === 's.whatsapp.net') return 'pn';
+    if (server === 'lid') return 'lid';
+    if (server === 'g.us') return 'group';
+    if (server === 'broadcast') return 'broadcast';
+    return server ? 'other' : 'unknown';
+}
+
+function findGroupStatusField(message) {
+    const queue = [message?.message, message?.fakeObj?.message].filter(value => value && typeof value === 'object');
+    const visited = new WeakSet();
+    let inspected = 0;
+    while (queue.length && inspected < 160) {
+        const current = queue.shift();
+        if (!current || typeof current !== 'object' || visited.has(current)) continue;
+        visited.add(current);
+        inspected += 1;
+        for (const [field, payload] of Object.entries(current)) {
+            if (GROUP_STATUS_FIELDS.has(field)) return field;
+            if (WRAPPER_FIELDS.has(field) && payload && typeof payload === 'object') {
+                queue.push(payload.message || payload);
+            }
+        }
+    }
+    return undefined;
+}
 
 function readConfig(filePath, defaults) {
     try {
@@ -152,13 +183,47 @@ const setupStatusHandler = (sock) => {
         });
     }
 
+    // Observe decoded status-shaped messages before Baileys' status API applies
+    // its own filters. Log only structural metadata; never log status content,
+    // message IDs, or full JIDs/phone numbers.
+    const statusUpsertObserver = ({ messages = [], type } = {}) => {
+        for (const message of messages) {
+            const key = message?.key || message?.fakeObj?.key || {};
+            const groupField = findGroupStatusField(message);
+            const isPersonalStatus = key.remoteJid === 'status@broadcast' || key.remoteJidAlt === 'status@broadcast';
+            if (!isPersonalStatus && !groupField) continue;
+            const kind = groupField ? 'group' : 'status';
+            const messageFields = Object.keys(message?.message || message?.fakeObj?.message || {}).join(',') || 'none';
+            console.log(
+                `[STATUS DIAG] messages.upsert candidate kind=${kind} type=${type || 'unknown'} ` +
+                `fromMe=${Boolean(key.fromMe)} remote=${jidKind(key.remoteJid)} remoteAlt=${jidKind(key.remoteJidAlt)} ` +
+                `participant=${jidKind(key.participant)} participantAlt=${jidKind(key.participantAlt)} ` +
+                `payloadFields=${messageFields}`
+            );
+        }
+    };
+    if (typeof sock.ev?.on === 'function') {
+        sock.ev.on('messages.upsert', statusUpsertObserver);
+        console.log('[STATUS DIAG] Decoded messages.upsert observer attached');
+    } else {
+        console.warn('[STATUS DIAG] Socket event emitter unavailable; decoded status receipts cannot be observed');
+    }
+
+    const cleanupObserver = () => sock.ev?.off?.('messages.upsert', statusUpsertObserver);
+
     if (typeof sock.onStatusMessage !== 'function') {
         console.error('[STATUS] This Plogme version lacks onStatusMessage(); install plogme@2.2.6 or newer');
-        return () => {};
+        return cleanupObserver;
     }
 
     const unsubscribe = sock.onStatusMessage(async event => {
         const message = event?.message;
+        const key = message?.key || message?.fakeObj?.key || {};
+        console.log(
+            `[STATUS DIAG] onStatusMessage callback kind=${event?.kind || 'unknown'} type=${event?.type || 'unknown'} ` +
+            `fromMe=${Boolean(key.fromMe)} remote=${jidKind(key.remoteJid)} remoteAlt=${jidKind(key.remoteJidAlt)} ` +
+            `author=${jidKind(event?.authorJid)} idPresent=${Boolean(key.id)}`
+        );
         if (!message?.key?.id || !['status', 'group'].includes(event.kind)) return;
         const author = event.authorJid || message.key.participant || message.key.participantAlt || message.key.remoteJidAlt || 'unknown';
         const seenKey = `${event.kind}:${author}:${message.key.id}`;
@@ -178,7 +243,10 @@ const setupStatusHandler = (sock) => {
     }, { from: 'all', includeGroupStatus: true });
 
     console.log('[STATUS] Subscribed through Baileys onStatusMessage()');
-    return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+    return () => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+        cleanupObserver();
+    };
 };
 
 setInterval(() => seen.clear(), 30 * 60 * 1000).unref?.();
