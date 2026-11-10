@@ -113,7 +113,45 @@ test('status handler subscribes through Baileys and delegates personal view/like
     assert.deepEqual(calls.likes, [[message, '💜']]);
 });
 
-test('enriched status author keys are not suppressed after an incomplete update', async () => {
+test('status handler ignores reaction-message updates and does not attempt status actions on them', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
+    const { calls } = makeSocket();
+    const reaction = statusMessage('reaction-update-1', {
+        reactionMessage: { text: '💜', key: { remoteJid: 'status@broadcast', id: 'story-1' } }
+    }, { fromMe: true });
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message: reaction,
+        kind: 'status',
+        type: 'append'
+    });
+
+    assert.equal(calls.views.length, 0);
+    assert.equal(calls.likes.length, 0);
+    assert.equal(calls.comments.length, 0);
+});
+
+test('status handler skips author-dependent actions when a story author is unresolved', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
+    const { calls } = makeSocket();
+    const message = statusMessage('author-missing-1', { imageMessage: { caption: 'story' } });
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message,
+        kind: 'status',
+        type: 'notify'
+    });
+
+    assert.equal(calls.views.length, 0);
+    assert.equal(calls.likes.length, 0);
+    assert.equal(calls.comments.length, 0);
+});
+
+test('incomplete status keys are skipped until an enriched update resolves the author', async () => {
     writeJson('autosavestatus.json', { enabled: false });
     writeJson('autocommentstatus.json', { enabled: false });
     statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
@@ -130,8 +168,10 @@ test('enriched status author keys are not suppressed after an incomplete update'
         message: enriched, authorJid: '15550004444@lid', kind: 'status'
     });
 
-    assert.equal(calls.views.length, 2);
-    assert.equal(calls.likes.length, 2);
+    assert.equal(calls.views.length, 1);
+    assert.equal(calls.views[0], enriched);
+    assert.equal(calls.likes.length, 1);
+    assert.equal(calls.likes[0][0], enriched);
 });
 
 test('ASS auto-save uses downloadStatus and forwards media to its configured archive target', async () => {

@@ -35,6 +35,30 @@ function payloadKinds(message) {
     return Object.keys(root).slice(0, 8).join(',') || 'none';
 }
 
+function isStatusInteraction(message) {
+    const queue = [message?.message, message?.fakeObj?.message, message?.message?.message]
+        .filter(value => value && typeof value === 'object');
+    const visited = new WeakSet();
+    let inspected = 0;
+    while (queue.length && inspected < 160) {
+        const current = queue.shift();
+        if (!current || typeof current !== 'object' || visited.has(current)) continue;
+        visited.add(current);
+        inspected += 1;
+        if (Object.hasOwn(current, 'reactionMessage') || Object.hasOwn(current, 'protocolMessage')) return true;
+        for (const [field, value] of Object.entries(current)) {
+            if (WRAPPER_FIELDS.has(field) && value && typeof value === 'object') queue.push(value);
+        }
+    }
+    return false;
+}
+
+function hasResolvedStatusAuthor(event) {
+    const key = event?.message?.key || event?.message?.fakeObj?.key || {};
+    return [event?.authorJid, key.participant, key.participantAlt, key.remoteJidAlt, event?.message?.sender, event?.message?.from]
+        .some(jid => ['pn', 'lid'].includes(jidKind(jid)));
+}
+
 function hasGroupStatus(message) {
     const queue = [message?.message, message?.fakeObj?.message].filter(value => value && typeof value === 'object');
     const visited = new WeakSet();
@@ -146,6 +170,7 @@ async function sendStatusReaction(sock, event) {
 
 async function autoCommentStatus(sock, event) {
     if (event.kind !== 'status') return false;
+    if (!hasResolvedStatusAuthor(event)) return false;
     const config = getAcsConfig();
     if (!config.enabled) return false;
     let comment;
@@ -222,6 +247,10 @@ const setupStatusHandler = (sock) => {
         const message = event?.message;
         const key = message?.key || message?.fakeObj?.key || {};
         console.log(`[STATUS] Baileys callback ${eventLogContext(event)} idPresent=${Boolean(key.id)}`);
+        if (isStatusInteraction(message)) {
+            console.log(`[STATUS] ignored status interaction ${eventLogContext(event)}`);
+            return;
+        }
         if (!key.id || !['status', 'group'].includes(event.kind)) {
             console.warn(`[STATUS] Ignored malformed/unsupported event ${eventLogContext(event)}`);
             return;
@@ -235,15 +264,19 @@ const setupStatusHandler = (sock) => {
         }
         seen.add(seenKey);
         if (seen.size > 5000) seen.clear();
+        const authorResolved = hasResolvedStatusAuthor(event);
 
         if (getVar('AUTO_STATUS_VIEW', true)) {
-            await runAction('VIEW', () => markStatusViewed(sock, event), event);
+            if (authorResolved) await runAction('VIEW', () => markStatusViewed(sock, event), event);
+            else console.warn(`[STATUS] VIEW skipped: status author unresolved ${eventLogContext(event)}`);
         } else {
             console.log(`[STATUS] VIEW disabled ${eventLogContext(event)}`);
         }
         if (getVar('AUTO_STATUS_LIKE', true)) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await runAction('LIKE', () => sendStatusReaction(sock, event), event);
+            if (authorResolved) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await runAction('LIKE', () => sendStatusReaction(sock, event), event);
+            } else console.warn(`[STATUS] LIKE skipped: status author unresolved ${eventLogContext(event)}`);
         } else {
             console.log(`[STATUS] LIKE disabled ${eventLogContext(event)}`);
         }
