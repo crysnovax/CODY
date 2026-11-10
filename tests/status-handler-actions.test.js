@@ -15,7 +15,7 @@ let statusFlags = {};
 const originalLoad = Module._load;
 Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'chalk') {
-        return { cyan: value => value, magenta: value => value, red: value => value };
+        return { cyan: value => value, green: value => value, magenta: value => value, red: value => value };
     }
     if (request === './configManager' && parent?.filename?.endsWith('/src/Plugin/statusHandler.js')) {
         return {
