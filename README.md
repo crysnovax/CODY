@@ -188,6 +188,8 @@
 
 Status detection and actions are delegated to Plogme's `onStatusMessage()`, `viewStatus()`, `likeStatus()`, `commentStatus()`, and `downloadStatus()` APIs. `acs` uses the experimental native status-comment envelope, so verify text and sticker comment rendering in a live WhatsApp client before enabling it broadly.
 
+For one-time receive-path diagnostics, set the environment variable `CODY_TRACE_WA_INBOUND=1` and restart the existing bot process. The optional trace reports raw stanza routing metadata and decoded message field names, including whether a stanza came from `status@broadcast`. It deliberately omits message text, full JIDs, message IDs, and media bytes. It attaches to the existing socket; do not start a second socket with the same session. Disable the variable after testing.
+
 <details>
 <summary><b>🛠️ Tools & Utilities</b></summary>
 

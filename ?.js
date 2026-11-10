@@ -10,6 +10,7 @@
 const chalk = require('chalk');
 const { setupStatusHandler } = require('./src/Plugin/statusHandler');
 const { selectMessageForProcessing } = require('./src/Plugin/messageBatch');
+const { attachRawIncomingTrace } = require('./src/Plugin/rawIncomingTrace');
 const { getVar, resolvePrefix } = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
@@ -282,6 +283,7 @@ sock.sendMessage = async (jid, content, options = {}) => {
 };
 
     setupStatusHandler(sock);
+    attachRawIncomingTrace(sock);
 
     // Polyfill: attach sendRichText to sock so eval/commands can call it
     if (!sock.sendRichText) {
