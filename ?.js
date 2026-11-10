@@ -9,6 +9,7 @@
 
 const chalk = require('chalk');
 const { setupStatusHandler } = require('./src/Plugin/statusHandler');
+const { selectMessageForProcessing } = require('./src/Plugin/messageBatch');
 const { getVar, resolvePrefix } = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
@@ -366,6 +367,8 @@ setupPromotionGuard(sock);
     sock.ev.on('messages.upsert', async (chatUpdate) => {
         try {
             const upsertedMessages = Array.isArray(chatUpdate?.messages) ? chatUpdate.messages : [];
+            const upsertType = chatUpdate?.type || 'unknown';
+            console.log(`[MSG PIPE] messages.upsert received type=${upsertType} count=${upsertedMessages.length}`);
             for (const incoming of upsertedMessages) {
                 try {
                     if (incoming?.key?.remoteJid && incoming?.key?.id
@@ -386,8 +389,22 @@ setupPromotionGuard(sock);
                     console.error('[DELETED MESSAGE CACHE ERROR]', err?.message || err);
                 }
             }
-            const mek = upsertedMessages[0];
-            if (!mek || !mek.message) return;
+            // A single upsert may carry several envelopes. Never let a leading
+            // status/control envelope mask a later user command in that batch.
+            // Prefer a non-self command text when present, then the first
+            // routable non-status message. Status-only batches remain untouched.
+            const prefixForBatch = resolvePrefix();
+            const mek = selectMessageForProcessing(upsertedMessages, prefixForBatch);
+            const selectedBody = mek?.message?.conversation || mek?.message?.extendedTextMessage?.text || '';
+            const commandMessage = Boolean(mek && !mek.key?.fromMe && typeof selectedBody === 'string' &&
+                selectedBody.trimStart().startsWith(String(prefixForBatch ?? '')));
+            if (!mek || !mek.message) {
+                console.log(`[MSG PIPE] no routable non-status message type=${upsertType} count=${upsertedMessages.length}`);
+                return;
+            }
+            console.log(`[MSG PIPE] selected message type=${upsertType} batch=${upsertedMessages.length} ` +
+                `messageType=${Object.keys(mek.message || {}).slice(0, 6).join(',') || 'none'} ` +
+                `isCommand=${commandMessage}`);
             let decryptedSecretEdit = false;
 
             // Newer WhatsApp clients can deliver human edits as a
@@ -470,8 +487,15 @@ setupPromotionGuard(sock);
                 mek.message = mek.message.ephemeralMessage.message;
             }
 
+            console.log('[MSG PIPE] serialization start');
             const m = await smsg(sock, mek, customStore);
-            if (!m) return;
+            if (!m) {
+                console.warn('[MSG PIPE] serialization returned no message');
+                return;
+            }
+            console.log(`[MSG PIPE] serialization ok hasText=${Boolean(m.text || m.body)} chatKind=${
+                m.isGroup ? 'group' : (String(m.chat || '').endsWith('@lid') ? 'lid' : 'direct')
+            }`);
 
             try {
                 require('./src/Plugin/groupActivity').trackGroupMessage(m, mek);
@@ -861,7 +885,12 @@ try {
 
             try { await require('./src/Commands/Converter/vvcmd.js').handleVVReply?.(sock, m); } catch (err) { console.error('[VV ERROR]', err.message); }
 
+            const routedBody = m.text || m.body || '';
+            const isCommandCandidate = typeof routedBody === 'string' &&
+                routedBody.trim().startsWith(String(resolvePrefix() ?? ''));
+            if (isCommandCandidate) console.log('[MSG PIPE] command router start');
             await handleMessage(sock, m, customStore);
+            if (isCommandCandidate) console.log('[MSG PIPE] command router complete');
 
             // --- plogme hook (dedupe + short-circuit) — runs BEFORE the old
             //     chatbot brain so plogme takes priority when it handles ---
@@ -913,9 +942,9 @@ try {
             } catch {}
 
         } catch (err) {
-            if (!ignoredErrors.some(e => err.message?.includes(e))) {
-                console.log(chalk.red('[MSG ERROR]'), err.message);
-            }
+            const message = err?.message || String(err);
+            const suppressedTransportError = ignoredErrors.some(text => message.includes(text));
+            console.error(`[MSG PIPE] upsert handler ${suppressedTransportError ? 'transport error' : 'failed'}:`, message);
         }
     });
 
