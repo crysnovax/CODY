@@ -1,5 +1,5 @@
 // ssl.js — toggle the secured meta service label (secureMetaServiceLabel)
-// that is attached to every outgoing message in ?.js. On by default.
+// that can be attached to outgoing messages in ?.js. Off by default.
 // @crysnovax—FIX08-07-26
 const { getVar, setVar } = require('../../Plugin/configManager');
 
@@ -12,7 +12,7 @@ module.exports = {
     reactions: { start: '🛡️', success: '🔐' },
 
     execute: async (sock, m, { args, reply }) => {
-        const current = getVar('SECURE_META_LABEL', true);
+        const current = getVar('SECURE_META_LABEL', false);
         const arg = (args[0] || '').toLowerCase();
 
         let next;

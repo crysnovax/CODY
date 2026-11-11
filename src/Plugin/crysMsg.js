@@ -399,7 +399,7 @@ const handleMessage = async (sock, m, store) => {
             }
         } catch (err) {
             // failed → keep a failed reaction instead of no reaction
-            console.log(chalk.red('[CMD ERROR]'), err.message);
+            console.error(chalk.red('[CMD ERROR]'), err?.stack || err?.message || err);
             if (cmdReact) {
                 await sock.sendMessage(m.chat, { react: { text: cmd.reactions?.error || '🚧', key: m.key } }).catch(() => {});
             }
@@ -407,7 +407,7 @@ const handleMessage = async (sock, m, store) => {
         }
 
     } catch (err) {
-        console.log(chalk.red('[MSG ERROR]'), err?.message || err);
+        console.error(chalk.red('[MSG ERROR]'), err?.stack || err?.message || err);
         // cmdReact / cmdName / ownerNum / prefix / senderNum are declared INSIDE
         // the try block above, so they are not in scope here. Touching them
         // directly threw a second ReferenceError from the error handler itself,

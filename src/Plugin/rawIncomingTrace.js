@@ -1,3 +1,5 @@
+const { createHash } = require('node:crypto');
+
 const JID_KINDS = [
     ['status@broadcast', 'status'],
     ['@s.whatsapp.net', 'pn'],
@@ -22,6 +24,11 @@ function countPayloadBytes(value, depth = 0) {
     return items.reduce((sum, item) => sum + countPayloadBytes(item, depth + 1), 0);
 }
 
+function fingerprintMessageId(id) {
+    if (typeof id !== 'string' || !id) return undefined;
+    return createHash('sha256').update(id).digest('hex').slice(0, 12);
+}
+
 function safeNodeSummary(node) {
     const attrs = node?.attrs && typeof node.attrs === 'object' ? node.attrs : {};
     const children = Array.isArray(node?.content)
@@ -35,8 +42,10 @@ function safeNodeSummary(node) {
         type: typeof attrs.type === 'string' ? attrs.type.slice(0, 32) : undefined,
         category: typeof attrs.category === 'string' ? attrs.category.slice(0, 32) : undefined,
         class: typeof attrs.class === 'string' ? attrs.class.slice(0, 32) : undefined,
+        errorCode: attrs.code == null ? undefined : String(attrs.code).slice(0, 32),
         xmlns: typeof attrs.xmlns === 'string' ? attrs.xmlns.slice(0, 48) : undefined,
         idPresent: typeof attrs.id === 'string' && attrs.id.length > 0,
+        messageRef: fingerprintMessageId(attrs.id),
         attrKeys: Object.keys(attrs).slice(0, 20),
         childTags: children,
         payloadBytes
@@ -95,4 +104,4 @@ function attachRawIncomingTrace(sock, { enabled = process.env.CODY_TRACE_WA_INBO
     };
 }
 
-module.exports = { attachRawIncomingTrace, jidKind, safeNodeSummary, safeMessageSummary };
+module.exports = { attachRawIncomingTrace, jidKind, safeNodeSummary, safeMessageSummary, fingerprintMessageId };

@@ -11,6 +11,8 @@ const chalk = require('chalk');
 const { setupStatusHandler } = require('./src/Plugin/statusHandler');
 const { selectMessageForProcessing } = require('./src/Plugin/messageBatch');
 const { attachRawIncomingTrace } = require('./src/Plugin/rawIncomingTrace');
+const { decorateOutboundContent } = require('./src/Plugin/outboundMessageMetadata');
+const { attachOutboundAckTrace, summarizeOutboundSend, sendAndRequireKey } = require('./src/Plugin/outboundSendTrace');
 const { getVar, resolvePrefix } = require('./src/Plugin/configManager');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
@@ -198,10 +200,24 @@ module.exports = function setupMessageHandler(sock, customStore, handleMessage, 
     try { require('./src/Plugin/autoApprove').setupAutoApprove(sock); } catch (e) { console.error('[AUTO-APPROVE] init error:', e.message); }
 
 const originalSend = sock.sendMessage.bind(sock);
+const traceOutboundSends = process.env.CODY_TRACE_WA_SENDS === '1';
+attachOutboundAckTrace(sock, { enabled: traceOutboundSends });
+const submitOutbound = async (jid, content, options) => {
+    try {
+        const result = await originalSend(jid, content, options);
+        if (traceOutboundSends) {
+            console.log(`[SEND TRACE] local relay completed ${JSON.stringify(summarizeOutboundSend({ jid, content, result }))}`);
+        }
+        return result;
+    } catch (error) {
+        console.error(`[SEND PIPE ERROR] ${JSON.stringify(summarizeOutboundSend({ jid, content, error }))}`);
+        throw error;
+    }
+};
 sock.sendMessage = async (jid, content, options = {}) => {
     try {
         if (jid === 'status@broadcast') {
-            return originalSend(jid, content, options);
+            return submitOutbound(jid, content, options);
         }
 
         const processText = async (inputText) => {
@@ -247,19 +263,14 @@ sock.sendMessage = async (jid, content, options = {}) => {
             content.caption = (content.caption || '') + MARKER;
         }
 
-        const aiEnabled = getVar('AI_BADGE', true);
-        let isPrivateChat = false;
-        const jidStr = typeof jid === 'string' ? jid : (Array.isArray(jid) ? jid[0] : '');
-        if (jidStr) {
-            isPrivateChat = (jidStr.endsWith('@s.whatsapp.net') || jidStr.endsWith('@lid')) 
-                         && !jidStr.includes('@g.us');
-        }
-        if (aiEnabled && isPrivateChat) {
-            content.ai = true;
-        }
-        // secured meta service label — toggleable via .ssl / .tssl
-        // (@crysnovax—FIX08-07-26)
-        content.secureMetaServiceLabel = getVar('SECURE_META_LABEL', true);
+        // Keep ordinary WhatsApp sends on the standard wire format. These
+        // experimental metadata flags are now explicit opt-ins; applying them
+        // to every DM/group message can make a server-accepted local send look
+        // successful while clients silently discard the unsupported envelope.
+        content = decorateOutboundContent(content, jid, {
+            aiBadgeEnabled: getVar('AI_BADGE', false),
+            secureMetaLabelEnabled: getVar('SECURE_META_LABEL', false)
+        });
 
         // ─────────────────────────────────────────────────────────────
        
@@ -279,7 +290,7 @@ sock.sendMessage = async (jid, content, options = {}) => {
     } catch (err) {
         console.error('[SEND OVERRIDE ERROR]', err.message);
     }
-    return originalSend(jid, content, options);
+    return submitOutbound(jid, content, options);
 };
 
     setupStatusHandler(sock);
@@ -899,13 +910,14 @@ try {
             try {
                 const messageId = mek?.key?.id || (mek?.key?.remoteJid + ':' + (Date.now()));
                 if (!_plogmeHandled.has(messageId)) {
+                    const sendPlogmeMessage = sock.sendMessage.bind(sock);
                     const plogmeHandled = await plogmeCmd.execute(sock, m, {
                         reply: async (txt) => {
-                            try { await sock.sendMessage(m.chat, { text: String(txt || '') + MARKER }, { quoted: m }); } catch (e) {}
+                            return sendAndRequireKey(sendPlogmeMessage, m.chat, {
+                                text: String(txt || '') + MARKER
+                            }, { quoted: m });
                         },
-                        sendMessage: async (jid, content, opts) => {
-                            try { await sock.sendMessage(jid, content, opts); } catch (e) {}
-                        }
+                        sendMessage: (jid, content, opts) => sendAndRequireKey(sendPlogmeMessage, jid, content, opts)
                     });
                     if (plogmeHandled) {
                         _plogmeHandled.add(messageId);
@@ -913,7 +925,7 @@ try {
                     }
                 }
             } catch (err) {
-                console.error('[PLOGME HOOK ERROR]', err?.message || err);
+                console.error('[PLOGME HOOK ERROR]', err?.stack || err?.message || err);
             }
 
             // ── Legacy chatbot compatibility ─────────────────────────────
@@ -946,7 +958,7 @@ try {
         } catch (err) {
             const message = err?.message || String(err);
             const suppressedTransportError = ignoredErrors.some(text => message.includes(text));
-            console.error(`[MSG PIPE] upsert handler ${suppressedTransportError ? 'transport error' : 'failed'}:`, message);
+            console.error(`[MSG PIPE] upsert handler ${suppressedTransportError ? 'transport error' : 'failed'}:`, err?.stack || message);
         }
     });
 

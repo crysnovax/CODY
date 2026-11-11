@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
 const { getVar } = require('../src/Plugin/configManager');
+const { fingerprint } = require('../src/Plugin/outboundSendTrace');
 
 // Default images for welcome/goodbye (fallback when profile picture fails)
 const DEFAULT_WELCOME_IMG = 'https://cdn.crysnova.qzz.io/files/1787959847091-f53824e7-a40f-4e47-b77a-5be1d89045f1.jpeg';
@@ -78,7 +79,7 @@ const sendConnectedMessage = async (sock, config, port, options = {}) => {
         // Send with externalAdReply
         if (thumbnail) {
             try {
-                await sock.sendMessage(ownerJid, {
+                const sent = await sock.sendMessage(ownerJid, {
                     text: caption,
                     externalAdReply: {
                         title: 'ஃ𖠃 JOIN CODY AI GROUP',
@@ -90,14 +91,18 @@ const sendConnectedMessage = async (sock, config, port, options = {}) => {
                         mediaType: 1
                     }
                 });
-                console.log(chalk.green('✅ Connected message sent to owner (with custom image thumbnail)'));
+                if (!sent?.key?.id) throw new Error('sendMessage returned no message key');
+                console.log(chalk.green(`[Connected message submitted to socket; WhatsApp delivery not confirmed] ref=${fingerprint(sent.key.id)}`));
             } catch (e) {
                 console.log(chalk.red('[ExternalAdReply failed]'), e.message);
-                await sock.sendMessage(ownerJid, { text: caption });
+                const fallback = await sock.sendMessage(ownerJid, { text: caption });
+                if (!fallback?.key?.id) throw new Error('Fallback send returned no message key');
+                console.log(chalk.green(`[Connected text message submitted to socket; WhatsApp delivery not confirmed] ref=${fingerprint(fallback.key.id)}`));
             }
         } else {
-            await sock.sendMessage(ownerJid, { text: caption });
-            console.log(chalk.green('✅ Connected message sent to owner (text only)'));
+            const sent = await sock.sendMessage(ownerJid, { text: caption });
+            if (!sent?.key?.id) throw new Error('sendMessage returned no message key');
+            console.log(chalk.green(`[Connected text message submitted to socket; WhatsApp delivery not confirmed] ref=${fingerprint(sent.key.id)}`));
         }
         return true;
 

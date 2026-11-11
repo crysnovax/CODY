@@ -25,7 +25,7 @@ test('an invalid explicit OWNER_NUMBER fails closed rather than routing to a fal
 
 test('connected message is sent only to OWNER_NUMBER, not config.owner', async () => {
     const sent = [];
-    const sock = { sendMessage: async (...args) => { sent.push(args); return {}; } };
+    const sock = { sendMessage: async (...args) => { sent.push(args); return { key: { id: 'connected-message-1' } }; } };
     const result = await sendConnectedMessage(sock, {
         owner: '19999999999',
         settings: { prefix: '.', ownerName: 'Owner' },
@@ -36,6 +36,24 @@ test('connected message is sent only to OWNER_NUMBER, not config.owner', async (
         fetchThumbnail: async () => null,
     });
     assert.equal(result, true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0][0], '15551234567@s.whatsapp.net');
+});
+
+test('connected message is not reported successful when sendMessage returns no key', async () => {
+    const sent = [];
+    const sock = { sendMessage: async (...args) => { sent.push(args); return {}; } };
+    const result = await sendConnectedMessage(sock, {
+        owner: '19999999999',
+        settings: { prefix: '.', ownerName: 'Owner' },
+        status: { public: false }
+    }, 3000, {
+        envOwner: '15551234567',
+        runtimeOwner: '18888888888',
+        fetchThumbnail: async () => null
+    });
+
+    assert.equal(result, false);
     assert.equal(sent.length, 1);
     assert.equal(sent[0][0], '15551234567@s.whatsapp.net');
 });

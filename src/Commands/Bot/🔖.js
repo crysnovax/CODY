@@ -4,7 +4,7 @@ const { setVar, getVar } = require('../../Plugin/configManager');
 module.exports = {
     name: 'aibadge',
     alias: ['badge', 'metabadge'],
-    desc: 'Toggle Meta AI sparkle badge on all outgoing messages',
+    desc: 'Opt in to the Meta AI sparkle badge on private outgoing messages',
     category: 'Owner',
     ownerOnly: true,
     usage: '.aibadge on/off',
@@ -27,7 +27,7 @@ module.exports = {
             );
         }
 
-        const current = getVar('AI_BADGE', true) !== false;
+        const current = getVar('AI_BADGE', false) === true;
         return reply(
             `╭─❍ *AI BADGE STATUS*\n│\n` +
             `│ ✨ Current: ${current ? '*֎ ON*' : '*▢ OFF*'}\n│\n` +
