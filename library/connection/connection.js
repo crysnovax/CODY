@@ -14,6 +14,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const zlib = require('zlib');
 const { installRichTableRelay } = require('../../src/Plugin/richRelay');
+const { installSendWatchdog } = require('../../src/Plugin/sendWatchdog')
 
 const SESSION_PATH = path.resolve(process.env.SESSION_PATH || './sessions');
 
@@ -228,6 +229,7 @@ async function createSocket(sessionId = process.env.SESSION_ID) {
     });
 
     installRichTableRelay(sock);
+    installSendWatchdog(sock)
 
     return { sock, saveCreds, state };
 }

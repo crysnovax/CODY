@@ -327,7 +327,11 @@ const handleMessage = async (sock, m, store) => {
                 isOwnerAdmin;
         }
 
-        const reply = (txt, options = {}) => sock.sendMessage(m.chat, { text: txt, ...options }, { quoted: m });
+        const reply = (txt, options = {}) => sock.sendMessage(m.chat, { text: txt, ...options }, { quoted: m })
+            .catch(error => {
+                console.error(chalk.red('[REPLY FAIL]'), error?.message || error)
+                throw error
+            })
 
         // Commands marked allowInPrivateMode reach their own role-aware checks.
         // Keep the existing appeal exception and cooldown behavior unchanged.
