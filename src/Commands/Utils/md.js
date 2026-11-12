@@ -1,1 +1,91 @@
-const a0_0x17a916=a0_0x47e7;function a0_0x47e7(_0x4b498b,_0x3800fd){_0x4b498b=_0x4b498b-0xc8;const _0x1e1702=a0_0x1e17();let _0x47e715=_0x1e1702[_0x4b498b];return _0x47e715;}function a0_0x1e17(){const _0x19de84=['join','kotlin','\x0a```','💻\x20Syntax\x20CRYSNOVA\x20AI\x20\x20•\x20𝓬𝓻𝔂𝓼𝓷𝓸𝓿𝓪\x20𝓿𝓮𝓻𝓲𝓯𝓲𝓮𝓭','python','1259385RoIJxK','5365280cIwGhu','cpp','│\x20⚉\x20*Usage:*\x20','55FCaqjl','slice','md\x20<language>\x20|\x20<code>\x0a│\x0a','key','bash','indexOf','9084285mptshk','---','╭─❍\x20*CODE\x20BLOCK*\x0a│\x0a','trim','charAt','7459330wPyqFk','javascript','md\x20python\x20|\x20print(\x22Hello\x20World\x22)\x0a│\x0a','3976IgEBRz','│\x20📝\x20*Languages:*\x20js,\x20py,\x20java,\x20cpp,\x20html,\x20css,\x20etc.\x0a','typescript','```','╰──────────────────','chat','markdown','php','toUpperCase','json','exports','23967tEddof','[MD\x20ERROR]','css','35NGTNRs','sql','code','852846fevQAe','toLowerCase','error','##\x20📝\x20','3820BMNbWI','rust','sendMessage','.md\x20<language>\x20|\x20<code>','syntax','2OwCpWR','java','ruby'];a0_0x1e17=function(){return _0x19de84;};return a0_0x1e17();}(function(_0x3318f6,_0x1ffe21){const _0x3e2902=a0_0x47e7,_0x16c40b=_0x3318f6();while(!![]){try{const _0x2c020c=-parseInt(_0x3e2902(0xe6))/0x1*(-parseInt(_0x3e2902(0xeb))/0x2)+-parseInt(_0x3e2902(0xf3))/0x3+-parseInt(_0x3e2902(0xf4))/0x4+parseInt(_0x3e2902(0xdf))/0x5*(-parseInt(_0x3e2902(0xe2))/0x6)+parseInt(_0x3e2902(0xc9))/0x7+parseInt(_0x3e2902(0xd1))/0x8*(-parseInt(_0x3e2902(0xdc))/0x9)+parseInt(_0x3e2902(0xce))/0xa*(parseInt(_0x3e2902(0xf7))/0xb);if(_0x2c020c===_0x1ffe21)break;else _0x16c40b['push'](_0x16c40b['shift']());}catch(_0x216b51){_0x16c40b['push'](_0x16c40b['shift']());}}}(a0_0x1e17,0xe854b),module[a0_0x17a916(0xdb)]={'name':'md','alias':[a0_0x17a916(0xe1),a0_0x17a916(0xd7),a0_0x17a916(0xea)],'desc':'Send\x20syntax-highlighted\x20code\x20block','category':'Tools','usage':a0_0x17a916(0xe9),'reactions':{'start':'💻','success':'👾','error':'❔'},'execute':async(_0x5d5308,_0x255cca,{args:_0x107a95,reply:_0x889074,prefix:_0x459645})=>{const _0x2c6247=a0_0x17a916,_0x23f4ee=_0x107a95[_0x2c6247(0xee)]('\x20')['trim']();if(!_0x23f4ee)return _0x889074(_0x2c6247(0xcb)+(_0x2c6247(0xf6)+_0x459645+_0x2c6247(0xf9))+'│\x20✪\x20*Example:*\x0a'+('│\x20'+_0x459645+'md\x20javascript\x20|\x20console.log(\x27Hello!\x27)\x0a')+('│\x20'+_0x459645+_0x2c6247(0xd0))+_0x2c6247(0xd2)+_0x2c6247(0xd5));const _0x154549=_0x23f4ee[_0x2c6247(0xc8)]('|');let _0x471128,_0x291a80;_0x154549!==-0x1?(_0x471128=_0x23f4ee[_0x2c6247(0xf8)](0x0,_0x154549)[_0x2c6247(0xcc)]()[_0x2c6247(0xe3)](),_0x291a80=_0x23f4ee['slice'](_0x154549+0x1)[_0x2c6247(0xcc)]()):(_0x471128=_0x2c6247(0xcf),_0x291a80=_0x23f4ee);const _0x5e6482={'js':_0x2c6247(0xcf),'javascript':_0x2c6247(0xcf),'py':_0x2c6247(0xf2),'python':_0x2c6247(0xf2),'java':_0x2c6247(0xec),'cpp':_0x2c6247(0xf5),'c++':_0x2c6247(0xf5),'c':'c','html':'html','css':_0x2c6247(0xde),'json':_0x2c6247(0xda),'ts':_0x2c6247(0xd3),'typescript':_0x2c6247(0xd3),'go':'go','rust':_0x2c6247(0xe7),'php':_0x2c6247(0xd8),'ruby':_0x2c6247(0xed),'swift':'swift','kotlin':_0x2c6247(0xef),'sql':_0x2c6247(0xe0),'shell':_0x2c6247(0xfb),'bash':_0x2c6247(0xfb),'sh':_0x2c6247(0xfb)},_0x5d6053=_0x5e6482[_0x471128]||_0x471128;await _0x5d5308[_0x2c6247(0xe8)](_0x255cca[_0x2c6247(0xd6)],{'react':{'text':'💻','key':_0x255cca['key']}});try{await _0x5d5308[_0x2c6247(0xe8)](_0x255cca['chat'],{'headerText':_0x2c6247(0xe5)+(_0x5d6053[_0x2c6247(0xcd)](0x0)[_0x2c6247(0xd9)]()+_0x5d6053[_0x2c6247(0xf8)](0x1))+'\x20Code','contentText':_0x2c6247(0xca),'code':_0x291a80,'language':_0x5d6053,'footerText':_0x2c6247(0xf1)},{'quoted':_0x255cca}),await _0x5d5308[_0x2c6247(0xe8)](_0x255cca[_0x2c6247(0xd6)],{'react':{'text':'👾','key':_0x255cca[_0x2c6247(0xfa)]}});}catch(_0x2b8b69){console[_0x2c6247(0xe4)](_0x2c6247(0xdd),_0x2b8b69['message']),await _0x5d5308[_0x2c6247(0xe8)](_0x255cca[_0x2c6247(0xd6)],{'react':{'text':'🙊','key':_0x255cca[_0x2c6247(0xfa)]}}),_0x889074(_0x2c6247(0xd4)+_0x5d6053+'\x0a'+_0x291a80+_0x2c6247(0xf0));}}});
+module.exports = {
+  name: 'md',
+  alias: ['code', 'markdown', 'syntax'],
+  desc: 'Send syntax-highlighted code block',
+  category: 'Tools',
+  usage: '.md <language> | <code>',
+  reactions: {
+    start: '💻',
+    success: '👾',
+    error: '❔'
+  },
+  execute: async (sock, msg, { args, reply, prefix }) => {
+    const text = args.join(' ').trim();
+
+    if (!text) {
+      return reply(
+        '╭─❍ *CODE BLOCK*\n│\n' +
+        ('│ ⚉ *Usage:* ' + prefix + 'md <language> | <code>\n│\n') +
+        '│ ✪ *Example:*\n' +
+        ('│ ' + prefix + 'md javascript | console.log(\'Hello!\')\n') +
+        ('│ ' + prefix + 'md python | print("Hello World")\n│\n') +
+        '│ 📝 *Languages:* js, py, java, cpp, html, css, etc.\n' +
+        '╰──────────────────'
+      );
+    }
+
+    const pipeIndex = text.indexOf('|');
+    let langInput, code;
+
+    if (pipeIndex !== -1) {
+      langInput = text.slice(0, pipeIndex).trim().toLowerCase();
+      code = text.slice(pipeIndex + 1).trim();
+    } else {
+      langInput = 'javascript';
+      code = text;
+    }
+
+    const langMap = {
+      'js': 'javascript',
+      'javascript': 'javascript',
+      'py': 'python',
+      'python': 'python',
+      'java': 'java',
+      'cpp': 'cpp',
+      'c++': 'cpp',
+      'c': 'c',
+      'html': 'html',
+      'css': 'css',
+      'json': 'json',
+      'ts': 'typescript',
+      'typescript': 'typescript',
+      'go': 'go',
+      'rust': 'rust',
+      'php': 'php',
+      'ruby': 'ruby',
+      'swift': 'swift',
+      'kotlin': 'kotlin',
+      'sql': 'sql',
+      'shell': 'bash',
+      'bash': 'bash',
+      'sh': 'bash'
+    };
+
+    const language = langMap[langInput] || langInput;
+
+    await sock.sendMessage(msg.chat, {
+      react: { text: '💻', key: msg.key }
+    });
+
+    try {
+      await sock.sendRichAIResponse(msg.chat, {
+        codeBlock: {
+          language: language,
+          code: code
+        }
+      });
+
+      await sock.sendMessage(msg.chat, {
+        react: { text: '👾', key: msg.key }
+      });
+    } catch (err) {
+      console.error('[MD ERROR]', err.message);
+
+      await sock.sendMessage(msg.chat, {
+        react: { text: '🙊', key: msg.key }
+      });
+
+      reply('```' + language + '\n' + code + '\n```');
+    }
+  }
+};
