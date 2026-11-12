@@ -2,7 +2,7 @@ const { getVar, setVar } = require('../../Plugin/configManager');
 
 module.exports = {
     name: 'statusview',
-    alias: ['statuslike', 'autoview', 'autolike', 'readstatus', 'likestatus'],
+    alias: ['statuslike', 'autoview', 'autolike', 'readstatus', 'viewstatus', 'likestatus'],
     desc: 'Toggle auto status view / like',
     category: 'Owner',
     ownerOnly: true,
@@ -10,7 +10,7 @@ module.exports = {
     examples: ['.readstatus on', '.likestatus off'],
     reactions: { start: '⚙️', success: '🐾', error: '😪' },
 
-    execute: async (sock, m, { args, reply, command }) => {
+    execute: async (sock, m, { args, reply, command, prefix }) => {
         // The router supplies the parsed command separately; `m.body` is not
         // guaranteed to exist on normalized WhatsApp messages. Falling back
         // to text also supports direct invocation by tests and older callers.
@@ -22,6 +22,7 @@ module.exports = {
             { cmd: 'statusview', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
             { cmd: 'autoview', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
             { cmd: 'readstatus', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
+            { cmd: 'viewstatus', key: 'AUTO_STATUS_VIEW', label: 'Status View' },
             { cmd: 'statuslike', key: 'AUTO_STATUS_LIKE', label: 'Status Like' },
             { cmd: 'autolike', key: 'AUTO_STATUS_LIKE', label: 'Status Like' },
             { cmd: 'likestatus', key: 'AUTO_STATUS_LIKE', label: 'Status Like' }
@@ -34,7 +35,7 @@ module.exports = {
             const current = getVar(setting.key, true);
             return reply(
                 `ⓘ *${setting.label}:* ${current ? '✓ ON' : '⊘ OFF'}\n\n` +
-                `� Usage: .${cmd} on/off`
+                `ℹ️ Usage: ${prefix || '.'}${cmd} on/off`
             );
         }
 

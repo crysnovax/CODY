@@ -4,11 +4,11 @@ module.exports = [
     // ── GET USER STATUS ──────────────────────────────────────────────────────
     {
         name: 'getstatus',
-        alias: ['userstatus', 'statuscheck', 'viewstatus'],
-        desc: 'Get a user\'s status message',
+        alias: ['userstatus', 'statuscheck'],
+        desc: 'Get a user\'s WhatsApp About/status text',
         category: 'Owner',
-        owner: true,
-        usage: 'getstatus <@user or phone>',
+        ownerOnly: true,
+        usage: `${prefix}getstatus <@user or phone>`,
         reactions: { start: '👁️', success: '✓', error: '❌' },
 
         execute: async (sock, m, { args, reply, prefix }) => {
@@ -26,10 +26,26 @@ module.exports = [
             }
 
             try {
-                const status = await sock.getUserStatus(target);
+                if (typeof sock.fetchStatus !== 'function') {
+                    throw new Error('This Plogme version does not provide fetchStatus()');
+                }
+                const statusList = await sock.fetchStatus(target);
+                const targetNumber = target.split('@')[0];
+                const statusEntry = (Array.isArray(statusList) ? statusList : [])
+                    .find(item => item?.id === target || item?.jid === target
+                        || String(item?.id || item?.jid || '').split('@')[0] === targetNumber)
+                    || (Array.isArray(statusList) ? statusList[0] : undefined);
+                const statusValue = statusEntry?.status;
+                const statusText = typeof statusValue === 'string'
+                    ? statusValue
+                    : typeof statusValue?.status === 'string'
+                        ? statusValue.status
+                        : typeof statusEntry?.text === 'string'
+                            ? statusEntry.text
+                            : '';
                 return reply(
                     `👁️ *Status for* @${target.split('@')[0]}\n\n` +
-                    `${status.status || 'No status set'}`
+                    `${statusText || 'No status set or unavailable'}`
                 );
             } catch (err) {
                 return reply(`${prefix}⊘ Error: ${err.message}`);

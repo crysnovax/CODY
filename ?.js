@@ -14,6 +14,8 @@ const { attachRawIncomingTrace } = require('./src/Plugin/rawIncomingTrace');
 const { decorateOutboundContent } = require('./src/Plugin/outboundMessageMetadata');
 const { attachOutboundAckTrace, summarizeOutboundSend, sendAndRequireKey } = require('./src/Plugin/outboundSendTrace');
 const { getVar, resolvePrefix } = require('./src/Plugin/configManager');
+const { getAll } = require('./src/Plugin/crysCmd');
+const { formatCommandPrefixes, formatCommandContent, hasRegisteredCommandPrefix } = require('./src/Plugin/commandPrefixFormatter');
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
 const { decryptSecretEdit, findSecretEncrypted } = require('./src/Plugin/editDecrypt');
@@ -217,6 +219,7 @@ const submitOutbound = async (jid, content, options) => {
 sock.sendMessage = async (jid, content, options = {}) => {
     try {
         if (jid === 'status@broadcast') {
+            content = formatCommandContent(content, resolvePrefix(), getAll());
             return submitOutbound(jid, content, options);
         }
 
@@ -227,7 +230,8 @@ sock.sendMessage = async (jid, content, options = {}) => {
             const targetLang = getLang(jid);
             if (targetLang && text.trim().length > 0) {
                 const skipPatterns = ['.setlang', '.tr', 'Usage:'];
-                if (!skipPatterns.some(p => text.includes(p))) {
+                const hasCommandHelp = hasRegisteredCommandPrefix(text, getAll());
+                if (!hasCommandHelp && !skipPatterns.some(p => text.includes(p))) {
                     const cacheKey = `${text}|${targetLang}`;
                     let translatedText = translationCache.get(cacheKey);
                     if (!translatedText) {
@@ -246,6 +250,8 @@ sock.sendMessage = async (jid, content, options = {}) => {
                 }
             }
 
+            text = formatCommandPrefixes(text, resolvePrefix(), getAll());
+
             const font = botFont.getFont(jid);
             if (font && styles[font]) {
                 text = styles[font](text);
@@ -262,6 +268,11 @@ sock.sendMessage = async (jid, content, options = {}) => {
             content.caption = await processText(content.caption);
             content.caption = (content.caption || '') + MARKER;
         }
+
+        // Legacy help strings across the command catalog often hardcode '.'.
+        // Render registered command tokens with the active PREFIX at the shared
+        // send boundary so every command and alias stays correct.
+        content = formatCommandContent(content, resolvePrefix(), getAll());
 
         // Keep ordinary WhatsApp sends on the standard wire format. These
         // experimental metadata flags are now explicit opt-ins; applying them

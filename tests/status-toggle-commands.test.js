@@ -42,9 +42,10 @@ test('statusview aliases report their setting when called without an on/off argu
     assert.match(replies[0], /Status View.*OFF/i);
 });
 
-test('readstatus and likestatus are registered aliases for the view and like toggles', async () => {
+test('readstatus and viewstatus alias the auto-view toggle; likestatus aliases auto-like', async () => {
     const replies = [];
     assert.ok(statusview.alias.includes('readstatus'));
+    assert.ok(statusview.alias.includes('viewstatus'));
     assert.ok(statusview.alias.includes('likestatus'));
 
     viewValue = false;
@@ -55,12 +56,18 @@ test('readstatus and likestatus are registered aliases for the view and like tog
     assert.equal(viewValue, true);
     assert.match(replies[0], /Status View.*ON/i);
 
+    await statusview.execute(sock, { chat: 'owner@s.whatsapp.net' }, {
+        command: 'viewstatus', args: ['off'], reply: async text => replies.push(text)
+    });
+    assert.equal(viewValue, false);
+    assert.match(replies[1], /Status View.*OFF/i);
+
     viewValue = true;
     await statusview.execute(sock, { chat: 'owner@s.whatsapp.net' }, {
         command: 'likestatus', args: ['off'], reply: async text => replies.push(text)
     });
     assert.equal(viewValue, false);
-    assert.match(replies[1], /Status Like.*OFF/i);
+    assert.match(replies[2], /Status Like.*OFF/i);
 });
 
 test('ass mode accepts dm/chat/number and replies with the selected mode', async t => {
