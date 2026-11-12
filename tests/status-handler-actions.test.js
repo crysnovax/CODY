@@ -113,6 +113,25 @@ test('status handler subscribes through Baileys and delegates personal view/like
     assert.deepEqual(calls.likes, [[message, '💜']]);
 });
 
+test('status view, like, and green-heart comment default ON for a clean configuration', async () => {
+    writeJson('autosavestatus.json', { enabled: false, mode: 'dm', target: null });
+    fs.rmSync(path.join(tempRoot, 'database', 'autocommentstatus.json'), { force: true });
+    statusFlags = {};
+    const { calls } = makeSocket();
+    const message = statusMessage('default-status-1');
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message,
+        authorJid: '15550001112@lid',
+        kind: 'status',
+        type: 'notify'
+    });
+
+    assert.deepEqual(calls.views, [message]);
+    assert.deepEqual(calls.likes, [[message, '💚']]);
+    assert.deepEqual(calls.comments, [[message, '💚']]);
+});
+
 test('status handler ignores reaction-message updates and does not attempt status actions on them', async () => {
     writeJson('autosavestatus.json', { enabled: false });
     writeJson('autocommentstatus.json', { enabled: false });

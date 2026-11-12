@@ -3,7 +3,7 @@ const path = require('path');
 
 const CONFIG_PATH = path.join(process.cwd(), 'database', 'autocommentstatus.json');
 const STICKER_PATH = path.join(process.cwd(), 'database', 'autocommentstatus-sticker.webp');
-const DEFAULT_CONFIG = { enabled: false, mode: 'text', text: '' };
+const DEFAULT_CONFIG = { enabled: true, mode: 'text', text: '💚' };
 
 function loadConfig() {
     try {
@@ -72,7 +72,9 @@ module.exports = {
             config.mode = 'text';
             config.text = value;
             saveConfig(config);
-            return reply('Text comment saved. Run `.acs on` to enable auto comments.');
+            return reply(config.enabled
+                ? 'Text comment saved. Auto-comment is ON.'
+                : 'Text comment saved. Run `.acs on` to enable auto comments.');
         }
 
         if (action === 'sticker') {
@@ -101,7 +103,9 @@ module.exports = {
             config.mode = 'sticker';
             config.text = '';
             saveConfig(config);
-            return reply('Sticker comment saved. Run `.acs on` to enable auto comments.');
+            return reply(config.enabled
+                ? 'Sticker comment saved. Auto-comment is ON.'
+                : 'Sticker comment saved. Run `.acs on` to enable auto comments.');
         }
 
         if (action === 'clear') {
@@ -122,6 +126,7 @@ module.exports = {
 
         return reply(
             '*AUTO COMMENT STATUS (ACS)*\n\n' +
+            'By default, ACS is ON and comments 💚 on new personal statuses.\n' +
             '`.acs text <text>` — set a text comment\n' +
             'Reply to a sticker with `.acs sticker` — save it as the comment\n' +
             '`.acs on` / `.acs off` — enable or disable\n' +

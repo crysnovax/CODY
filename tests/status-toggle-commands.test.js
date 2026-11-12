@@ -42,6 +42,20 @@ test('statusview aliases report their setting when called without an on/off argu
     assert.match(replies[0], /Status View.*OFF/i);
 });
 
+test('status view and like toggles report ON when their values are unset', async () => {
+    const replies = [];
+    viewValue = null;
+    await statusview.execute({}, {}, {
+        command: 'readstatus', args: [], reply: async text => replies.push(text)
+    });
+    assert.match(replies[0], /Status View.*ON/i);
+
+    await statusview.execute({}, {}, {
+        command: 'statuslike', args: [], reply: async text => replies.push(text)
+    });
+    assert.match(replies[1], /Status Like.*ON/i);
+});
+
 test('readstatus and viewstatus alias the auto-view toggle; likestatus aliases auto-like', async () => {
     const replies = [];
     assert.ok(statusview.alias.includes('readstatus'));

@@ -12,7 +12,7 @@ const ASS_CONFIG_PATH = path.join(process.cwd(), 'database', 'autosavestatus.jso
 const ACS_CONFIG_PATH = path.join(process.cwd(), 'database', 'autocommentstatus.json');
 const ACS_STICKER_PATH = path.join(process.cwd(), 'database', 'autocommentstatus-sticker.webp');
 const defaultAssConfig = { enabled: false, mode: 'dm', target: null };
-const defaultAcsConfig = { enabled: false, mode: 'text', text: '' };
+const defaultAcsConfig = { enabled: true, mode: 'text', text: '💚' };
 const MEDIA_FIELDS = new Set(['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage']);
 const WRAPPER_FIELDS = new Set([
     'deviceSentMessage', 'documentWithCaptionMessage', 'editedMessage', 'ephemeralMessage',
