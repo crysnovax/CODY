@@ -43,8 +43,8 @@ function makeSocket() {
         subscription: null,
         views: [],
         groupViews: [],
-        likes: [],
         groupLikes: [],
+        statusReactions: [],
         comments: [],
         downloads: [],
         messages: []
@@ -57,14 +57,16 @@ function makeSocket() {
         },
         viewStatus: async message => { calls.views.push(message); },
         viewGroupStatus: async message => { calls.groupViews.push(message); },
-        likeStatus: async (message, emoji) => { calls.likes.push([message, emoji]); },
         likeGroupStatus: async (message, emoji) => { calls.groupLikes.push([message, emoji]); },
         commentStatus: async (message, comment) => { calls.comments.push([message, comment]); },
         downloadStatus: async (...args) => {
             calls.downloads.push(args);
             return Buffer.from('status-media-bytes');
         },
-        sendMessage: async (...args) => { calls.messages.push(args); }
+        sendMessage: async (...args) => {
+            calls.messages.push(args);
+            if (args[0] === 'status@broadcast' && args[1]?.react) calls.statusReactions.push(args);
+        }
     };
     const unsubscribe = setupStatusHandler(sock);
     return { sock, calls, unsubscribe };
@@ -101,7 +103,10 @@ test('status handler subscribes through Baileys and delegates personal view/like
     assert.equal(calls.subscription.options.from, 'all');
     assert.equal(calls.subscription.options.includeGroupStatus, true);
 
-    const message = statusMessage('personal-1', { imageMessage: { caption: 'photo' } });
+    const message = statusMessage('personal-1', { imageMessage: { caption: 'photo' } }, {
+        participant: '15550001111@lid',
+        remoteJidAlt: '15550001111@s.whatsapp.net'
+    });
     await dispatchWithoutReactionDelay(calls.subscription.listener, {
         message,
         authorJid: '15550001111@lid',
@@ -110,7 +115,10 @@ test('status handler subscribes through Baileys and delegates personal view/like
     });
 
     assert.deepEqual(calls.views, [message]);
-    assert.deepEqual(calls.likes, [[message, '💜']]);
+    assert.equal(calls.statusReactions.length, 1);
+    assert.equal(calls.statusReactions[0][0], 'status@broadcast');
+    assert.deepEqual(calls.statusReactions[0][1].react, { text: '💜', key: message.key });
+    assert.deepEqual(calls.statusReactions[0][2].statusJidList, ['15550001111@s.whatsapp.net']);
 });
 
 test('status view, like, and green-heart comment default ON for a clean configuration', async () => {
@@ -128,7 +136,9 @@ test('status view, like, and green-heart comment default ON for a clean configur
     });
 
     assert.deepEqual(calls.views, [message]);
-    assert.deepEqual(calls.likes, [[message, '💚']]);
+    assert.equal(calls.statusReactions.length, 1);
+    assert.deepEqual(calls.statusReactions[0][1].react, { text: '💚', key: message.key });
+    assert.deepEqual(calls.statusReactions[0][2].statusJidList, ['15550001112@lid']);
     assert.deepEqual(calls.comments, [[message, '💚']]);
 });
 
@@ -148,7 +158,7 @@ test('status handler ignores reaction-message updates and does not attempt statu
     });
 
     assert.equal(calls.views.length, 0);
-    assert.equal(calls.likes.length, 0);
+    assert.equal(calls.statusReactions.length, 0);
     assert.equal(calls.comments.length, 0);
 });
 
@@ -166,7 +176,7 @@ test('status handler skips author-dependent actions when a story author is unres
     });
 
     assert.equal(calls.views.length, 0);
-    assert.equal(calls.likes.length, 0);
+    assert.equal(calls.statusReactions.length, 0);
     assert.equal(calls.comments.length, 0);
 });
 
@@ -189,8 +199,9 @@ test('incomplete status keys are skipped until an enriched update resolves the a
 
     assert.equal(calls.views.length, 1);
     assert.equal(calls.views[0], enriched);
-    assert.equal(calls.likes.length, 1);
-    assert.equal(calls.likes[0][0], enriched);
+    assert.equal(calls.statusReactions.length, 1);
+    assert.deepEqual(calls.statusReactions[0][1].react, { text: '💚', key: enriched.key });
+    assert.deepEqual(calls.statusReactions[0][2].statusJidList, ['15550004444@lid']);
 });
 
 test('ASS auto-save uses downloadStatus and forwards media to its configured archive target', async () => {
@@ -207,6 +218,43 @@ test('ASS auto-save uses downloadStatus and forwards media to its configured arc
     assert.ok(saved);
     assert.equal(saved[1].caption, 'Saved status image');
     assert.equal(saved[1].image.toString(), 'status-media-bytes');
+});
+
+test('ASS defaults ON, saves media and text statuses from different authors to the connected account', async () => {
+    fs.rmSync(path.join(tempRoot, 'database', 'autosavestatus.json'), { force: true });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: false, AUTO_STATUS_LIKE: false };
+    const previousOwnerNumber = process.env.OWNER_NUMBER;
+    delete process.env.OWNER_NUMBER;
+    const { sock, calls } = makeSocket();
+    sock.user = { id: '15550009999:17@s.whatsapp.net' };
+    const imageStatus = statusMessage('autosave-author-one', {
+        imageMessage: { caption: 'Photo from author one' }
+    });
+    const textStatus = statusMessage('autosave-author-two', {
+        extendedTextMessage: { text: 'Text story from author two' }
+    });
+
+    try {
+        await calls.subscription.listener({
+            message: imageStatus, authorJid: '15550001111@s.whatsapp.net', kind: 'status', type: 'notify'
+        });
+        await calls.subscription.listener({
+            message: textStatus, authorJid: '15550002222@lid', kind: 'status', type: 'notify'
+        });
+    } finally {
+        if (previousOwnerNumber === undefined) delete process.env.OWNER_NUMBER;
+        else process.env.OWNER_NUMBER = previousOwnerNumber;
+    }
+
+    assert.deepEqual(calls.downloads, [[imageStatus, 'buffer']]);
+    assert.equal(calls.messages.length, 2);
+    const [mediaSave, textSave] = calls.messages;
+    assert.equal(mediaSave[0], '15550009999@s.whatsapp.net');
+    assert.equal(mediaSave[1].caption, 'Photo from author one');
+    assert.equal(mediaSave[1].image.toString(), 'status-media-bytes');
+    assert.equal(textSave[0], '15550009999@s.whatsapp.net');
+    assert.deepEqual(textSave[1], { text: 'Text story from author two' });
 });
 
 test('ACS sends configured text comments through commentStatus', async () => {

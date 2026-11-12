@@ -1,6 +1,7 @@
 /**
- * CODY status automation. Baileys owns status detection, author resolution,
- * receipt/reaction serialization, comment construction, and media download.
+ * CODY status automation. Plogme owns status detection, author resolution,
+ * comment construction, and media download. Status reactions use an explicit
+ * statusJidList so WhatsApp gets the target author in the proven wire format.
  */
 const chalk = require('chalk');
 const fs = require('fs');
@@ -11,7 +12,7 @@ const seen = new Set();
 const ASS_CONFIG_PATH = path.join(process.cwd(), 'database', 'autosavestatus.json');
 const ACS_CONFIG_PATH = path.join(process.cwd(), 'database', 'autocommentstatus.json');
 const ACS_STICKER_PATH = path.join(process.cwd(), 'database', 'autocommentstatus-sticker.webp');
-const defaultAssConfig = { enabled: false, mode: 'dm', target: null };
+const defaultAssConfig = { enabled: true, mode: 'dm', target: null };
 const defaultAcsConfig = { enabled: true, mode: 'text', text: '💚' };
 const MEDIA_FIELDS = new Set(['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage']);
 const WRAPPER_FIELDS = new Set([
@@ -97,9 +98,14 @@ function getAcsConfig() {
     return readConfig(ACS_CONFIG_PATH, defaultAcsConfig);
 }
 
-function getOwnerJid() {
+function getOwnerJid(sock) {
     const number = (process.env.OWNER_NUMBER || '').replace(/[^0-9]/g, '');
-    return number ? `${number}@s.whatsapp.net` : null;
+    if (number) return `${number}@s.whatsapp.net`;
+
+    const connectedJid = sock?.user?.id || sock?.user?.jid || sock?.user?.lid;
+    if (!connectedJid) return null;
+    const decoded = typeof sock.decodeJid === 'function' ? sock.decodeJid(connectedJid) : connectedJid;
+    return String(decoded || connectedJid).replace(/:\d+(?=@)/, '');
 }
 
 function findStatusMedia(message) {
@@ -141,14 +147,53 @@ function mediaToSendContent(field, media, buffer) {
     return undefined;
 }
 
+function findStatusText(message) {
+    const queue = [message?.message, message?.fakeObj?.message]
+        .filter(value => value && typeof value === 'object');
+    const visited = new WeakSet();
+    let inspected = 0;
+    while (queue.length && inspected < 160) {
+        const current = queue.shift();
+        if (!current || typeof current !== 'object' || visited.has(current)) continue;
+        visited.add(current);
+        inspected += 1;
+        const text = typeof current.conversation === 'string'
+            ? current.conversation
+            : typeof current.extendedTextMessage?.text === 'string'
+                ? current.extendedTextMessage.text
+                : '';
+        if (text.trim()) return text.trim();
+        for (const [field, payload] of Object.entries(current)) {
+            if (WRAPPER_FIELDS.has(field) && payload && typeof payload === 'object') {
+                queue.push(payload.message || payload);
+            }
+        }
+    }
+    return '';
+}
+
 async function autoSaveStatus(sock, event) {
     const config = getAssConfig();
     if (!config.enabled) return false;
-    const targetJid = config.mode === 'dm' ? getOwnerJid() : config.target;
-    if (!targetJid) return false;
+    const targetJid = config.mode === 'dm' ? getOwnerJid(sock) : config.target;
+    if (!targetJid) {
+        console.warn('[STATUS] SAVE skipped: no destination available; configure OWNER_NUMBER or set an ASS target');
+        return false;
+    }
     const media = findStatusMedia(event.message);
-    if (!media) return false;
+    if (!media) {
+        const text = findStatusText(event.message);
+        if (!text) {
+            console.log('[STATUS] SAVE skipped: status has no supported text or media payload');
+            return false;
+        }
+        await sock.sendMessage(targetJid, { text });
+        return true;
+    }
 
+    if (typeof sock.downloadStatus !== 'function') {
+        throw new TypeError('This Plogme version lacks downloadStatus() for auto-saving status media');
+    }
     const buffer = await sock.downloadStatus(event.message, 'buffer');
     if (!buffer?.length) return false;
     const content = mediaToSendContent(media.field, media.payload, buffer);
@@ -165,7 +210,20 @@ async function markStatusViewed(sock, event) {
 async function sendStatusReaction(sock, event) {
     const emoji = getVar('STATUS_EMOJI', '💚');
     if (event.kind === 'group') return sock.likeGroupStatus(event.message, emoji);
-    return sock.likeStatus(event.message, emoji);
+
+    const message = event.message;
+    const key = message?.key || message?.fakeObj?.key || {};
+    const posterJid = key.participant || event.authorJid || key.participantAlt || key.remoteJidAlt;
+    if (!posterJid || key.fromMe) return false;
+    const reactionJid = key.remoteJidAlt || posterJid;
+
+    // Mirror CODEX-AI's working WhatsApp status-like wire format: send the
+    // original status key and explicitly address the status author.
+    return sock.sendMessage('status@broadcast', {
+        react: { text: emoji, key }
+    }, {
+        statusJidList: [reactionJid]
+    });
 }
 
 async function autoCommentStatus(sock, event) {
@@ -298,6 +356,7 @@ module.exports = {
     getAssConfig,
     getAcsConfig,
     findStatusMedia,
+    findStatusText,
     autoSaveStatus,
     autoCommentStatus,
     markStatusViewed,

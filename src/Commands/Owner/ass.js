@@ -5,7 +5,7 @@ const CONFIG_PATH = path.join(process.cwd(), 'database', 'autosavestatus.json');
 
 // Default config
 const defaultConfig = {
-    enabled: false,
+    enabled: true,
     mode: 'dm',        // 'dm' = owner DM, 'chat' = specific chat, 'number' = specific WhatsApp number
     target: null,      // JID for chat mode, or phone number string for number mode
 };
