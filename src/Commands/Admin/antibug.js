@@ -229,7 +229,7 @@ const plugin = {
         if (metadata && botAdmin && sender.jid) {
           if (action === 'kick') await sock.groupParticipantsUpdate(m.chat, [sender.jid], 'remove').catch(() => {});
           else {
-            const { parseTime, tkick } = require('./tkick');
+            const { parseTime, tkick } = require('../../Plugin/tkick');
             await tkick(sock, m.chat, sender.jid, parseTime(config.tkickDuration || '5m') || 300000, 'AntiBug').catch(() => {});
           }
         }
