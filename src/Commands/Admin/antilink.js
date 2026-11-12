@@ -55,7 +55,7 @@ const PRODUCT_MESSAGE_TYPES = new Set(['productMessage']);
 const STRUCTURED_LINK_MESSAGE_TYPES = new Set([...POLL_MESSAGE_TYPES, ...PRODUCT_MESSAGE_TYPES]);
 const MEDIA_MESSAGE_TYPES = new Set([
     'imageMessage', 'videoMessage', 'instantImageMessage', 'ptvMessage', 'audioMessage',
-    'documentMessage', 'documentWithCaptionMessage', 'stickerMessage', 'stickerPackMessage',
+    'documentMessage', 'stickerMessage', 'stickerPackMessage',
     'stickerSyncRmrMessage', 'lottieStickerMessage', 'audioStickerMessage', 'albumMessage',
     'eventCoverImage', 'pollCreationOptionImageMessage', 'statusStickerInteractionMessage'
 ]);
@@ -65,7 +65,8 @@ const IGNORED_MESSAGE_SUBTREES = new Set([
 ]);
 const MESSAGE_WRAPPER_TYPES = new Set([
     'raw', 'message', 'msg', 'ephemeralMessage', 'deviceSentMessage', 'viewOnceMessage',
-    'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'editedMessage', 'protocolMessage'
+    'viewOnceMessageV2', 'viewOnceMessageV2Extension', 'documentWithCaptionMessage',
+    'editedMessage', 'protocolMessage'
 ]);
 const MESSAGE_ROOT_TYPES = new Set([
     ...TEXT_MESSAGE_TYPES, ...INTERACTIVE_MESSAGE_TYPES, ...STRUCTURED_LINK_MESSAGE_TYPES, ...MEDIA_MESSAGE_TYPES
@@ -132,6 +133,7 @@ function getMessageText(value) {
             else if (TEXT_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkText(child);
             else if (INTERACTIVE_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkInteractive(child);
             else if (STRUCTURED_LINK_MESSAGE_TYPES.has(key) && child && typeof child === 'object') walkStructured(child);
+            else if (MEDIA_MESSAGE_TYPES.has(key) && child && typeof child === 'object') add(child.caption);
             else if (MESSAGE_WRAPPER_TYPES.has(key) && child && typeof child === 'object') walkRoot(child);
         }
     };

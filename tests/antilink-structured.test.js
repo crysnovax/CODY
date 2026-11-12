@@ -160,23 +160,33 @@ test('scans link text/captions in view-once messages but ignores ordinary media 
     }), ['https://private.example.org/text']);
 });
 
-test('ignores Baileys media payloads for images, videos, GIFs, live photos, stickers and wrapped media', () => {
+test('scans user-authored media captions but ignores transport URLs and captionless media metadata', () => {
     const mediaOnly = {
-        imageMessage: { url: 'https://mmg.whatsapp.net/image/transport', caption: 'https://image-caption.example.org' },
+        imageMessage: { url: 'https://mmg.whatsapp.net/image/transport', caption: 'Photo link https://image-caption.example.org' },
         instantImageMessage: { url: 'https://mmg.whatsapp.net/instant-image/transport' },
         videoMessage: {
             url: 'https://mmg.whatsapp.net/video/transport',
             metadataUrl: 'https://mmg.whatsapp.net/video/metadata',
             dashManifestUrl: 'https://mmg.whatsapp.net/video/manifest',
+            caption: 'Watch here https://video-caption.example.org/watch',
             gifPlayback: true,
             motionPhotoPresentationOffsetMs: 12
         },
         ptvMessage: { url: 'https://mmg.whatsapp.net/live-photo/transport' },
         stickerMessage: { url: 'https://mmg.whatsapp.net/sticker/transport' },
         eventCoverImage: { message: { imageMessage: { url: 'https://mmg.whatsapp.net/event-cover/transport' } } },
-        pollCreationOptionImageMessage: { message: { imageMessage: { url: 'https://mmg.whatsapp.net/poll-image/transport' } } }
+        pollCreationOptionImageMessage: { message: { imageMessage: { url: 'https://mmg.whatsapp.net/poll-image/transport' } } },
+        documentWithCaptionMessage: {
+            message: { documentMessage: { caption: 'Document link https://document-caption.example.org/file' } }
+        }
     };
-    assert.deepEqual(getMessageText(mediaOnly), []);
+    const texts = getMessageText(mediaOnly);
+    const combined = texts.join(' ');
+    assert.ok(texts.some(text => text.includes('image-caption.example.org')));
+    assert.ok(texts.some(text => text.includes('video-caption.example.org/watch')));
+    assert.ok(texts.some(text => text.includes('document-caption.example.org/file')));
+    assert.ok(!combined.includes('mmg.whatsapp.net'));
+    assert.ok(!combined.includes('instantImageMessage'));
 });
 
 test('ignores unrelated arbitrary string metadata without a link', () => {
