@@ -20,16 +20,19 @@ module.exports = {
             const hours = Math.floor((uptimeSeconds % 86400) / 3600);
             const minutes = Math.floor((uptimeSeconds % 3600) / 60);
             const seconds = uptimeSeconds % 60;
-            
-            const uptimeStr = `${days}d-${hours}h-${minutes}m-${seconds}s`;
-            
-            const message = 
-                `╭─❍📡 *UPTIME!*\n` +
-                `│ ❏ \`${uptimeStr}\`\n` +
-                `│ ⚉   _online_\n` +
-                `╰─ 𓄄 \`${currentTime}[${timezone}]\``;
-            
-            await reply(message);
+
+            const uptimeStr = `${days}d –${hours}hr –${minutes}m –${seconds}s..`;
+
+            await sock.sendInteractiveContactCard(m.chat, {
+                title: `♲ Cody AIㅤㅤㅤ${currentTime}`,
+                body: `\`\`\`⚉ ${uptimeStr}\`\`\`\n\`『${timezone}』\``,
+                footer: 'Test environment',
+                buttonParams: {
+                    signup_id: 'test-signup-001',
+                    subscription_timestamp: '1793181029',
+                    promo_code: 'TEST_ONLY'
+                }
+            });
         } catch (err) {
             console.error('[UPTIME ERROR]', err);
             reply('⚉ Failed to get uptime');
