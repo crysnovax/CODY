@@ -173,29 +173,27 @@ module.exports = {
                 : `${ref.fullBook} ${ref.chapter}:${ref.verse}`;
 
             // Send first part with full info
-            await sock.sendMessage(m.chat, {
-                headerText: `## 📖 ${refDisplay}${totalParts > 1 ? ' (1/' + totalParts + ')' : ''}`,
-                contentText: '---',
-                title: '🙏 Holy Bible (KJV)',
-                table: [
-                    ['📖 Book', ref.fullBook],
-                    ['📜 Chapter', ref.chapter],
-                    ['📍 Verse(s)', ref.isRange ? `${ref.verse}-${ref.endVerse}` : String(ref.verse)],
-                    ['📝 Text', verseChunks[0]]
-                ],
-                footerText: totalParts > 1 ? `💡 SWIPE ⇆ for more (Part 1/${totalParts})` : '💡 SWIPE ⇆ • Use .bible <ref> for more'
-            }, { quoted: m });
+            await sock.sendRichAIResponse(m.chat, {
+                list: {
+                    title: `📖 ${refDisplay}${totalParts > 1 ? ` (1/${totalParts})` : ''} | 🙏 Holy Bible (KJV)`,
+                    items: [
+                        `📖 Book: ${ref.fullBook}`,
+                        `📜 Chapter: ${ref.chapter}`,
+                        `📍 Verse(s): ${ref.isRange ? `${ref.verse}-${ref.endVerse}` : String(ref.verse)}`,
+                        `📝 ${verseChunks[0]}`
+                    ]
+                }
+            });
 
             // Send remaining parts if any
             for (let i = 1; i < verseChunks.length; i++) {
-                await sock.sendMessage(m.chat, {
-                    headerText: `## 📖 ${refDisplay} (${i + 1}/${totalParts})`,
-                    contentText: '---',
-                    title: '🙏 Holy Bible (KJV)',
-                    table: [
-                        ['📝 Text', verseChunks[i]]
-                    ],
-                    footerText: `💡 Part ${i + 1}/${totalParts}`
+                await sock.sendRichAIResponse(m.chat, {
+                    list: {
+                        title: `📖 ${refDisplay} (${i + 1}/${totalParts}) | 🙏 Holy Bible (KJV)`,
+                        items: [
+                            `📝 ${verseChunks[i]}`
+                        ]
+                    }
                 });
             }
 
