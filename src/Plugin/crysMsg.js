@@ -11,6 +11,7 @@ const ENV_PATH  = path.join(process.cwd(), '.env');
 const cooldowns = new Map();
 
 const normalizeJid = (jid = '') => jid.replace(/:\d+@/, '@');
+const isPrivateModeExempt = (cmdName, cmd) => cmdName === 'appeal' || cmd?.allowInPrivateMode === true;
 
 // Map-safe contact lookup
 const extractPhoneNumber = (jid, store = null) => {
@@ -328,8 +329,10 @@ const handleMessage = async (sock, m, store) => {
 
         const reply = (txt, options = {}) => sock.sendMessage(m.chat, { text: txt, ...options }, { quoted: m });
 
-        // MODIFIED: Allow 'appeal' command for everyone even in private mode
+        // Commands marked allowInPrivateMode reach their own role-aware checks.
+        // Keep the existing appeal exception and cooldown behavior unchanged.
         const isPublicCommand = cmdName === 'appeal';
+        const privateModeExempt = isPrivateModeExempt(cmdName, cmd);
         const hasAllAdminGroupAccess = hasAllAdminAccess({
             groupJid: m.chat,
             isGroup: Boolean(m.isGroup),
@@ -342,7 +345,7 @@ const handleMessage = async (sock, m, store) => {
             isAdmin: Boolean(isAdmin),
         });
 
-        if (!cfg.status.public && !isSudo && !isDual && !isPublicCommand && !hasAllAdminGroupAccess && !canConfigureAllAdmin) {
+        if (!cfg.status.public && !isSudo && !isDual && !privateModeExempt && !hasAllAdminGroupAccess && !canConfigureAllAdmin) {
             if (privateReact) {
                 await sock.sendMessage(m.chat, { react: { text: '⚉', key: m.key } }).catch(() => {});
             }
@@ -446,5 +449,5 @@ const reportErrorToOwner = async (sock, m, ownerNum, prefix, cmdName, senderNum,
     } catch (e) {}
 };
 
-module.exports = { handleMessage };
+module.exports = { handleMessage, isPrivateModeExempt };
                             
