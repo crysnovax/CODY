@@ -127,7 +127,7 @@ test('status handler keeps failed view and successful like outcomes visible in l
         const sock = {
             onStatusMessage: callback => { listener = callback; return () => {}; },
             viewStatus: async () => { throw new Error('fixture receipt rejection'); },
-            sendMessage: async () => ({ key: { id: 'sent' } })
+            likeStatus: async () => ({ key: { id: 'sent' } })
         };
         setupStatusHandler(sock);
         await listener({

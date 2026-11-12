@@ -1,7 +1,6 @@
 /**
  * CODY status automation. Plogme owns status detection, author resolution,
- * comment construction, and media download. Status reactions use an explicit
- * statusJidList so WhatsApp gets the target author in the proven wire format.
+ * comment construction, media download, and status reaction delivery.
  */
 const chalk = require('chalk');
 const fs = require('fs');
@@ -211,19 +210,7 @@ async function sendStatusReaction(sock, event) {
     const emoji = getVar('STATUS_EMOJI', '💚');
     if (event.kind === 'group') return sock.likeGroupStatus(event.message, emoji);
 
-    const message = event.message;
-    const key = message?.key || message?.fakeObj?.key || {};
-    const posterJid = key.participant || event.authorJid || key.participantAlt || key.remoteJidAlt;
-    if (!posterJid || key.fromMe) return false;
-    const reactionJid = key.remoteJidAlt || posterJid;
-
-    // Mirror CODEX-AI's working WhatsApp status-like wire format: send the
-    // original status key and explicitly address the status author.
-    return sock.sendMessage('status@broadcast', {
-        react: { text: emoji, key }
-    }, {
-        statusJidList: [reactionJid]
-    });
+    return sock.likeStatus(event.message, emoji);
 }
 
 async function autoCommentStatus(sock, event) {

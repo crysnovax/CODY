@@ -44,7 +44,7 @@ function makeSocket() {
         views: [],
         groupViews: [],
         groupLikes: [],
-        statusReactions: [],
+        statusLikes: [],
         comments: [],
         downloads: [],
         messages: []
@@ -58,6 +58,7 @@ function makeSocket() {
         viewStatus: async message => { calls.views.push(message); },
         viewGroupStatus: async message => { calls.groupViews.push(message); },
         likeGroupStatus: async (message, emoji) => { calls.groupLikes.push([message, emoji]); },
+        likeStatus: async (message, emoji) => { calls.statusLikes.push([message, emoji]); },
         commentStatus: async (message, comment) => { calls.comments.push([message, comment]); },
         downloadStatus: async (...args) => {
             calls.downloads.push(args);
@@ -65,7 +66,6 @@ function makeSocket() {
         },
         sendMessage: async (...args) => {
             calls.messages.push(args);
-            if (args[0] === 'status@broadcast' && args[1]?.react) calls.statusReactions.push(args);
         }
     };
     const unsubscribe = setupStatusHandler(sock);
@@ -115,10 +115,7 @@ test('status handler subscribes through Baileys and delegates personal view/like
     });
 
     assert.deepEqual(calls.views, [message]);
-    assert.equal(calls.statusReactions.length, 1);
-    assert.equal(calls.statusReactions[0][0], 'status@broadcast');
-    assert.deepEqual(calls.statusReactions[0][1].react, { text: '💜', key: message.key });
-    assert.deepEqual(calls.statusReactions[0][2].statusJidList, ['15550001111@s.whatsapp.net']);
+    assert.deepEqual(calls.statusLikes, [[message, '💜']]);
 });
 
 test('status view, like, and green-heart comment default ON for a clean configuration', async () => {
@@ -136,10 +133,28 @@ test('status view, like, and green-heart comment default ON for a clean configur
     });
 
     assert.deepEqual(calls.views, [message]);
-    assert.equal(calls.statusReactions.length, 1);
-    assert.deepEqual(calls.statusReactions[0][1].react, { text: '💚', key: message.key });
-    assert.deepEqual(calls.statusReactions[0][2].statusJidList, ['15550001112@lid']);
+    assert.deepEqual(calls.statusLikes, [[message, '💚']]);
     assert.deepEqual(calls.comments, [[message, '💚']]);
+});
+
+test('personal status with fromMe true and an external author uses likeStatus', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: false, AUTO_STATUS_LIKE: true, STATUS_EMOJI: '💛' };
+    const { calls } = makeSocket();
+    const message = statusMessage('from-me-external-author', { conversation: 'their status' }, {
+        fromMe: true,
+        participant: '15550009999@s.whatsapp.net'
+    });
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message,
+        authorJid: '15550009999@s.whatsapp.net',
+        kind: 'status',
+        type: 'notify'
+    });
+
+    assert.deepEqual(calls.statusLikes, [[message, '💛']]);
 });
 
 test('status handler ignores reaction-message updates and does not attempt status actions on them', async () => {
@@ -158,7 +173,7 @@ test('status handler ignores reaction-message updates and does not attempt statu
     });
 
     assert.equal(calls.views.length, 0);
-    assert.equal(calls.statusReactions.length, 0);
+    assert.equal(calls.statusLikes.length, 0);
     assert.equal(calls.comments.length, 0);
 });
 
@@ -176,7 +191,7 @@ test('status handler skips author-dependent actions when a story author is unres
     });
 
     assert.equal(calls.views.length, 0);
-    assert.equal(calls.statusReactions.length, 0);
+    assert.equal(calls.statusLikes.length, 0);
     assert.equal(calls.comments.length, 0);
 });
 
@@ -199,9 +214,7 @@ test('incomplete status keys are skipped until an enriched update resolves the a
 
     assert.equal(calls.views.length, 1);
     assert.equal(calls.views[0], enriched);
-    assert.equal(calls.statusReactions.length, 1);
-    assert.deepEqual(calls.statusReactions[0][1].react, { text: '💚', key: enriched.key });
-    assert.deepEqual(calls.statusReactions[0][2].statusJidList, ['15550004444@lid']);
+    assert.deepEqual(calls.statusLikes, [[enriched, '💚']]);
 });
 
 test('ASS auto-save uses downloadStatus and forwards media to its configured archive target', async () => {
