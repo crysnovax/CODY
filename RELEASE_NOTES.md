@@ -2,6 +2,7 @@
 
 ## Social downloader integrations
 
+- Updated `social-dl` to published npm release 2.4.4 and pinned the exact version in `package.json` and `package-lock.json`.
 - Updated `social-dl` from 1.3.9 to the latest published npm release 1.4.0. The upgrade brings the refreshed yt-dlp engine, YouTube client fallbacks, and provider retry/fallback handling for common HTTP 403 blocks.
 - Updated `social-dl` to the published npm release 1.3.9 and locked its public npm registry tarball; CODY no longer depends on a GitHub source checkout.
 - Added `.dramabox`, `.dramafren`, `.goodshort`, `.flextv`, `.moboreels`, and `.reelshort` downloader commands while keeping the existing Apple Music, Threads, RedNote, and Audiomack commands. The Apple Music catalog search command remains `.amsearch`.

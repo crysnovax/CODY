@@ -175,7 +175,7 @@ async function downloadUniversal(url, { audioOnly = false, noWatermark = false, 
     if (quality) saveOptions.quality = quality;
     if (lan) saveOptions.lan = lan;
     if (typeof socialDl.universalSave !== 'function') {
-        throw new Error('social-dl 1.4.1 universalSave is unavailable; update the installed package.');
+        throw new Error('social-dl universalSave is unavailable; install social-dl@2.4.4 or newer.');
     }
     const buffer = await saveToBuffer(
         file => socialDl.universalSave(url, file, saveOptions),

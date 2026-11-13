@@ -222,7 +222,7 @@ For one-time receive-path diagnostics, set the environment variable `CODY_TRACE_
 - **npm** v8+
 - A WhatsApp account (self-bot — runs on your number)
 - Recommended: VPS / Linux server (AWS, Pterodactyl, etc.)
-- CODY social-media downloaders use the published npm package `social-dl@1.4.1`, pinned in `package-lock.json`; DramaBox and other short-drama commands now use the package's shared provider resolver and save path.
+- CODY social-media downloaders use the published npm package `social-dl@2.4.4`, pinned in `package-lock.json`; DramaBox and other short-drama commands use the package's shared provider resolver and save path.
 - Use `.applemusic <URL>`, `.threads <URL>`, `.rednote <URL>`, `.audiomack <URL>`, `.dramabox <URL>`, `.dramafren <URL>`, `.goodshort <URL>`, `.flextv <URL>`, `.moboreels <URL>`, `.reelshort <URL>`, `.anydrama <URL>`, `.shortmax <URL>`, and `.flickreels <URL>`. Short-drama commands accept `--best`, `--quality best|720p|480p`, `--lan <code>` (also `--lang`), and `--no-watermark` where supported. Apple Music requires a strict external match and falls back to Apple's official preview when no confident match is available. Apple Music catalog search remains available as `.amsearch <query>`.
 - warning ⚠️; this project was built specifically for forked bailey ```plogme``` and will totally malfunction without it
 
