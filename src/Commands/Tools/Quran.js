@@ -39,40 +39,10 @@ module.exports = {
                 const surahs = res.data?.data;
                 if (!surahs) throw new Error('No data');
 
-                const tableData = [['#', '📖 Surah', '🌍 English', '🕋 Arabic', '📜 Ayahs']];
-                
-                for (const s of surahs.slice(0, 20)) {
-                    tableData.push([
-                        s.number,
-                        s.englishName,
-                        s.englishNameTranslation.slice(0, 18),
-                        s.name.slice(0, 12),
-                        s.numberOfAyahs
-                    ]);
-                }
-
-                await sock.sendMessage(m.chat, {
-                    headerText: `## ☪️ Surahs of Al-Quran (1-20)`,
-                    contentText: '---',
-                    title: '📖 114 Surahs Total',
-                    table: tableData,
-                    footerText: `💡 SWIPE ⇆ • Use ${prefix}quran <number:verse> for full list`
-                }, { quoted: m });
-
-                // Send remaining surahs
-                const remaining = surahs.slice(20);
-                if (remaining.length) {
-                    const table2 = [['#', '📖 Surah', '🌍 English', '🕋 Arabic', '📜 Ayahs']];
-                    for (const s of remaining.slice(0, 20)) {
-                        table2.push([s.number, s.englishName, s.englishNameTranslation.slice(0, 18), s.name.slice(0, 12), s.numberOfAyahs]);
-                    }
-                    await sock.sendMessage(m.chat, {
-                        headerText: `## ☪️ Surahs (21-40)`,
-                        contentText: '---',
-                        table: table2,
-                        footerText: '💡 SWIPE ⇆ for more'
-                    });
-                }
+                const items = surahs.map(s =>
+                    `${s.number}. ${s.englishName} — ${s.englishNameTranslation} — ${s.name} (${s.numberOfAyahs} ayahs)`
+                );
+                await sock.sendList(m.chat, '☪️ Al-Quran • 114 Surahs', items, m);
 
                 await sock.sendMessage(m.chat, { react: { text: '🥏', key: m.key } });
                 return;

@@ -39,18 +39,18 @@ module.exports = {
 
                 await sock.sendMessage(m.chat, { react: { text: '📧', key: m.key } });
 
-                await sock.sendMessage(m.chat, {
-                    headerText: `## 📧 Temp Email Created`,
-                    contentText: '---',
+                await sock.sendRichAIResponse(m.chat, { table: {
                     title: '📋 Your Email',
-                    table: [
+                    headers: ['Field', 'Value'],
+                    rows: [
                         ['📧 Email', email],
                         ['🔑 Password', password],
                         ['📝 Commands', `${prefix}tempemail check`],
                         ['📖 Read', `${prefix}tempemail read <id>`]
                     ],
-                    footerText: '💡 Use this for OTP / verification'
-                }, { quoted: m });
+                    headerText: `## 📧 Temp Email Created`,
+                    footerText: '💡 Use this for OTP / verification',
+                } }, m);
 
                 return;
             }
@@ -79,13 +79,13 @@ module.exports = {
                     tableData.push([`${i + 1}`, subject, from]);
                 });
 
-                await sock.sendMessage(m.chat, {
-                    headerText: `## 📬 Inbox`,
-                    contentText: '---',
+                await sock.sendRichAIResponse(m.chat, { table: {
                     title: `📋 ${inbox['hydra:member'].length} Messages`,
-                    table: tableData,
-                    footerText: `💡 Use ${prefix}tempemail read <number> to view`
-                }, { quoted: m });
+                    headers: tableData[0],
+                    rows: tableData.slice(1),
+                    headerText: `## 📬 Inbox`,
+                    footerText: `💡 Use ${prefix}tempemail read <number> to view`,
+                } }, m);
 
                 return;
             }
@@ -115,17 +115,17 @@ module.exports = {
                 });
                 const mail = await res.json();
 
-                await sock.sendMessage(m.chat, {
-                    headerText: `## 📧 Message ${id}`,
-                    contentText: '---',
+                await sock.sendRichAIResponse(m.chat, { table: {
                     title: '📋 Details',
-                    table: [
+                    headers: ['Field', 'Value'],
+                    rows: [
                         ['👤 From', mail.from?.address || 'Unknown'],
                         ['📧 Subject', mail.subject || 'No subject'],
                         ['📝 Body', (mail.text || mail.html || 'No content').replace(/<[^>]*>/g, '').slice(0, 500)]
                     ],
-                    footerText: '💡 Temp email • Auto-destroys after inactivity'
-                }, { quoted: m });
+                    headerText: `## 📧 Message ${id}`,
+                    footerText: '💡 Temp email • Auto-destroys after inactivity',
+                } }, m);
 
                 return;
             }

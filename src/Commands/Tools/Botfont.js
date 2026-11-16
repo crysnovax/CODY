@@ -298,7 +298,17 @@ module.exports = {
         // ── LIST ALL FONTS ──
         if (command === 'allfonts') {
             const page = parseInt(args[0]) || 1;
-            return reply(listFonts(page));
+            const perPage = 20;
+            const total = Object.keys(fonts).length;
+            const totalPages = Math.ceil(total / perPage);
+            const safePage = Math.max(1, Math.min(page, totalPages));
+            const start = (safePage - 1) * perPage + 1;
+            const end = Math.min(safePage * perPage, total);
+            const items = [];
+            for (let i = start; i <= end; i++) {
+                if (fonts[i]) items.push(`${i}. ${fonts[i].name}`);
+            }
+            return sock.sendList(m.chat, `📝 CRYSNOVA FONTS • Page ${safePage}/${totalPages}`, items, m);
         }
 
         // ── SET BOT FONT ──

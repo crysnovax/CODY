@@ -18,7 +18,7 @@ module.exports = {
         if (!keys.length) {
             return reply(`${prefix}📋 *No runtime variables set yet*\n\n*Usage:* setvar VARIABLE=VALUE`)
         }
-        const entries = keys.map(k => `• ${k} = ${runtime[k]}`).join('\n')
-        await reply(`${prefix}⚙️ *Runtime Variables (${keys.length})*\n\n${entries}\n\n_Use .delvar VARIABLE to reset to default_`)
+        const entries = keys.map(k => `${k} = ${runtime[k]}`)
+        await sock.sendList(m.chat, `⚙️ Runtime Variables (${keys.length})`, entries, m)
     }
 }

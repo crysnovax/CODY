@@ -68,21 +68,14 @@ module.exports = {
                 '📜 Ketuvim': ['ps', 'prov', 'job', 'song', 'ruth', 'lam', 'eccl', 'esth', 'dan', 'ezra', 'neh', '1chr', '2chr']
             };
 
-            const tableData = [['📜 Book', '📖 Section']];
-            
+            const items = [];
             for (const [section, books] of Object.entries(sections)) {
                 for (const b of books) {
-                    tableData.push([BOOK_MAP[b], section]);
+                    items.push(`${BOOK_MAP[b]} — ${section}`);
                 }
             }
 
-            await sock.sendMessage(m.chat, {
-                headerText: `## ✡️ Books of the Tanakh`,
-                contentText: '---',
-                title: '📜 Torah • Nevi\'im • Ketuvim',
-                table: tableData,
-                footerText: `💡 Use ${prefix}tanak <book ch:vs>`
-            }, { quoted: m });
+            await sock.sendList(m.chat, '✡️ Books of the Tanakh', items, m);
 
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
             return;

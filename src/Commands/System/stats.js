@@ -64,49 +64,29 @@ module.exports = {
             return g?.enabled ? '✓ ON' : '✘ OFF';
         };
 
-        let text = `⌘ ⿻ *B⎔T STATISTICS* ⿻ ⌘\n\n`;
-        text += `𒆜 ಠ_ಠ *BⓘT INFO*\n𓀀\n`;
-        text += row('Bot Name', botName);
-        text += row('Number', botNum || '—');
-        text += row('Mode', publicMode);
-        text += row('Prefix', `[ ${prefix} ]`);
-        text += row('Font', font);
-        text += row('Language', lang);
-        text += row('Timezone', tz);
-        text += `𒆜 ⚔ *PERFORMANCE*\n𓅓\n`;
-        text += row('Uptime', uptimeFromStats());
-        text += row('Messages', String(global.crysStats?.messages || 0));
-        text += row('Commands', String(global.crysStats?.commands || 0));
-        text += `𒆜 ⌘ *CORE TOGGLES*\n𓄂ᬼ𓆃\n`;
-        text += row('Auto Read', on(getVar('AUTO_READ', false)));
-        text += row('Anti Call', on(getVar('ANTI_CALL', true)));
-        text += row('Cmd React', on(getVar('CMD_REACT', getVar('AUTO_REACT', true))));
-        text += row('Auto React', on(require('../Owner/autoreact.js').isEnabled()));
-        text += row('Fake Typing', on(getVar('FAKE_TYPING', 'off')));
-        text += row('Status View', on(getVar('AUTO_STATUS_VIEW', true)));
-        text += row('Status Like', on(getVar('AUTO_STATUS_LIKE', true)));
-        text += row('Auto Record', on(getVar('AUTO_RECORDING', false)));
-        text += row('DND', on(getVar('DND', false)));
-        text += row('Save Mode', on(getVar('SAVE_MODE', false)));
-        text += row('Auto Approve', on(getVar('AUTO_APPROVE', false)));
-        text += row('Pack Name', getVar('PACK_NAME') || 'not set');
-        text += `𒆜 彡 *PROTECTION* (this chat)\n𓅓\n`;
-        text += row('Anti Delete', anti('antidelete.json'));
-        text += row('Anti Edit', anti('antiedit.json'));
-        text += row('Anti Word', anti('antiword.json'));
-        text += row('Anti Tag', anti('antitag.json'));
-        text += row('Anti GM', anti('antigm.json'));
-        text += row('Anti Link', anti('antilink.json'));
-        text += row('Anti Spam', anti('antispam.json'));
-        text += row('Anti Image', anti('antiimage.json'));
-        text += row('Anti Video', anti('antivideo.json'));
-        text += row('Anti Audio', anti('antiaudio.json'));
-        text += row('No Sticker', anti('nosticker.json'));
+        const rows = [
+            ['Bot Name', botName], ['Number', botNum || '—'], ['Mode', publicMode],
+            ['Prefix', `[ ${prefix} ]`], ['Font', font], ['Language', lang], ['Timezone', tz],
+            ['Uptime', uptimeFromStats()], ['Messages', String(global.crysStats?.messages || 0)],
+            ['Commands', String(global.crysStats?.commands || 0)],
+            ['Auto Read', on(getVar('AUTO_READ', false))], ['Anti Call', on(getVar('ANTI_CALL', true))],
+            ['Cmd React', on(getVar('CMD_REACT', getVar('AUTO_REACT', true)))],
+            ['Auto React', on(require('../Owner/autoreact.js').isEnabled())],
+            ['Fake Typing', on(getVar('FAKE_TYPING', 'off'))], ['Status View', on(getVar('AUTO_STATUS_VIEW', true))],
+            ['Status Like', on(getVar('AUTO_STATUS_LIKE', true))], ['Auto Record', on(getVar('AUTO_RECORDING', false))],
+            ['DND', on(getVar('DND', false))], ['Save Mode', on(getVar('SAVE_MODE', false))],
+            ['Auto Approve', on(getVar('AUTO_APPROVE', false))], ['Pack Name', getVar('PACK_NAME') || 'not set'],
+            ['Anti Delete', anti('antidelete.json')], ['Anti Edit', anti('antiedit.json')],
+            ['Anti Word', anti('antiword.json')], ['Anti Tag', anti('antitag.json')],
+            ['Anti GM', anti('antigm.json')], ['Anti Link', anti('antilink.json')],
+            ['Anti Spam', anti('antispam.json')], ['Anti Image', anti('antiimage.json')],
+            ['Anti Video', anti('antivideo.json')], ['Anti Audio', anti('antiaudio.json')],
+            ['No Sticker', anti('nosticker.json')],
+        ];
 
         const vars = allVars();
         const varKeys = Object.keys(vars);
         if (varKeys.length) {
-            text += `𒆜 ✪ *RUNTIME VARS* (${varKeys.length})\n𓅓\n`;
             for (const k of varKeys) {
                 let v = vars[k];
                 if (v && typeof v === 'object') {
@@ -114,11 +94,12 @@ module.exports = {
                 }
                 v = String(v);
                 if (v.length > 42) v = v.slice(0, 42) + '…';
-                text += row(k, v, 26);
+                rows.push([k, v]);
             }
         }
 
-        text += `\n⌘ ⿻ *𝗖𝗥𝗬𝗦𝗡☉𝗩𝗔 𝗔𝗜* ⿻ ⌘`;
-        return reply(text);
+        return sock.sendRichAIResponse(chat, {
+            table: { title: '⌘ B⎔T STATISTICS', headers: ['Setting', 'Value'], rows },
+        }, m);
     }
 };

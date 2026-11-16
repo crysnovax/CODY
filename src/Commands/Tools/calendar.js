@@ -47,13 +47,15 @@ module.exports = {
         }
 
         await sock.sendMessage(m.chat, { react: { text: '📅', key: m.key } });
-        await sock.sendMessage(m.chat, {
-            headerText: `## 📅 ${monthName} ${year}`,
-            contentText: '---',
-            title: '📆 Premium Calendar',
-            table: tableRows,
-            footerText: `💡 Today: ${today.day} ${monthNames[currentMonth - 1]} ${currentYear} (${getBotTimezone()}) | ${prefix}calendar ${month === 12 ? 1 : month + 1} ${month === 12 ? year + 1 : year}`
-        }, { quoted: m });
+        await sock.sendRichAIResponse(m.chat, {
+            table: {
+                title: `📆 ${monthName} ${year}`,
+                headers: tableRows[0],
+                rows: tableRows.slice(1),
+                headerText: `## 📅 ${monthName} ${year}`,
+                footerText: `💡 Today: ${today.day} ${monthNames[currentMonth - 1]} ${currentYear} (${getBotTimezone()}) | ${prefix}calendar ${month === 12 ? 1 : month + 1} ${month === 12 ? year + 1 : year}`,
+            },
+        }, m);
         await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
     }
 };
