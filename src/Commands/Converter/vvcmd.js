@@ -14,6 +14,33 @@ function saveDB() {
     fs.writeFileSync(DB_PATH, JSON.stringify(triggers, null, 2))
 }
 
+function makeMessageEnvelope(m, quoted) {
+    if (m?.quoted?.fakeObj?.message) return m.quoted.fakeObj
+    return {
+        key: {
+            ...(m?.quoted?.key || {}),
+            remoteJid: m?.quoted?.chat || m?.chat,
+            id: m?.quoted?.id,
+            fromMe: m?.quoted?.fromMe,
+            participant: m?.quoted?.sender,
+        },
+        message: quoted,
+        participant: m?.quoted?.sender,
+    }
+}
+
+async function downloadViewOnce(sock, envelope, media, type) {
+    if (typeof sock?.downloadMediaMessage === 'function' && envelope?.message) {
+        return sock.downloadMediaMessage(envelope, 'buffer')
+    }
+
+    // Compatibility fallback for lightweight test sockets and old integrations.
+    const stream = await downloadContentFromMessage(media, type)
+    const chunks = []
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk))
+    return Buffer.concat(chunks)
+}
+
 // ── Called on every message — exact same flow as .vvp ────────
 module.exports.handleVVReply = async function(sock, m) {
     try {
@@ -33,8 +60,9 @@ module.exports.handleVVReply = async function(sock, m) {
 
         // Must reply to something. Prefer the serialized quote, then fall
         // back to the raw context envelope used by newer Baileys clients.
-        let quoted = m.quoted?.message || m.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        let quoted = m.quoted?.fakeObj?.message || m.quoted?.message || m.message?.extendedTextMessage?.contextInfo?.quotedMessage
         if (!quoted) return
+        const envelope = makeMessageEnvelope(m, quoted)
 
         // Unwrap every envelope used by current WhatsApp clients.
         let unwrapped = true
@@ -54,15 +82,12 @@ module.exports.handleVVReply = async function(sock, m) {
         if (!['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'].includes(type)) return
 
         // Download
-        const stream = await downloadContentFromMessage(
+        const buffer = await downloadViewOnce(
+            sock,
+            envelope,
             quoted[type],
             type.replace('Message', '').toLowerCase()
         )
-
-        let buffer = Buffer.alloc(0)
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk])
-        }
 
         const sendType =
             type === 'videoMessage'   ? 'video'   :
@@ -146,4 +171,3 @@ module.exports = {
         )
     }
 }
-

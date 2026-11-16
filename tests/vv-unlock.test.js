@@ -16,13 +16,20 @@ Module._load = function(request, parent, isMain) {
 const vv = require('../src/Commands/Converter/view-once');
 Module._load = originalLoad;
 
-async function invoke(message, command = '.vv') {
+async function invoke(message, command = '.vv', useSocketDownloader = false) {
     const sent = [];
     const replies = [];
+    let socketDownloads = 0;
     const sock = {
         sendMessage: async (...args) => { sent.push(args); return {}; },
         ev: { on() {} },
     };
+    if (useSocketDownloader) {
+        sock.downloadMediaMessage = async () => {
+            socketDownloads += 1;
+            return Buffer.from('socket-downloaded-bytes');
+        };
+    }
     const m = {
         body: command,
         chat: 'test-group@g.us',
@@ -33,7 +40,7 @@ async function invoke(message, command = '.vv') {
     await vv.execute(sock, m, {
         args: [], prefix: '.', reply: async text => replies.push(text),
     });
-    return { sent, replies };
+    return { sent, replies, socketDownloads };
 }
 
 test('vv unlocks a view-once text message', async () => {
@@ -67,6 +74,16 @@ test('vv uses caption-capable payloads for images and videos', async () => {
         assert.equal(sent[0][1][expectedKey].toString(), 'view-once-bytes');
         assert.match(sent[0][1].caption, /View-once unlocked/);
     }
+});
+
+test('vv uses the socket-level downloader for media envelopes', async () => {
+    const { sent, socketDownloads } = await invoke(
+        { viewOnceMessageV2: { message: { imageMessage: {} } } },
+        '.vv',
+        true
+    );
+    assert.equal(socketDownloads, 1);
+    assert.equal(sent[0][1].image.toString(), 'socket-downloaded-bytes');
 });
 
 test('vvp sends recovered view-once text directly to the requester', async () => {

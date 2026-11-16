@@ -109,14 +109,42 @@ function isViewOnceEnvelope(message, seen = new WeakSet()) {
   return Object.values(message).some(value => isViewOnceEnvelope(value, seen));
 }
 
-async function downloadMedia(content) {
+function makeMessageEnvelope(source, message) {
+  if (!message) return null;
+  if (source?.message && source?.key) return source;
+  return {
+    key: {
+      ...(source?.key || {}),
+      remoteJid: source?.key?.remoteJid || source?.chat,
+      id: source?.key?.id || source?.id,
+      fromMe: source?.key?.fromMe || source?.fromMe,
+      participant: source?.key?.participant || source?.participant || source?.sender,
+    },
+    message,
+    participant: source?.participant || source?.sender,
+  };
+}
+
+async function downloadMedia(sock, content, messageEnvelope) {
   const found = findMedia(content);
   if (!found) return null;
   const { type, media } = found;
-  const stream = await downloadContentFromMessage(media, type.replace('Message', '').toLowerCase());
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(chunk);
-  return { type, media, buffer: Buffer.concat(chunks) };
+  let buffer;
+
+  // Keep the complete WebMessageInfo for WhatsApp media downloads. This lets
+  // Baileys use the message key and its media-reupload path when view-once
+  // media has an expired or stale direct path.
+  if (typeof sock?.downloadMediaMessage === 'function' && messageEnvelope?.message) {
+    buffer = await sock.downloadMediaMessage(messageEnvelope, 'buffer');
+  } else {
+    // Compatibility fallback for lightweight test sockets and old integrations.
+    const stream = await downloadContentFromMessage(media, type.replace('Message', '').toLowerCase());
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    buffer = Buffer.concat(chunks);
+  }
+
+  return { type, media, buffer };
 }
 
 module.exports = {
@@ -155,10 +183,14 @@ module.exports = {
       }
 
       // ───── MUST REPLY ─────
-      let quoted = m.quoted?.message || m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+      let quoted = m.quoted?.fakeObj?.message || m.quoted?.message || m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       if (!quoted) {
         return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ Reply to a view-once message.\n╰──────────────────');
       }
+
+      const quotedEnvelope = m.quoted?.fakeObj?.message
+        ? m.quoted.fakeObj
+        : makeMessageEnvelope(m.quoted || m, quoted);
 
       // Unwrap current ephemeral/view-once envelopes.
       let unwrapped = true;
@@ -185,15 +217,8 @@ module.exports = {
       const type = found.type;
 
       // ───── DOWNLOAD BUFFER ─────
-      const stream = await downloadContentFromMessage(
-        found.media,
-        type.replace('Message','').toLowerCase()
-      );
-
-      let buffer = Buffer.alloc(0);
-      for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk]);
-      }
+      const downloaded = await downloadMedia(sock, quoted, quotedEnvelope);
+      const buffer = downloaded?.buffer;
 
       const payload = buildMediaPayload(
         type,
@@ -236,15 +261,8 @@ module.exports = {
             }
             const t = reacted.type;
 
-            const s = await downloadContentFromMessage(
-              reacted.media,
-              t.replace('Message','').toLowerCase()
-            );
-
-            let buf = Buffer.alloc(0);
-            for await (const chunk of s) {
-              buf = Buffer.concat([buf, chunk]);
-            }
+            const downloaded = await downloadMedia(sock, content, msg);
+            const buf = downloaded?.buffer;
 
             const payload = buildMediaPayload(
               t,
@@ -300,16 +318,19 @@ module.exports.handleAutoVV = async function handleAutoVV(sock, m, mek) {
 
     // If unwrap didn't change anything (no wrapper found), the message might
     // already be unwrapped by smsg — just use it directly.
-    let media = await downloadMedia(content);
+    const messageEnvelope = mek?.message
+      ? mek
+      : makeMessageEnvelope(mek || m, rawEnvelope);
+    let media = await downloadMedia(sock, content, messageEnvelope);
 
     // Fallback: check if m.message has media directly (smsg unwrapped it)
     if (!media) {
-      media = await downloadMedia(unwrapViewOnce(ownMessage));
+      media = await downloadMedia(sock, unwrapViewOnce(ownMessage), messageEnvelope);
     }
 
     // Last fallback: check m itself (smsg sometimes puts media type at top)
     if (!media) {
-      media = await downloadMedia(unwrapViewOnce(ownMsg));
+      media = await downloadMedia(sock, unwrapViewOnce(ownMsg), messageEnvelope);
     }
 
     const viewOnceText = findViewOnceText(rawEnvelope) ||
