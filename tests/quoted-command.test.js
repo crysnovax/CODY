@@ -2,16 +2,22 @@
 
 const { after, test } = require('node:test');
 const assert = require('node:assert/strict');
-const { smsg } = require('../library/serialize');
 const Module = require('node:module');
 const originalLoad = Module._load;
 Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'plogme') {
-        return { downloadContentFromMessage: async function* () { yield Buffer.from('status-image'); } };
+        return {
+            downloadContentFromMessage: async function* () { yield Buffer.from('status-image'); },
+            jidNormalizedUser: jid => jid,
+            areJidsSameUser: (left, right) => left === right,
+            getContentType: message => Object.keys(message || {})[0],
+            proto: { WebMessageInfo: { fromObject: value => value } },
+        };
     }
     return originalLoad.call(this, request, parent, isMain);
 };
 global.prefix = '.';
+const { smsg } = require('../library/serialize');
 const command = require('../src/Commands/Admin/qt');
 
 after(() => {

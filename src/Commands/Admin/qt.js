@@ -1,7 +1,6 @@
 'use strict';
 
 const {
-    getContextInfo,
     getMessageText,
     getMessageType,
     messagePayload,
@@ -30,10 +29,35 @@ function storeEnvelope(value) {
     return null;
 }
 
+function findNestedQuotedMessage(value, seen = new WeakSet()) {
+    if (!value || typeof value !== 'object' || seen.has(value)) return null;
+    seen.add(value);
+
+    // A serialized quoted media object can carry fakeObj.message, but its own
+    // contextInfo is the authoritative message-type context. Do not jump to
+    // fakeObj.message first or the traversal loops back to the outer copy.
+    const source = value.contextInfo || value.messageContextInfo ? value : messagePayload(value);
+    const payload = unwrapMessage(source);
+    if (!payload || typeof payload !== 'object') return null;
+
+    for (const [key, child] of Object.entries(payload)) {
+        if (!child || typeof child !== 'object') continue;
+        if ((key === 'contextInfo' || key === 'messageContextInfo') && child.quotedMessage) {
+            return child.quotedMessage;
+        }
+        if (key === 'quotedMessage' || key === 'quoted') continue;
+        const nested = findNestedQuotedMessage(child, seen);
+        if (nested) return nested;
+    }
+    const directQuote = payload.contextInfo?.quotedMessage || payload.messageContextInfo?.quotedMessage;
+    if (directQuote) return directQuote;
+    return null;
+}
+
 async function findRepliedMessage(m, store, sock) {
     const quoted = m?.quoted;
     const direct = rawQuotedMessage(quoted);
-    if (direct?.message && getContextInfo(direct.message)?.quotedMessage) return direct;
+    if (direct?.message && findNestedQuotedMessage(direct.message)) return direct;
     let fallback = direct?.message ? direct : null;
 
     const id = quoted?.id || quoted?.key?.id || quoted?.fakeObj?.key?.id;
@@ -50,7 +74,7 @@ async function findRepliedMessage(m, store, sock) {
             try {
                 const loaded = storeEnvelope(await store.loadMessage(jid, id, sock));
                 if (loaded?.message) {
-                    if (getContextInfo(loaded.message)?.quotedMessage) return loaded;
+                    if (findNestedQuotedMessage(loaded.message)) return loaded;
                     fallback ||= loaded;
                 }
             } catch {}
@@ -59,7 +83,7 @@ async function findRepliedMessage(m, store, sock) {
             try {
                 const loaded = storeEnvelope(store.messages.get(`${jid}:${id}`));
                 if (loaded?.message) {
-                    if (getContextInfo(loaded.message)?.quotedMessage) return loaded;
+                    if (findNestedQuotedMessage(loaded.message)) return loaded;
                     fallback ||= loaded;
                 }
             } catch {}
@@ -73,7 +97,7 @@ module.exports = {
     alias: ['getquoted', 'showquoted'],
     desc: 'Get the exact quoted message content',
     category: 'Tools',
-    usage: `${prefix}quoted (reply to a message; unwraps its quote when present)`,
+    usage: '.quoted (reply to a message; returns the message quoted by the replied message)',
     reactions: { start: '📝', success: '💬', error: '📡' },
     adminOnly: false,
     ownerOnly: true,
@@ -96,10 +120,10 @@ module.exports = {
             }
 
             const targetPayload = messagePayload(target);
-            const contextInfo = getContextInfo(targetPayload);
-            // Prefer the nested quote when the replied-to message contains one;
-            // otherwise return the replied-to message itself instead of failing.
-            const message = unwrapMessage(contextInfo?.quotedMessage || targetPayload);
+            // Follow the quote chain one level: C replies to B, and B quotes
+            // A, so return A. If B has no inner quote, retain B as fallback.
+            const innerQuoted = findNestedQuotedMessage(targetPayload);
+            const message = unwrapMessage(innerQuoted || targetPayload);
             const type = getMessageType(message);
             const mediaKey = Object.keys(MEDIA_TYPES).find(key => message[key]);
             const text = getMessageText(message);
@@ -145,4 +169,5 @@ module.exports = {
         }
     },
     findRepliedMessage,
+    findNestedQuotedMessage,
 };
