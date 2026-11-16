@@ -15,8 +15,11 @@ module.exports = {
     ownerOnly: true,
     groupOnly: true,
     reactions: { start: '🛡️', success: '✅' },
-    execute: async (sock, m, { args, reply, prefix, isOwner }) => {
-        if (!isOwner) return;
+    execute: async (sock, m, { args, reply, prefix, isOwner, isDual, isSudo }) => {
+        // The dispatcher allows owner-only commands for the configured owner,
+        // dual and sudo identities. Do not silently discard those authorized
+        // executions here after the start reaction has already been sent.
+        if (!isOwner && !isDual && !isSudo) return;
         const action = String(args?.[0] || 'add').toLowerCase();
         if (action === 'list') {
             const permits = listPermits(m.chat);
