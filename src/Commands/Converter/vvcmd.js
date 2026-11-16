@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const { downloadContentFromMessage } = require('plogme')
+const { downloadContentFromMessage, downloadMediaMessage } = require('plogme')
 
 const DB_PATH = path.join(process.cwd(), 'database', 'vvcmd.json')
 
@@ -30,6 +30,15 @@ function makeMessageEnvelope(m, quoted) {
 }
 
 async function downloadViewOnce(sock, envelope, media, type) {
+    if (typeof downloadMediaMessage === 'function' && envelope?.message) {
+        const reuploadRequest = typeof sock?.updateMediaMessage === 'function'
+            ? message => sock.updateMediaMessage(message)
+            : undefined
+        return downloadMediaMessage(envelope, 'buffer', undefined, {
+            logger: console,
+            reuploadRequest,
+        })
+    }
     if (typeof sock?.downloadMediaMessage === 'function' && envelope?.message) {
         return sock.downloadMediaMessage(envelope, 'buffer')
     }

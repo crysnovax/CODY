@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { downloadContentFromMessage } = require('plogme');
+const { downloadContentFromMessage, downloadMediaMessage } = require('plogme');
 const { resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
 const { stripBotMarkerDeep, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isViewOnce, unwrap: unwrapShared, findMedia: findSharedMedia } = require('../../Plugin/viewOnce');
@@ -134,7 +134,15 @@ async function downloadMedia(sock, content, messageEnvelope) {
   // Keep the complete WebMessageInfo for WhatsApp media downloads. This lets
   // Baileys use the message key and its media-reupload path when view-once
   // media has an expired or stale direct path.
-  if (typeof sock?.downloadMediaMessage === 'function' && messageEnvelope?.message) {
+  if (typeof downloadMediaMessage === 'function' && messageEnvelope?.message) {
+    const reuploadRequest = typeof sock?.updateMediaMessage === 'function'
+      ? message => sock.updateMediaMessage(message)
+      : undefined;
+    buffer = await downloadMediaMessage(messageEnvelope, 'buffer', undefined, {
+      logger: console,
+      reuploadRequest,
+    });
+  } else if (typeof sock?.downloadMediaMessage === 'function' && messageEnvelope?.message) {
     buffer = await sock.downloadMediaMessage(messageEnvelope, 'buffer');
   } else {
     // Compatibility fallback for lightweight test sockets and old integrations.
