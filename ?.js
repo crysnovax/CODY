@@ -395,6 +395,16 @@ setupPromotionGuard(sock);
             console.log(`[MSG PIPE] messages.upsert received type=${upsertType} count=${upsertedMessages.length}`);
             for (const incoming of upsertedMessages) {
                 try {
+                    // Cache every raw envelope before selecting a single
+                    // routable message. A batch can contain a view-once
+                    // message that is not the command selected below, and
+                    // quoted recovery still needs that original WebMessageInfo.
+                    if (incoming?.key?.remoteJid && incoming?.key?.id && customStore?.messages?.set) {
+                        customStore.messages.set(`${incoming.key.remoteJid}:${incoming.key.id}`, {
+                            message: { ...incoming },
+                            timestamp: Date.now()
+                        });
+                    }
                     if (incoming?.key?.remoteJid && incoming?.key?.id
                         && !extractEditedMessage(incoming?.message)
                         && !findSecretEncrypted(incoming?.message)) {
