@@ -1,1 +1,107 @@
-const a0_0xc30613=a0_0x1735;(function(_0x5243a9,_0x3dce3e){const _0x3bfb81=a0_0x1735,_0x29e94f=_0x5243a9();while(!![]){try{const _0x18318f=-parseInt(_0x3bfb81(0xb8))/0x1+parseInt(_0x3bfb81(0xbf))/0x2*(-parseInt(_0x3bfb81(0xb6))/0x3)+-parseInt(_0x3bfb81(0xdb))/0x4*(parseInt(_0x3bfb81(0xa1))/0x5)+-parseInt(_0x3bfb81(0xba))/0x6+parseInt(_0x3bfb81(0xdd))/0x7*(-parseInt(_0x3bfb81(0xde))/0x8)+-parseInt(_0x3bfb81(0xae))/0x9+parseInt(_0x3bfb81(0xc5))/0xa;if(_0x18318f===_0x3dce3e)break;else _0x29e94f['push'](_0x29e94f['shift']());}catch(_0x338d77){_0x29e94f['push'](_0x29e94f['shift']());}}}(a0_0x2f92,0x56e1a));const {exec}=require(a0_0xc30613(0xb2)),util=require(a0_0xc30613(0xd9)),execPromise=util['promisify'](exec);module[a0_0xc30613(0xa3)]={'name':'npm','alias':[],'desc':a0_0xc30613(0xbc),'category':a0_0xc30613(0xaa),'ownerOnly':!![],'reactions':{'start':'♻️','success':'📦'},'execute':async(_0x5bba5e,_0x56ff2e,{reply:_0x2c6f0c,text:_0x46195f})=>{const _0x43298a=a0_0xc30613;if(!_0x46195f)return _0x2c6f0c(_0x43298a(0xb9)+_0x43298a(0xa9)+_0x43298a(0xb1)+'.npm\x20list\x20/\x20.pkgs\x20\x20\x20\x20\x20\x20\x20\x20→\x20list\x20installed\x0a'+_0x43298a(0xa8)+'.npm\x20update\x20<pkg>\x20\x20\x20\x20\x20\x20\x20\x20→\x20update\x20specific\x0a'+_0x43298a(0xc2)+_0x43298a(0xbd));const _0x4f73d8=_0x46195f[_0x43298a(0xdc)]()[_0x43298a(0xc4)](/\s+/),_0x374c10=_0x4f73d8[0x0][_0x43298a(0xda)]();let _0x242734='',_0x5b44dc=_0x43298a(0xce),_0x1acb29='';switch(_0x374c10){case _0x43298a(0xbb):if(_0x4f73d8[_0x43298a(0xb3)]<0x2)return _0x2c6f0c('Missing\x20package');_0x242734=_0x43298a(0xcb)+_0x4f73d8[_0x43298a(0xa7)](0x1)[_0x43298a(0xc3)]('\x20'),_0x5b44dc='_✪\x20Installing..._',_0x1acb29='*✓Installed!*';break;case'uninstall':case'remove':if(_0x4f73d8['length']<0x2)return _0x2c6f0c(_0x43298a(0xc8));_0x242734=_0x43298a(0xa6)+_0x4f73d8['slice'](0x1)['join']('\x20'),_0x5b44dc=_0x43298a(0xa4),_0x1acb29=_0x43298a(0xcf);break;case'list':case _0x43298a(0xcc):_0x242734=_0x43298a(0xb0),_0x5b44dc='Fetching\x20list...',_0x1acb29='Installed\x20packages:';break;case'update':_0x242734=_0x4f73d8[_0x43298a(0xb3)]===0x1?_0x43298a(0xbe):'npm\x20update\x20'+_0x4f73d8[_0x43298a(0xa7)](0x1)[_0x43298a(0xc3)]('\x20'),_0x5b44dc=_0x43298a(0xad),_0x1acb29='*✓Updated!*';break;case _0x43298a(0xab):_0x242734=_0x43298a(0xb7),_0x5b44dc=_0x43298a(0xc9),_0x1acb29=_0x43298a(0xb5);break;case _0x43298a(0xc1):_0x242734=_0x43298a(0xd0),_0x5b44dc=_0x43298a(0xa5),_0x1acb29=_0x43298a(0xd8);break;default:return _0x2c6f0c(_0x43298a(0xd2));}await _0x2c6f0c(_0x5b44dc+'\x0a`'+_0x242734+'`');try{const {stdout:_0x1db974,stderr:_0x200faf}=await execPromise(_0x242734,{'cwd':_0x43298a(0xb4)});let _0x14dc76=(_0x1db974+_0x200faf)[_0x43298a(0xdc)]();if(_0x14dc76[_0x43298a(0xb3)]>0xdac)_0x14dc76=_0x14dc76[_0x43298a(0xd6)](0x0,0xd48)+_0x43298a(0xd4);if(!_0x14dc76)_0x14dc76=_0x43298a(0xd3);await _0x2c6f0c(_0x1acb29+_0x43298a(0xca)+_0x14dc76+'\x0a```');}catch(_0x20c34d){if(_0x374c10===_0x43298a(0xab)&&_0x20c34d[_0x43298a(0xa2)]===0x1){let _0x3a8972=(_0x20c34d[_0x43298a(0xd5)]||'')+(_0x20c34d[_0x43298a(0xd7)]||'');_0x3a8972=_0x3a8972['trim']();if(_0x3a8972[_0x43298a(0xb3)]>0xdac)_0x3a8972=_0x3a8972[_0x43298a(0xd6)](0x0,0xd48)+'\x0a(truncated)';if(!_0x3a8972)_0x3a8972=_0x43298a(0xac);await _0x2c6f0c('Vulnerabilities\x20found\x20(normal):\x0a```\x0a'+_0x3a8972+_0x43298a(0xaf));}else{let _0x1f10f5=_0x20c34d[_0x43298a(0xc6)]||_0x43298a(0xcd);if(_0x20c34d['code'])_0x1f10f5+=_0x43298a(0xd1)+_0x20c34d[_0x43298a(0xa2)];if(_0x20c34d[_0x43298a(0xd5)])_0x1f10f5+=_0x43298a(0xc0)+_0x20c34d[_0x43298a(0xd5)][_0x43298a(0xd6)](0x0,0x3e8);await _0x2c6f0c(_0x43298a(0xc7)+_0x1f10f5);}}}};function a0_0x1735(_0x4857e6,_0x27f82b){_0x4857e6=_0x4857e6-0xa1;const _0x2f92cf=a0_0x2f92();let _0x173596=_0x2f92cf[_0x4857e6];return _0x173596;}function a0_0x2f92(){const _0x260644=['_✪\x20Fetching\x20funding\x20info..._','npm\x20uninstall\x20','slice','.npm\x20update\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20→\x20update\x20all\x0a','.npm\x20install\x20<pkg>\x20\x20\x20\x20\x20\x20\x20→\x20install\x0a','Owner','audit','(vulnerabilities\x20found,\x20but\x20no\x20detailed\x20output)','_𓉤\x20Updating..._','1033659DDstKj','\x0a```','npm\x20list\x20--depth=0','.npm\x20uninstall\x20<pkg>\x20\x20\x20\x20\x20→\x20remove\x0a','child_process','length','/home/container','Security\x20audit:','80517NYGsSA','npm\x20audit\x20--json','408982kOqICv','Commands:\x0a','2267742SQVjME','install','Manage\x20npm\x20packages\x20(owner\x20only)','.npm\x20fund\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20→\x20funding\x20links','npm\x20update','20WlCWWw','\x0aOutput:\x20','fund','.npm\x20audit\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20→\x20security\x20scan\x0a','join','split','22968430eHiEFH','message','Failed:\x0a','Missing\x20package','Scanning\x20vulnerabilities...','\x0a```\x0a','npm\x20install\x20','pkgs','Unknown\x20error','_⚉\x20Running..._','Uninstalled!','npm\x20fund','\x0aExit\x20code:\x20','Unknown\x20command','Success\x20(no\x20output)','\x0a(truncated)','stdout','substring','stderr','Funding\x20links:','util','toLowerCase','8KNpQtl','trim','839097AePygw','40kHPwWq','428605QhDDca','code','exports','Uninstalling...'];a0_0x2f92=function(){return _0x260644;};return a0_0x2f92();}
+'use strict';
+
+const { spawn } = require('node:child_process');
+const path = require('node:path');
+
+const ROOT = process.cwd();
+const MAX_OUTPUT = 3500;
+
+function npmExecutable() {
+    return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+}
+
+function buildNpmArgs(action, packages = []) {
+    const names = packages.filter(Boolean);
+    switch (action) {
+        case 'install': return ['install', ...names, '--no-audit', '--no-fund'];
+        case 'uninstall':
+        case 'remove': return ['uninstall', ...names, '--no-audit', '--no-fund'];
+        case 'list':
+        case 'pkgs': return ['list', '--depth=0'];
+        case 'update': return ['update', ...names, '--prefer-online', '--no-audit', '--no-fund'];
+        case 'audit': return ['audit', '--omit=dev'];
+        case 'fund': return ['fund'];
+        default: return null;
+    }
+}
+
+function runNpm(args, { cwd = ROOT, timeout = 120000 } = {}) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(npmExecutable(), args, {
+            cwd,
+            shell: false,
+            env: { ...process.env, npm_config_update_notifier: 'false' },
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        let stdout = '';
+        let stderr = '';
+        const timer = setTimeout(() => {
+            child.kill('SIGTERM');
+            const error = new Error(`npm command timed out after ${timeout}ms`);
+            error.stdout = stdout;
+            error.stderr = stderr;
+            reject(error);
+        }, timeout);
+        child.stdout.on('data', chunk => { stdout += chunk; });
+        child.stderr.on('data', chunk => { stderr += chunk; });
+        child.once('error', error => { clearTimeout(timer); reject(error); });
+        child.once('close', code => {
+            clearTimeout(timer);
+            const result = { code: code ?? 1, stdout, stderr };
+            if (result.code === 0) return resolve(result);
+            const error = new Error(`npm exited with code ${result.code}`);
+            Object.assign(error, result);
+            reject(error);
+        });
+    });
+}
+
+function trimOutput(value) {
+    const text = String(value || '').trim();
+    if (!text) return 'Success (no output)';
+    return text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n…(output truncated)` : text;
+}
+
+module.exports = {
+    name: 'npm',
+    alias: [],
+    desc: 'Manage npm packages in the active CODY repository',
+    category: 'Owner',
+    ownerOnly: true,
+    reactions: { start: '♻️', success: '📦', error: '✘' },
+    execute: async (sock, m, { reply, text }) => {
+        const tokens = String(text || '').trim().split(/\s+/).filter(Boolean);
+        if (!tokens.length) {
+            return reply(
+                '╭─❍ *NPM*\n│\n' +
+                '│ .npm list / .pkgs → list installed\n' +
+                '│ .npm update → update all packages in place\n' +
+                '│ .npm update <pkg> → update specific package\n' +
+                '│ .npm install <pkg> → install package\n' +
+                '│ .npm uninstall <pkg> → remove package\n' +
+                '│ .npm audit → security scan\n' +
+                '│ .npm fund → funding links\n' +
+                '╰──────────────────'
+            );
+        }
+        const action = tokens.shift().toLowerCase();
+        const args = buildNpmArgs(action, tokens);
+        if (!args) return reply('Unknown npm command. Use `.npm` for help.');
+        if (['install', 'uninstall', 'remove'].includes(action) && !tokens.length) return reply('Missing package name.');
+
+        await sock.sendMessage(m.chat, { react: { text: '♻️', key: m.key } }).catch(() => {});
+        await reply(`_*Running in ${path.basename(ROOT)}:*_\n\`${npmExecutable()} ${args.join(' ')}\``);
+        try {
+            const result = await runNpm(args);
+            const output = trimOutput(`${result.stdout}\n${result.stderr}`);
+            await reply(`*✓ ${action === 'update' ? 'Updated in place' : 'Completed'}*\n\`\`\`\n${output}\n\`\`\``);
+            await sock.sendMessage(m.chat, { react: { text: '📦', key: m.key } }).catch(() => {});
+        } catch (error) {
+            const output = trimOutput(`${error.stdout || ''}\n${error.stderr || error.message}`);
+            await reply(`*✘ npm ${action} failed*\n\`\`\`\n${output}\n\`\`\``);
+            await sock.sendMessage(m.chat, { react: { text: '✘', key: m.key } }).catch(() => {});
+        }
+    },
+};
+
+module.exports._test = { ROOT, buildNpmArgs, trimOutput };
