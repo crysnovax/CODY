@@ -93,8 +93,15 @@ const smsg = async (sock, m, store) => {
             
             m.getQuotedObj = m.getQuotedMessage = async () => {
                 if (!m.quoted.id) return false
-                let q = await store.loadMessage(m.chat, m.quoted.id, sock)
-                return smsg(sock, q, store)
+                const activeStore = store || global.__codyMessageStore
+                if (typeof activeStore?.loadMessage !== 'function') return false
+                let q = await activeStore.loadMessage(m.quoted.chat || m.chat, m.quoted.id, sock)
+                // CODY's in-memory store keeps records as { message, timestamp };
+                // smsg() needs the underlying WebMessageInfo envelope.
+                if (q?.message?.key && q?.message?.message) q = q.message
+                else if (!q?.key && q?.message?.key) q = q.message
+                if (!q?.key || !q?.message) return false
+                return smsg(sock, q, activeStore)
             }
             
             let vM = m.quoted.fakeObj = M.fromObject({
