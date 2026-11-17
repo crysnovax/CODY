@@ -251,6 +251,31 @@ test('.getQuotedMessage attaches download to stripped top-level direct view-once
     assert.deepEqual(await recovered.download(), Buffer.from('direct-recovered-image'));
 });
 
+test('.getQuotedMessage falls back to CODY messages map when loadMessage misses', async () => {
+    const chat = 'reply-chat@g.us';
+    const id = 'stored-map-vv';
+    const original = {
+        key: { remoteJid: chat, participant: 'user@s.whatsapp.net', fromMe: false, id },
+        message: { imageMessage: { mimetype: 'image/jpeg', viewOnce: true, url: 'https://media.example/map' } },
+    };
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'bot@s.whatsapp.net', fromMe: false, id: 'command-map-vv' },
+        message: { extendedTextMessage: { text: '.vv', contextInfo: {
+            stanzaId: id, participant: original.key.participant, remoteJid: chat,
+            quotedMessage: { imageMessage: { mimetype: 'image/jpeg', viewOnce: true } },
+        } } },
+    }, {
+        async loadMessage() { return undefined; },
+        messages: new Map([[`${chat}:${id}`, { message: original, timestamp: Date.now() }]]),
+    });
+
+    const recovered = await commandMessage.getQuotedMessage();
+    assert.equal(recovered.message.imageMessage.url, 'https://media.example/map');
+});
+
 test('.quoted chooses the text message context over an outer stale quote', async () => {
     const target = targetMessage('reply-chat@g.us', 'outer-conflict', { conversation: 'yes' });
     target.message.contextInfo = { quotedMessage: { conversation: 'u' } };
