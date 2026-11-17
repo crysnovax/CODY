@@ -134,6 +134,47 @@ test('.quoted returns yes for the serialized chain yes → y → .quoted', async
     assert.ok(sock.sent.some(({ content }) => content?.text === 'yes'));
 });
 
+test('.quoted.download passes the complete envelope for direct view-once media', async () => {
+    const chat = 'reply-chat@g.us';
+    let downloadedEnvelope;
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    sock.downloadMediaMessage = async envelope => {
+        downloadedEnvelope = envelope;
+        return Buffer.from('view-once-image');
+    };
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'user@s.whatsapp.net', fromMe: false, id: 'command-vv' },
+        message: {
+            extendedTextMessage: {
+                text: '.vv',
+                contextInfo: {
+                    stanzaId: 'view-once-image-id',
+                    participant: 'user@s.whatsapp.net',
+                    remoteJid: chat,
+                    quotedMessage: {
+                        imageMessage: {
+                            mimetype: 'image/jpeg',
+                            directPath: '/media/direct-path',
+                            mediaKey: Buffer.alloc(32),
+                            viewOnce: true,
+                        },
+                    },
+                },
+            },
+        },
+    }, null);
+
+    const result = await commandMessage.quoted.download();
+
+    assert.deepEqual(result, Buffer.from('view-once-image'));
+    assert.equal(downloadedEnvelope.message.imageMessage.viewOnce, true);
+    assert.equal(downloadedEnvelope.key.remoteJid, chat);
+    assert.equal(downloadedEnvelope.key.participant, 'user@s.whatsapp.net');
+    assert.equal(downloadedEnvelope.key.id, 'view-once-image-id');
+});
+
 test('.quoted chooses the text message context over an outer stale quote', async () => {
     const target = targetMessage('reply-chat@g.us', 'outer-conflict', { conversation: 'yes' });
     target.message.contextInfo = { quotedMessage: { conversation: 'u' } };

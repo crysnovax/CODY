@@ -100,6 +100,7 @@ const smsg = async (sock, m, store) => {
             let vM = m.quoted.fakeObj = M.fromObject({
                 key: {
                     remoteJid: m.quoted.chat,
+                    participant: m.quoted.sender,
                     fromMe: m.quoted.fromMe,
                     id: m.quoted.id
                 },
@@ -114,7 +115,12 @@ const smsg = async (sock, m, store) => {
             m.quoted.copyNForward = (jid, forceForward = false, options = {}) => 
                 sock.copyNForward(jid, vM, forceForward, options)
 
-            m.quoted.download = () => sock.downloadMediaMessage(m.quoted)
+            // downloadMediaMessage expects a complete WebMessageInfo envelope,
+            // not the inner ImageMessage/VideoMessage exposed as m.quoted.
+            // This is especially important for newer WhatsApp clients, which
+            // send direct media with `viewOnce: true` instead of a
+            // viewOnceMessageV2 wrapper.
+            m.quoted.download = () => sock.downloadMediaMessage(vM)
         }
     }
     
