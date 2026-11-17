@@ -224,7 +224,7 @@ const restoreCmd = {
                 await sendTable(sock, m.chat, '## ➲ Restore Complete', 'Selected version', [['📱 Phone', current.phone], ['🆔 Version', response.data.backupId || selected.backupId], ['📅 Saved', formatBotDateTime(response.data.timestamp || selected.timestamp)], ['📂 Database JSON files', result.dbCount], ['⚙️ Safe settings', result.env ? 'Merged; secrets/session values kept local' : 'No safe settings in this version'], ['🔐 Session data', 'Not included or restored'], ['🔄 Action', 'Restarting bot shortly']], 'Matching database JSON files are replaced. Files absent from the backup are left as they are.');
                 await sock.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
                 restoreSession.delete(userId);
-                setTimeout(() => process.exit(0), 3000); return;
+                require('../../Plugin/processControl').requestRestart('restore', 3000); return;
             } catch (error) { console.error('[RESTORE]', error.message); await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } }); return reply(`ⓘ Restore failed: ${commandError(error)}`); }
         }
         let phone; try { phone = normalizePhone(text); } catch (error) { return reply(`✘ ${error.message}\nUse ${prefix}restore <phone>.`); }

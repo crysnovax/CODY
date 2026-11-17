@@ -7,6 +7,6 @@ module.exports = {
     reactions: { start: '♻️', success: '💨' },
     execute: async (sock, m, { reply }) => {
         await reply('_*♲ Restarting...*_');
-        setTimeout(() => process.exit(0), 1500);
+        require('../../Plugin/processControl').requestRestart('manual', 1500);
     }
 };

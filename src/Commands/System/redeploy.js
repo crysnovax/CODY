@@ -119,7 +119,7 @@ const redeployCmd = {
                 env: { ...process.env, CODY_REDEPLOY_PLAN: planFile }
             });
             child.unref();
-            setTimeout(() => process.exit(0), 250);
+            require('../../Plugin/processControl').requestRestart('redeploy', 250);
         } catch (error) {
             // Before cleanup, remove the incomplete cache. After cleanup, keep
             // it so the rebuilt deployment can retry recovery safely.

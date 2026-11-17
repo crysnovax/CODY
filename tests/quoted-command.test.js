@@ -181,3 +181,25 @@ test('.quoted unwraps groupStatusMessageV2 image media and returns the media', a
     assert.deepEqual(context.replies, []);
     assert.ok(context.sock.sent.some(({ content }) => Buffer.isBuffer(content?.image) && content.caption === 'group status image'));
 });
+
+test('.quoted returns the inner message for a DM chain without participant metadata', async () => {
+    const chat = 'user@s.whatsapp.net';
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, fromMe: false, id: 'dm-command' },
+        message: { extendedTextMessage: { text: '.quoted', contextInfo: {
+            stanzaId: 'dm-b', remoteJid: chat,
+            quotedMessage: { extendedTextMessage: { text: 'b', contextInfo: {
+                stanzaId: 'dm-a', remoteJid: chat,
+                quotedMessage: { conversation: 'a' },
+            } } },
+        } } },
+    }, null);
+    const replies = [];
+    await command.execute(sock, commandMessage, { reply: text => replies.push(text), store: null, prefix: '.' });
+    assert.deepEqual(replies, []);
+    assert.ok(sock.sent.some(({ content }) => content?.text === 'a'));
+    assert.ok(!sock.sent.some(({ content }) => content?.text === 'b'));
+});

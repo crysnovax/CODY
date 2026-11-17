@@ -57,7 +57,18 @@ function findNestedQuotedMessage(value, seen = new WeakSet()) {
 async function findRepliedMessage(m, store, sock) {
     const quoted = m?.quoted;
     const direct = rawQuotedMessage(quoted);
-    if (direct?.message && findNestedQuotedMessage(direct.message)) return direct;
+    // WhatsApp/Plogme keeps the quoted context in different places for DMs
+    // and groups. In DMs, contextInfo may sit on the serialized quoted object
+    // while fakeObj.message contains only the visible body.
+    const directCandidates = [
+        direct?.message,
+        quoted,
+        quoted?.message,
+        quoted?.fakeObj?.message,
+        quoted?.contextInfo,
+        quoted?.messageContextInfo,
+    ].filter(Boolean);
+    if (directCandidates.some(candidate => findNestedQuotedMessage(candidate))) return direct;
     let fallback = direct?.message ? direct : null;
 
     const id = quoted?.id || quoted?.key?.id || quoted?.fakeObj?.key?.id;

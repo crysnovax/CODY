@@ -960,7 +960,7 @@ async function handleControlIntent(sock, m, opts, text) {
     // restart / reboot
     if (/^(plogme\s+)?(restart|reboot)(\s+(the\s+)?bot)?$/i.test(lower)) {
         await opts.reply('_*♻️ Restarting the bot...*_');
-        setTimeout(() => process.exit(0), 1500);
+        require('../../Plugin/processControl').requestRestart('plogme', 1500);
         return true;
     }
 
@@ -1608,7 +1608,7 @@ async function executeIntent(sock, m, opts, intent) {
 
             case 'restart': {
                 await opts.reply('_*♻️ Restarting the bot...*_');
-                setTimeout(() => process.exit(0), 1500);
+                require('../../Plugin/processControl').requestRestart('plogme', 1500);
                 return { handled: true };
             }
 

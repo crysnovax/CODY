@@ -135,7 +135,7 @@ module.exports = {
                 `_Restarting in 3 seconds..._`
             );
 
-            setTimeout(() => process.exit(0), 3000);
+            require('../../Plugin/processControl').requestRestart('format', 3000);
 
         } catch (err) {
             console.error('[FORMAT ERROR]', err);

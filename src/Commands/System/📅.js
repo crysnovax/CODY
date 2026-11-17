@@ -120,7 +120,7 @@ module.exports = {
 
             // Restart — carry the uptime over so updates don't reset it (@crysnovax—FIX06-08-26)
             try { require('../../Plugin/uptime').markRestart(); } catch (e) {}
-            setTimeout(() => process.exit(0), 1000);
+            require('../../Plugin/processControl').requestRestart('update', 1000);
 
         } catch (err) {
             console.error('[UPDATE ERROR]', err);
