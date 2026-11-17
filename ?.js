@@ -19,6 +19,7 @@ const { formatCommandPrefixes, formatCommandContent, hasRegisteredCommandPrefix 
 const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonRouter');
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
 const { decryptSecretEdit, findSecretEncrypted } = require('./src/Plugin/editDecrypt');
+const { storeBestMessage } = require('./src/Plugin/messageCache');
 
 // Polyfill: sock.sendRichText was added as an alias for sock.sendMessage
 // to support chatbot responses that call sock.sendRichText(jid, { text }).
@@ -400,13 +401,10 @@ setupPromotionGuard(sock);
                     // message that is not the command selected below, and
                     // quoted recovery still needs that original WebMessageInfo.
                     if (incoming?.key?.remoteJid && incoming?.key?.id && customStore?.messages?.set) {
-                        customStore.messages.set(`${incoming.key.remoteJid}:${incoming.key.id}`, {
-                            // Do not shallow-spread Baileys protobuf objects:
-                            // their actual message payload may be a getter or
-                            // non-enumerable field and would be lost.
-                            message: incoming,
-                            timestamp: Date.now()
-                        });
+                        // A later opened-view-once update can replace the rich
+                        // media payload with a sparse `{ viewOnce: true }`
+                        // placeholder. Keep the richer envelope for quoted recovery.
+                        storeBestMessage(customStore, incoming);
                     }
                     if (incoming?.key?.remoteJid && incoming?.key?.id
                         && !extractEditedMessage(incoming?.message)
@@ -616,10 +614,7 @@ setupPromotionGuard(sock);
 
             // ========== STORE MESSAGE WITH TIMESTAMP (48 HOUR TTL) ==========
             if (mek.key?.remoteJid && mek.key?.id) {
-                customStore.messages.set(mek.key.remoteJid + ':' + mek.key.id, {
-                    message: mek,
-                    timestamp: Date.now()
-                });
+                storeBestMessage(customStore, mek);
             }
 
             try {

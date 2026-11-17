@@ -19,6 +19,7 @@ Module._load = function patchedLoad(request, parent, isMain) {
 global.prefix = '.';
 const { smsg } = require('../library/serialize');
 const command = require('../src/Commands/Admin/qt');
+const vv = require('../src/Commands/Converter/view-once');
 
 after(() => {
     Module._load = originalLoad;
@@ -315,6 +316,69 @@ test('.getQuotedMessage rejects malformed loadMessage results in favor of the ma
 
     const recovered = await commandMessage.getQuotedMessage();
     assert.equal(recovered.message.imageMessage.url, 'https://media.example/fallback');
+});
+
+test('.vv prefers the cached full media envelope when WhatsApp returns a stripped view-once quote', async () => {
+    const chat = 'reply-chat@g.us';
+    const id = 'stripped-quoted-view-once';
+    const original = {
+        key: { remoteJid: chat, participant: 'user@s.whatsapp.net', fromMe: false, id },
+        message: {
+            imageMessage: {
+                mimetype: 'image/jpeg',
+                url: 'https://media.example/full-view-once',
+                directPath: '/media/full-view-once',
+                mediaKey: Buffer.alloc(32, 7),
+                viewOnce: true,
+            },
+        },
+    };
+    const sparse = {
+        key: original.key,
+        message: { imageMessage: { viewOnce: true } },
+    };
+    const messages = new Map([[`${chat}:${id}`, { message: original, timestamp: Date.now() }]]);
+    const store = {
+        async loadMessage() { return sparse; },
+        messages,
+    };
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    sock.groupMetadata = async () => ({ participants: [] });
+    sock.ev = { on() {} };
+    sock.downloadMediaMessage = async envelope => {
+        assert.equal(envelope.message.imageMessage.directPath, '/media/full-view-once');
+        assert.deepEqual(envelope.message.imageMessage.mediaKey, Buffer.alloc(32, 7));
+        return Buffer.from('recovered-view-once-bytes');
+    };
+
+    const message = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'owner@s.whatsapp.net', fromMe: false, id: 'vv-command' },
+        message: {
+            extendedTextMessage: {
+                text: '.vv',
+                contextInfo: {
+                    stanzaId: id,
+                    participant: original.key.participant,
+                    remoteJid: chat,
+                    quotedMessage: { imageMessage: { viewOnce: true } },
+                },
+            },
+        },
+    }, store);
+
+    const replies = [];
+    await vv.execute(sock, message, {
+        args: [],
+        prefix: '.',
+        reply: async text => replies.push(text),
+    });
+
+    assert.equal(replies.length, 0);
+    const sentMedia = sock.sent.find(({ content }) => content?.image);
+    assert.ok(sentMedia);
+    assert.equal(sentMedia.content.image.toString(), 'recovered-view-once-bytes');
 });
 
 test('.quoted chooses the text message context over an outer stale quote', async () => {

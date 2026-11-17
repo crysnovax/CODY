@@ -9,6 +9,7 @@ const {
 } = require("plogme")
 
 const { unwrap: unwrapViewOnceContainer } = require('../src/Plugin/viewOnce');
+const { mediaPayloadScore, unwrapStoredMessage } = require('../src/Plugin/messageCache');
 const smsg = async (sock, m, store) => {
     if (!m) return m
     
@@ -102,24 +103,38 @@ const smsg = async (sock, m, store) => {
                 if (!m.quoted.id) return false
                 const activeStore = store || global.__codyMessageStore
                 const quotedChat = m.quoted.chat || m.chat
-                let q = typeof activeStore?.loadMessage === 'function'
-                    ? await activeStore.loadMessage(quotedChat, m.quoted.id, sock)
-                    : null
-                const mapRecord = activeStore.messages?.get
-                    ? activeStore.messages.get(`${quotedChat}:${m.quoted.id}`)
-                    : null
-                // CODY stores every incoming envelope in this map. Some store
-                // implementations expose loadMessage but do not return entries
-                // written by the message handler, so fall back to the exact
-                // key used by the writer before reporting the quote missing.
-                if (!q || (!q.key && !q.message?.key)) {
-                    q = mapRecord
+                const candidates = []
+                if (typeof activeStore?.loadMessage === 'function') {
+                    try {
+                        candidates.push(await activeStore.loadMessage(quotedChat, m.quoted.id, sock))
+                    } catch {}
                 }
-                // CODY's in-memory store keeps records as { message, timestamp };
-                // smsg() needs the underlying WebMessageInfo envelope.
-                if (q?.message?.key && q?.message?.message) q = q.message
-                else if (!q?.key && q?.message?.key) q = q.message
-                if (!q?.key || !q?.message) return false
+                if (typeof activeStore?.messages?.get === 'function') {
+                    try {
+                        candidates.push(activeStore.messages.get(`${quotedChat}:${m.quoted.id}`))
+                    } catch {}
+                }
+                if (typeof sock?.loadMessage === 'function') {
+                    try {
+                        candidates.push(await sock.loadMessage(quotedChat, m.quoted.id))
+                    } catch {}
+                }
+
+                // WhatsApp may now include only `{ viewOnce: true }` in a
+                // quote. Prefer whichever source retained the actual media
+                // keys instead of accepting the first valid-but-stripped copy.
+                let q = null
+                let bestScore = -1
+                for (const candidate of candidates) {
+                    const envelope = unwrapStoredMessage(candidate)
+                    if (!envelope?.key || !envelope?.message) continue
+                    const score = mediaPayloadScore(envelope)
+                    if (score > bestScore) {
+                        q = envelope
+                        bestScore = score
+                    }
+                }
+                if (!q) return false
                 return smsg(sock, q, activeStore)
             }
             
