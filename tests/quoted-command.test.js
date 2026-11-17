@@ -223,6 +223,34 @@ test('.getQuotedMessage unwraps CODY store records before serializing the origin
     assert.equal(downloadedEnvelope.message.imageMessage.viewOnce, true);
 });
 
+test('.getQuotedMessage attaches download to stripped top-level direct view-once media', async () => {
+    const chat = 'reply-chat@g.us';
+    const original = {
+        key: { remoteJid: chat, participant: 'user@s.whatsapp.net', fromMe: false, id: 'stored-direct-vv' },
+        message: { imageMessage: { mimetype: 'image/jpeg', viewOnce: true } },
+    };
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    sock.downloadMediaMessage = async envelope => {
+        assert.equal(envelope.message.imageMessage.viewOnce, true);
+        return Buffer.from('direct-recovered-image');
+    };
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'bot@s.whatsapp.net', fromMe: false, id: 'command-direct-vv' },
+        message: {
+            extendedTextMessage: {
+                text: '.vv',
+                contextInfo: { stanzaId: original.key.id, participant: original.key.participant, remoteJid: chat, quotedMessage: { imageMessage: original.message.imageMessage } },
+            },
+        },
+    }, { async loadMessage() { return { message: original, timestamp: Date.now() }; } });
+
+    const recovered = await commandMessage.getQuotedMessage();
+    assert.equal(typeof recovered.download, 'function');
+    assert.deepEqual(await recovered.download(), Buffer.from('direct-recovered-image'));
+});
+
 test('.quoted chooses the text message context over an outer stale quote', async () => {
     const target = targetMessage('reply-chat@g.us', 'outer-conflict', { conversation: 'yes' });
     target.message.contextInfo = { quotedMessage: { conversation: 'u' } };

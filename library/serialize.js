@@ -138,8 +138,10 @@ const smsg = async (sock, m, store) => {
         }
     }
     
-    if (m.msg && (m.msg.url || m.msg.directPath || m.msg.mediaKey)) {
+    if (m.msg && (m.msg.url || m.msg.directPath || m.msg.mediaKey || m.msg.viewOnce)) {
         // Keep the full WebMessageInfo so media re-upload can use its key.
+        // Newer WhatsApp clients may expose direct view-once media with only
+        // viewOnce=true at the top level instead of a wrapper object.
         m.download = () => sock.downloadMediaMessage(m)
     }
     
