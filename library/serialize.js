@@ -105,12 +105,15 @@ const smsg = async (sock, m, store) => {
                 let q = typeof activeStore?.loadMessage === 'function'
                     ? await activeStore.loadMessage(quotedChat, m.quoted.id, sock)
                     : null
+                const mapRecord = activeStore.messages?.get
+                    ? activeStore.messages.get(`${quotedChat}:${m.quoted.id}`)
+                    : null
                 // CODY stores every incoming envelope in this map. Some store
                 // implementations expose loadMessage but do not return entries
                 // written by the message handler, so fall back to the exact
                 // key used by the writer before reporting the quote missing.
-                if (!q && activeStore.messages?.get) {
-                    q = activeStore.messages.get(`${quotedChat}:${m.quoted.id}`)
+                if (!q || (!q.key && !q.message?.key)) {
+                    q = mapRecord
                 }
                 // CODY's in-memory store keeps records as { message, timestamp };
                 // smsg() needs the underlying WebMessageInfo envelope.

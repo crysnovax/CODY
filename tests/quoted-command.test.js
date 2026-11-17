@@ -295,6 +295,28 @@ test('.getQuotedMessage uses the messages map when loadMessage is unavailable', 
     assert.equal(recovered.message.imageMessage.viewOnce, true);
 });
 
+test('.getQuotedMessage rejects malformed loadMessage results in favor of the map envelope', async () => {
+    const chat = 'reply-chat@g.us';
+    const id = 'map-after-malformed-load';
+    const original = { key: { remoteJid: chat, id }, message: { imageMessage: { viewOnce: true, url: 'https://media.example/fallback' } } };
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'bot@s.whatsapp.net', id: 'command-malformed-load' },
+        message: { extendedTextMessage: { text: '.vv', contextInfo: {
+            stanzaId: id, participant: 'user@s.whatsapp.net', remoteJid: chat,
+            quotedMessage: { imageMessage: { viewOnce: true } },
+        } } },
+    }, {
+        async loadMessage() { return { message: { conversation: 'not an envelope' } }; },
+        messages: new Map([[`${chat}:${id}`, { message: original, timestamp: Date.now() }]])
+    });
+
+    const recovered = await commandMessage.getQuotedMessage();
+    assert.equal(recovered.message.imageMessage.url, 'https://media.example/fallback');
+});
+
 test('.quoted chooses the text message context over an outer stale quote', async () => {
     const target = targetMessage('reply-chat@g.us', 'outer-conflict', { conversation: 'yes' });
     target.message.contextInfo = { quotedMessage: { conversation: 'u' } };
