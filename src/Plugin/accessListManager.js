@@ -65,7 +65,7 @@ function createAccessListCommand({ name, aliases, variable, description, accessD
         category: 'Owner',
         ownerOnly: true,
         reactions: { start: '🔖', success: '⭐' },
-        execute: async (sock, m, { args, reply }) => {
+        execute: async (sock, m, { args, reply, store }) => {
             const sub = args[0]?.toLowerCase();
             const list = getList(variable);
 
@@ -76,7 +76,7 @@ function createAccessListCommand({ name, aliases, variable, description, accessD
                 const { payload, unresolved } = await createContactCards(
                     sock,
                     entries,
-                    { displayName }
+                    { displayName, store }
                 );
                 if (!payload) return reply(`Could not resolve any real phone numbers in the ${name} list.`);
                 await sock.sendMessage(m.chat, { contacts: payload }, { quoted: m });

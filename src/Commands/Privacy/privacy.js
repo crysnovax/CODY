@@ -444,7 +444,7 @@ module.exports = [
         usage: `${prefix}blocklist`,
         reactions: { start: '📋', success: '🍃', error: '🥵' },
 
-        execute: async (sock, m, { reply, prefix }) => {
+        execute: async (sock, m, { reply, prefix, store }) => {
             await sock.sendMessage(m.chat, { react: { text: '📋', key: m.key } });
 
             try {
@@ -457,6 +457,7 @@ module.exports = [
 
                 const { payload, unresolved } = await createContactCards(sock, blocked, {
                     displayName: 'Blocked Contacts',
+                    store,
                 });
 
                 await sock.sendMessage(m.chat, { react: { text: '🍃', key: m.key } });
