@@ -155,6 +155,35 @@ async function downloadMedia(sock, content, messageEnvelope) {
   return { type, media, buffer };
 }
 
+// Prefer CODY's recovered serialized quote. Its download() method carries the
+// complete WebMessageInfo envelope, which is required for newer direct
+// view-once media whose URL is not present on the stripped quoted object.
+async function recoverQuotedMessage(m) {
+  if (typeof m?.getQuotedMessage === 'function') {
+    try {
+      const recovered = await m.getQuotedMessage();
+      if (recovered) return recovered;
+    } catch {}
+  }
+  return m?.quoted || null;
+}
+
+function quotedContent(recovered) {
+  return recovered?.fakeObj?.message || recovered?.message || recovered;
+}
+
+async function downloadRecoveredQuoted(sock, recovered, content) {
+  if (typeof recovered?.download === 'function') {
+    const buffer = await recovered.download();
+    const found = findMedia(content);
+    return found ? { type: found.type, media: found.media, buffer } : null;
+  }
+  const envelope = recovered?.fakeObj?.message
+    ? recovered.fakeObj
+    : makeMessageEnvelope(recovered, content);
+  return downloadMedia(sock, content, envelope);
+}
+
 module.exports = {
   name: 'vv',
   alias: ['viewonce', 'vview', 'vvp', 'autovv'],
@@ -191,14 +220,15 @@ module.exports = {
       }
 
       // ───── MUST REPLY ─────
-      let quoted = m.quoted?.fakeObj?.message || m.quoted?.message || m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+      const recoveredQuoted = await recoverQuotedMessage(m);
+      let quoted = quotedContent(recoveredQuoted) || m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
       if (!quoted) {
         return reply('╭─❍ *CRYSNOVA AI V2.0*\n│ ✘ Reply to a view-once message.\n╰──────────────────');
       }
 
-      const quotedEnvelope = m.quoted?.fakeObj?.message
-        ? m.quoted.fakeObj
-        : makeMessageEnvelope(m.quoted || m, quoted);
+      const quotedEnvelope = recoveredQuoted?.fakeObj?.message
+        ? recoveredQuoted.fakeObj
+        : makeMessageEnvelope(recoveredQuoted || m, quoted);
 
       // Unwrap current ephemeral/view-once envelopes.
       let unwrapped = true;
@@ -225,7 +255,8 @@ module.exports = {
       const type = found.type;
 
       // ───── DOWNLOAD BUFFER ─────
-      const downloaded = await downloadMedia(sock, quoted, quotedEnvelope);
+      const downloaded = await downloadRecoveredQuoted(sock, recoveredQuoted, quoted)
+        || await downloadMedia(sock, quoted, quotedEnvelope);
       const buffer = downloaded?.buffer;
 
       const payload = buildMediaPayload(

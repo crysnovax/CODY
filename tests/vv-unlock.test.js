@@ -86,6 +86,31 @@ test('vv uses the socket-level downloader for media envelopes', async () => {
     assert.equal(sent[0][1].image.toString(), 'socket-downloaded-bytes');
 });
 
+test('vv uses getQuotedMessage download for stripped direct view-once media', async () => {
+    const sent = [];
+    const original = { imageMessage: { mimetype: 'image/jpeg', viewOnce: true } };
+    const recovered = {
+        message: original,
+        download: async () => Buffer.from('recovered-bytes')
+    };
+    const sock = {
+        sendMessage: async (...args) => { sent.push(args); },
+        ev: { on() {} }
+    };
+    const m = {
+        body: '.vv',
+        chat: 'test-group@g.us',
+        sender: 'user@s.whatsapp.net',
+        key: { id: 'command-recovered', remoteJid: 'test-group@g.us' },
+        quoted: { imageMessage: original.imageMessage },
+        getQuotedMessage: async () => recovered
+    };
+
+    await vv.execute(sock, m, { args: [], prefix: '.', reply: async text => { throw new Error(text); } });
+
+    assert.equal(sent[0][1].image.toString(), 'recovered-bytes');
+});
+
 test('vvp sends recovered view-once text directly to the requester', async () => {
     const { sent } = await invoke({ viewOnceMessageV2Extension: { message: { extendedTextMessage: { text: 'secret note' } } } }, '.vvp');
     assert.deepEqual(sent[0], ['user@s.whatsapp.net', { text: 'secret note' }]);

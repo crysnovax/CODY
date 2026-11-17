@@ -50,6 +50,16 @@ async function downloadViewOnce(sock, envelope, media, type) {
     return Buffer.concat(chunks)
 }
 
+async function recoverQuotedMessage(m) {
+    if (typeof m?.getQuotedMessage === 'function') {
+        try {
+            const recovered = await m.getQuotedMessage()
+            if (recovered) return recovered
+        } catch {}
+    }
+    return m?.quoted || null
+}
+
 // ── Called on every message — exact same flow as .vvp ────────
 module.exports.handleVVReply = async function(sock, m) {
     try {
@@ -69,9 +79,12 @@ module.exports.handleVVReply = async function(sock, m) {
 
         // Must reply to something. Prefer the serialized quote, then fall
         // back to the raw context envelope used by newer Baileys clients.
-        let quoted = m.quoted?.fakeObj?.message || m.quoted?.message || m.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        const recoveredQuoted = await recoverQuotedMessage(m)
+        let quoted = recoveredQuoted?.fakeObj?.message || recoveredQuoted?.message || recoveredQuoted || m.message?.extendedTextMessage?.contextInfo?.quotedMessage
         if (!quoted) return
-        const envelope = makeMessageEnvelope(m, quoted)
+        const envelope = recoveredQuoted?.fakeObj?.message
+            ? recoveredQuoted.fakeObj
+            : makeMessageEnvelope(recoveredQuoted || m, quoted)
 
         // Unwrap every envelope used by current WhatsApp clients.
         let unwrapped = true
@@ -91,12 +104,14 @@ module.exports.handleVVReply = async function(sock, m) {
         if (!['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'].includes(type)) return
 
         // Download
-        const buffer = await downloadViewOnce(
-            sock,
-            envelope,
-            quoted[type],
-            type.replace('Message', '').toLowerCase()
-        )
+        const buffer = typeof recoveredQuoted?.download === 'function'
+            ? await recoveredQuoted.download()
+            : await downloadViewOnce(
+                sock,
+                envelope,
+                quoted[type],
+                type.replace('Message', '').toLowerCase()
+            )
 
         const sendType =
             type === 'videoMessage'   ? 'video'   :
