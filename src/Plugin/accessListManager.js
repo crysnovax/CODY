@@ -2,11 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const { getVar, setVar } = require('./configManager');
 const { cleanNumber, resolveCommandTarget } = require('./identityUtils');
+const { createContactCards } = require('./contactCards');
 
 const ENV_PATH = path.join(process.cwd(), '.env');
 
+function storedPhoneNumber(value) {
+    const raw = String(value || '').trim();
+    if (raw.includes('@') && !/@s\.whatsapp\.net$/i.test(raw)) return '';
+    return cleanNumber(raw);
+}
+
 function saveList(variable, values) {
-    const cleaned = [...new Set(values.map(cleanNumber).filter(Boolean))].join(',');
+    const cleaned = [...new Set(values.map(storedPhoneNumber).filter(Boolean))].join(',');
     setVar(variable, cleaned);
     process.env[variable] = cleaned;
 
@@ -34,7 +41,19 @@ function saveList(variable, values) {
 function getList(variable) {
     return [...new Set(
         [process.env[variable] || '', String(getVar(variable) || '')]
-            .join(',').split(',').map(cleanNumber).filter(Boolean)
+            .join(',').split(',').map(storedPhoneNumber).filter(Boolean)
+    )];
+}
+
+function getContactListEntries(variable) {
+    return [...new Set(
+        [process.env[variable] || '', String(getVar(variable) || '')]
+            .join(',').split(',').map(value => {
+                const raw = value.trim();
+                if (/@(?:lid|s\.whatsapp\.net)$/i.test(raw)) return raw;
+                const digits = cleanNumber(raw);
+                return digits ? `${digits}@s.whatsapp.net` : '';
+            }).filter(Boolean)
     )];
 }
 
@@ -51,10 +70,18 @@ function createAccessListCommand({ name, aliases, variable, description, accessD
             const list = getList(variable);
 
             if (!sub || sub === 'list') {
-                if (!list.length) return reply(`No ${name} users set.\n\nUse .${name} add <number>, mention a user, or reply to their message.`);
-                const mentions = list.map(number => `${number}@s.whatsapp.net`);
-                const formatted = list.map((number, index) => `${index + 1}. @${number}`).join('\n');
-                return sock.sendMessage(m.chat, { text: `*${name[0].toUpperCase() + name.slice(1)} Users*\n\n${formatted}\n\n${accessDescription}`, mentions }, { quoted: m });
+                const entries = getContactListEntries(variable);
+                if (!entries.length) return reply(`No ${name} users set.\n\nUse .${name} add <number>, mention a user, or reply to their message.`);
+                const displayName = `${name[0].toUpperCase() + name.slice(1)} Users`;
+                const { payload, unresolved } = await createContactCards(
+                    sock,
+                    entries,
+                    { displayName }
+                );
+                if (!payload) return reply(`Could not resolve any real phone numbers in the ${name} list.`);
+                await sock.sendMessage(m.chat, { contacts: payload }, { quoted: m });
+                if (unresolved) return reply(`Sent ${payload.contacts.length} ${name} contact(s); ${unresolved} list entr${unresolved === 1 ? 'y was' : 'ies were'} skipped because a real phone number could not be resolved.`);
+                return;
             }
 
             if (sub === 'add' || sub === 'del' || sub === 'remove') {
@@ -87,4 +114,4 @@ function createAccessListCommand({ name, aliases, variable, description, accessD
     };
 }
 
-module.exports = { createAccessListCommand, getList, saveList };
+module.exports = { createAccessListCommand, getContactListEntries, getList, saveList };

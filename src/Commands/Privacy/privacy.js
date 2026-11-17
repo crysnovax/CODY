@@ -1,4 +1,6 @@
 // ── ALL PROFILE & PRIVACY COMMANDS ──────────────────────────────────────
+const { createContactCards } = require('../../Plugin/contactCards');
+
 module.exports = [
 
     // ── UPDATE LAST SEEN PRIVACY ─────────────────────────────────────────
@@ -453,20 +455,17 @@ module.exports = [
                     return reply(`📋 *Blocklist*\n\nNo blocked users.`);
                 }
 
-                const contacts = sock.store?.contacts || {};
-
-                const lines = blocked.map((jid, i) => {
-                    const number = jid.split('@')[0];
-                    // Try to resolve WhatsApp display name from store contacts
-                    const name = contacts[jid]?.name
-                        || contacts[jid]?.notify
-                        || contacts[jid]?.verifiedName
-                        || number;
-                    return `${i + 1}. ${name} (+${number})`;
+                const { payload, unresolved } = await createContactCards(sock, blocked, {
+                    displayName: 'Blocked Contacts',
                 });
 
                 await sock.sendMessage(m.chat, { react: { text: '🍃', key: m.key } });
-                return reply(`${prefix}🚫 *BLOCKED USERS*\n\n${lines.join('\n')}\n\n_Total: ${blocked.length}_`);
+                if (!payload) return reply(`${prefix}⊘ Could not resolve any real phone numbers in the blocklist.`);
+                await sock.sendMessage(m.chat, { contacts: payload }, { quoted: m });
+                if (unresolved) {
+                    return reply(`${prefix}🚫 Sent ${payload.contacts.length} blocked contact(s). ${unresolved} entry/entries were skipped because their real phone number could not be resolved.`);
+                }
+                return;
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
                 return reply(`${prefix}⊘ Error: ${err.message}`);
