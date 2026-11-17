@@ -1,10 +1,38 @@
 'use strict';
 
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
-const ROOT = process.cwd();
 const MAX_OUTPUT = 3500;
+
+function isCodyProject(dir) {
+    try {
+        const packageJson = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+        return packageJson.name === 'CODY-AI' || fs.existsSync(path.join(dir, 'src', 'Commands'));
+    } catch {
+        return false;
+    }
+}
+
+function resolveNpmProject(start = process.cwd()) {
+    const current = path.resolve(start);
+    const parent = path.dirname(current);
+    const configured = process.env.CODY_BOT_DIR || process.env.BOT_DIR;
+    const candidates = [
+        configured && path.resolve(configured),
+        path.join(current, 'bot'),
+        current,
+        path.join(parent, 'bot'),
+        parent,
+    ].filter(Boolean);
+    const unique = [...new Set(candidates)];
+    const projects = unique.filter(isCodyProject);
+    if (!projects.length) return { root: current, hasNodeModules: fs.existsSync(path.join(current, 'node_modules')), source: 'cwd' };
+    const installed = projects.find(dir => fs.existsSync(path.join(dir, 'node_modules')));
+    const root = installed || projects[0];
+    return { root, hasNodeModules: Boolean(installed), source: installed ? 'existing-node_modules' : 'project-fallback' };
+}
 
 function npmExecutable() {
     return process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -25,7 +53,7 @@ function buildNpmArgs(action, packages = []) {
     }
 }
 
-function runNpm(args, { cwd = ROOT, timeout = 120000 } = {}) {
+function runNpm(args, { cwd, timeout = 120000 } = {}) {
     return new Promise((resolve, reject) => {
         const child = spawn(npmExecutable(), args, {
             cwd,
@@ -88,11 +116,15 @@ module.exports = {
         const args = buildNpmArgs(action, tokens);
         if (!args) return reply('Unknown npm command. Use `.npm` for help.');
         if (['install', 'uninstall', 'remove'].includes(action) && !tokens.length) return reply('Missing package name.');
+        const project = resolveNpmProject();
+        if (action === 'update' && !project.hasNodeModules) {
+            return reply('No existing node_modules folder was found for this CODY deployment. Update was not run, so npm did not create a new dependency folder.');
+        }
 
         await sock.sendMessage(m.chat, { react: { text: '♻️', key: m.key } }).catch(() => {});
-        await reply(`_*Running in ${path.basename(ROOT)}:*_\n\`${npmExecutable()} ${args.join(' ')}\``);
+        await reply(`_*Running in ${path.basename(project.root)}:*_\n\`${npmExecutable()} ${args.join(' ')}\``);
         try {
-            const result = await runNpm(args);
+            const result = await runNpm(args, { cwd: project.root });
             const output = trimOutput(`${result.stdout}\n${result.stderr}`);
             await reply(`*✓ ${action === 'update' ? 'Updated in place' : 'Completed'}*\n\`\`\`\n${output}\n\`\`\``);
             await sock.sendMessage(m.chat, { react: { text: '📦', key: m.key } }).catch(() => {});
@@ -104,4 +136,4 @@ module.exports = {
     },
 };
 
-module.exports._test = { ROOT, buildNpmArgs, trimOutput };
+module.exports._test = { buildNpmArgs, trimOutput, isCodyProject, resolveNpmProject };

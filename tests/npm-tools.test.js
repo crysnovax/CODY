@@ -1,6 +1,9 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const npmCommand = require('../src/Commands/Bot/_');
 const npmInfo = require('../src/Commands/Search/npminfo');
 
@@ -11,7 +14,23 @@ test('npm update runs in place without removing node_modules', () => {
     assert.deepEqual(npmCommand._test.buildNpmArgs('update', ['axios']), [
         'update', 'axios', '--prefer-online', '--no-audit', '--no-fund',
     ]);
-    assert.equal(npmCommand._test.ROOT, process.cwd());
+    const project = npmCommand._test.resolveNpmProject(process.cwd());
+    assert.equal(project.root, process.cwd());
+    assert.equal(project.hasNodeModules, true);
+});
+
+test('npm resolver selects the existing CODY dependency location in both layouts', () => {
+    const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'cody-npm-'));
+    const direct = path.join(fixture, 'direct');
+    const site = path.join(fixture, 'site');
+    const bot = path.join(site, 'bot');
+    for (const dir of [direct, site, bot]) fs.mkdirSync(dir, { recursive: true });
+    for (const dir of [direct, site, bot]) fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'CODY-AI' }));
+    fs.mkdirSync(path.join(direct, 'node_modules'));
+    fs.mkdirSync(path.join(bot, 'node_modules'));
+    assert.equal(npmCommand._test.resolveNpmProject(direct).root, direct);
+    assert.equal(npmCommand._test.resolveNpmProject(site).root, bot);
+    fs.rmSync(fixture, { recursive: true, force: true });
 });
 
 test('npm output is bounded for chat replies', () => {
