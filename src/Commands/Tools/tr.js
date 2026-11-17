@@ -30,11 +30,11 @@ module.exports = {
         try {
             const { translated, from } = await translate(text, lang);
             
-            await sock.sendList(m.chat, '🌐 Translation', [
-                `📤 From: ${from}`,
-                `📥 To: ${lang}`,
-                `📝 Original: ${text.length > 200 ? text.slice(0, 197) + '...' : text}`,
-                `✅ Translated: ${translated}`,
+            await sock.sendList(m.chat, '🌎 Translation', [
+                `ⓘ From: ${from}`,
+                `⊹ To: ${lang}`,
+                `⊹ Original: ${text.length > 200 ? text.slice(0, 197) + '...' : text}`,
+                `🌐 Translated: ${translated}`,
             ], m);
 
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
