@@ -52,8 +52,15 @@ const smsg = async (sock, m, store) => {
             m.body = m.msg.caption
         }
         
-        let quoted = m.quoted = m.msg?.contextInfo ? m.msg.contextInfo.quotedMessage : null
-        m.mentionedJid = m.msg?.contextInfo?.mentionedJid
+        // Some WhatsApp client versions leave the quote on the raw
+        // extendedTextMessage while normalization does not expose it on m.msg.
+        // Inspect both locations so view-once commands receive recovery helpers.
+        const contextInfo = m.msg?.contextInfo
+            || m.message?.extendedTextMessage?.contextInfo
+            || m.message?.ephemeralMessage?.message?.extendedTextMessage?.contextInfo
+            || m.contextInfo
+        let quoted = m.quoted = contextInfo?.quotedMessage || null
+        m.mentionedJid = contextInfo?.mentionedJid
             || normalized?.extendedTextMessage?.contextInfo?.mentionedJid
             || normalized?.imageMessage?.contextInfo?.mentionedJid
             || normalized?.videoMessage?.contextInfo?.mentionedJid
@@ -75,21 +82,21 @@ const smsg = async (sock, m, store) => {
             }
  
             m.quoted.key = {
-                remoteJid: m.msg?.contextInfo?.remoteJid || m.from,
-                participant: jidNormalizedUser(m.msg?.contextInfo?.participant),
-                fromMe: areJidsSameUser(jidNormalizedUser(m.msg?.contextInfo?.participant), jidNormalizedUser(sock?.user?.id)),
-                id: m.msg?.contextInfo?.stanzaId,
+                remoteJid: contextInfo?.remoteJid || m.from,
+                participant: jidNormalizedUser(contextInfo?.participant),
+                fromMe: areJidsSameUser(jidNormalizedUser(contextInfo?.participant), jidNormalizedUser(sock?.user?.id)),
+                id: contextInfo?.stanzaId,
             };
             
             m.quoted.mtype = type
-            m.quoted.from = /g\.us|status/.test(m.msg?.contextInfo?.remoteJid) ? m.quoted.key.participant : m.quoted.key.remoteJid;
-            m.quoted.id = m.msg?.contextInfo?.stanzaId
-            m.quoted.chat = m.msg?.contextInfo?.remoteJid || m.chat
+            m.quoted.from = /g\.us|status/.test(contextInfo?.remoteJid) ? m.quoted.key.participant : m.quoted.key.remoteJid;
+            m.quoted.id = contextInfo?.stanzaId
+            m.quoted.chat = contextInfo?.remoteJid || m.chat
             m.quoted.isBaileys = m.quoted.id ? m.quoted.id.startsWith('BAE5') && m.quoted.id.length === 16 : false
-            m.quoted.sender = sock.decodeJid(m.msg?.contextInfo?.participant)
+            m.quoted.sender = sock.decodeJid(contextInfo?.participant)
             m.quoted.fromMe = m.quoted.sender === (sock.user && sock.user.id)
             m.quoted.text = m.quoted.text || m.quoted.caption || m.quoted.conversation || m.quoted.contentText || m.quoted.selectedDisplayText || m.quoted.title || ''
-            m.quoted.mentionedJid = m.msg?.contextInfo?.mentionedJid || []
+            m.quoted.mentionedJid = contextInfo?.mentionedJid || []
             
             m.getQuotedObj = m.getQuotedMessage = async () => {
                 if (!m.quoted.id) return false
