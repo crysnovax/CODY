@@ -131,7 +131,7 @@ const smsg = async (sock, m, store) => {
         }
     }
     
-    if (m.msg && m.msg.url) {
+    if (m.msg && (m.msg.url || m.msg.directPath || m.msg.mediaKey)) {
         // Keep the full WebMessageInfo so media re-upload can use its key.
         m.download = () => sock.downloadMediaMessage(m)
     }
