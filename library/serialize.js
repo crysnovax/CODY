@@ -101,9 +101,10 @@ const smsg = async (sock, m, store) => {
             m.getQuotedObj = m.getQuotedMessage = async () => {
                 if (!m.quoted.id) return false
                 const activeStore = store || global.__codyMessageStore
-                if (typeof activeStore?.loadMessage !== 'function') return false
                 const quotedChat = m.quoted.chat || m.chat
-                let q = await activeStore.loadMessage(quotedChat, m.quoted.id, sock)
+                let q = typeof activeStore?.loadMessage === 'function'
+                    ? await activeStore.loadMessage(quotedChat, m.quoted.id, sock)
+                    : null
                 // CODY stores every incoming envelope in this map. Some store
                 // implementations expose loadMessage but do not return entries
                 // written by the message handler, so fall back to the exact

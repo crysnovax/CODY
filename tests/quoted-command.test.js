@@ -276,6 +276,25 @@ test('.getQuotedMessage falls back to CODY messages map when loadMessage misses'
     assert.equal(recovered.message.imageMessage.url, 'https://media.example/map');
 });
 
+test('.getQuotedMessage uses the messages map when loadMessage is unavailable', async () => {
+    const chat = 'reply-chat@g.us';
+    const id = 'map-only-vv';
+    const original = { key: { remoteJid: chat, id }, message: { imageMessage: { viewOnce: true } } };
+    const sock = makeSock();
+    sock.user = { id: 'bot@s.whatsapp.net' };
+    sock.decodeJid = jid => jid;
+    const commandMessage = await smsg(sock, {
+        key: { remoteJid: chat, participant: 'bot@s.whatsapp.net', id: 'command-map-only' },
+        message: { extendedTextMessage: { text: '.vv', contextInfo: {
+            stanzaId: id, participant: 'user@s.whatsapp.net', remoteJid: chat,
+            quotedMessage: { imageMessage: { viewOnce: true } },
+        } } },
+    }, { messages: new Map([[`${chat}:${id}`, { message: original, timestamp: Date.now() }]]) });
+
+    const recovered = await commandMessage.getQuotedMessage();
+    assert.equal(recovered.message.imageMessage.viewOnce, true);
+});
+
 test('.quoted chooses the text message context over an outer stale quote', async () => {
     const target = targetMessage('reply-chat@g.us', 'outer-conflict', { conversation: 'yes' });
     target.message.contextInfo = { quotedMessage: { conversation: 'u' } };
