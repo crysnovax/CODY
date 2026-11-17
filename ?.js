@@ -401,7 +401,10 @@ setupPromotionGuard(sock);
                     // quoted recovery still needs that original WebMessageInfo.
                     if (incoming?.key?.remoteJid && incoming?.key?.id && customStore?.messages?.set) {
                         customStore.messages.set(`${incoming.key.remoteJid}:${incoming.key.id}`, {
-                            message: { ...incoming },
+                            // Do not shallow-spread Baileys protobuf objects:
+                            // their actual message payload may be a getter or
+                            // non-enumerable field and would be lost.
+                            message: incoming,
                             timestamp: Date.now()
                         });
                     }
