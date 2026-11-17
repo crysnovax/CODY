@@ -211,9 +211,16 @@ test('.getQuotedMessage unwraps CODY store records before serializing the origin
     });
 
     const recovered = await commandMessage.getQuotedMessage();
+    let downloadedEnvelope;
+    sock.downloadMediaMessage = async envelope => {
+        downloadedEnvelope = envelope;
+        return Buffer.from('stored-view-once-image');
+    };
 
     assert.equal(recovered.message.imageMessage.url, 'https://media.example/view-once');
     assert.equal(recovered.message.imageMessage.viewOnce, true);
+    assert.deepEqual(await recovered.download(), Buffer.from('stored-view-once-image'));
+    assert.equal(downloadedEnvelope.message.imageMessage.viewOnce, true);
 });
 
 test('.quoted chooses the text message context over an outer stale quote', async () => {
