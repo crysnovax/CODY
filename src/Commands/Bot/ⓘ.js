@@ -270,6 +270,33 @@ module.exports = {
         // Runtime overrides apply instantly; MENU_URL from .env must also drive
         // the default menu media instead of being bypassed by fixed URLs.
         const freshConfig = require('../../../settings/config');
+        const getMenuMediaOverride = name => String(getVar(name) || process.env[name] || '').trim();
+        // Dedicated media variables replace the complete live photo. If more
+        // than one is set, use this deterministic priority: GIF, image, video.
+        const mediaOverride = [
+            { type: 'gif', url: getMenuMediaOverride('MENU_GIF') },
+            { type: 'image', url: getMenuMediaOverride('MENU_IMG') },
+            { type: 'video', url: getMenuMediaOverride('MENU_VIDEO') }
+        ].find(item => item.url);
+        if (mediaOverride) {
+            const messagePayload = {
+                caption: text,
+                contextInfo: {
+                    forwardingScore: 1,
+                    isForwarded: true,
+                    participant: '0@s.whatsapp.net',
+                    remoteJid: '0@s.whatsapp.net'
+                }
+            };
+            if (mediaOverride.type === 'image') {
+                messagePayload.image = { url: mediaOverride.url };
+            } else {
+                messagePayload.video = { url: mediaOverride.url };
+                if (mediaOverride.type === 'gif') messagePayload.gifPlayback = true;
+            }
+            return sock.sendMessage(m.chat, messagePayload);
+        }
+
         const configuredMediaUrl = getVar('MENU_URL') || process.env.MENU_URL || getVar('THUMB_URL') || process.env.THUMB_URL || freshConfig.thumbUrl || '';
         const isAnimatedMedia = url => /\.(mp4|gif|webm|mov)(?:[?#].*)?$/i.test(String(url || ''));
         const liveVideoUrl = isAnimatedMedia(configuredMediaUrl) ? configuredMediaUrl : DEFAULT_LIVE_PHOTO_VIDEO;
