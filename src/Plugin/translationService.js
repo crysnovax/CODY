@@ -8,6 +8,35 @@ function normalizeLanguage(value) {
     return language.split('-')[0];
 }
 
+function languageName(value) {
+    const code = normalizeLanguage(value);
+    if (!code) return String(value || 'auto');
+    try {
+        return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) || code;
+    } catch {
+        return code;
+    }
+}
+
+function buildRichTranslationContent({ text, translated, from, to }) {
+    const sourceCode = normalizeLanguage(from) || String(from || 'auto');
+    const targetCode = normalizeLanguage(to) || String(to || '');
+    return {
+        sections: [
+            {
+                type: 'plain',
+                text: `\`ⓘ Original ${languageName(sourceCode)}\` *[${sourceCode}]*\n` +
+                    `\`♲ New ${languageName(targetCode)}\` *[${targetCode}]*\n\n\n ${text}\n`
+            },
+            {
+                type: 'list',
+                title: 'Translated',
+                items: [`🌐 ${translated}`]
+            }
+        ]
+    };
+}
+
 function extractGoogle(data) {
     if (!Array.isArray(data) || !Array.isArray(data[0])) return null;
     const translated = data[0].map(part => part?.[0] || '').join('').trim();
@@ -61,4 +90,4 @@ async function translate(text, targetLanguage) {
     throw new Error(`Translation service unavailable${detail}`);
 }
 
-module.exports = { normalizeLanguage, extractGoogle, extractMyMemory, translate };
+module.exports = { normalizeLanguage, languageName, buildRichTranslationContent, extractGoogle, extractMyMemory, translate };

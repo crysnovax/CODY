@@ -1,5 +1,5 @@
 const { loadDefaults } = require('../Core/✐');
-const { translate } = require('../../Plugin/translationService');
+const { translate, buildRichTranslationContent } = require('../../Plugin/translationService');
 
 module.exports = {
     name: 'trd',
@@ -29,18 +29,23 @@ module.exports = {
         try {
             const { translated, from } = await translate(text, lang);
             
-            await sock.sendMessage(m.chat, {
-                headerText: `## 🌐 Auto Translation`,
-                contentText: '---',
-                title: '📝 Result',
-                table: [
-                    ['📤 From', from],
-                    ['📥 To', lang],
-                    ['📝 Original', text.length > 200 ? text.slice(0, 197) + '...' : text],
-                    ['✅ Translated', translated]
-                ],
-                footerText: '💡 Change default: .settrd <lang>'
-            }, { quoted: m });
+            const content = buildRichTranslationContent({ text, translated, from, to: lang });
+            if (typeof sock.sendRichAIResponse === 'function') {
+                await sock.sendRichAIResponse(m.chat, content, m);
+            } else {
+                await sock.sendMessage(m.chat, {
+                    headerText: `## 🌐 Auto Translation`,
+                    contentText: '---',
+                    title: '📝 Result',
+                    table: [
+                        ['📤 From', from],
+                        ['📥 To', lang],
+                        ['📝 Original', text.length > 200 ? text.slice(0, 197) + '...' : text],
+                        ['✅ Translated', translated]
+                    ],
+                    footerText: '💡 Change default: .settrd <lang>'
+                }, { quoted: m });
+            }
 
             await sock.sendMessage(m.chat, { react: { text: '✨', key: m.key } });
 

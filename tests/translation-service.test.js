@@ -3,12 +3,39 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const axios = require('axios');
-const { extractGoogle, extractMyMemory, normalizeLanguage, translate } = require('../src/Plugin/translationService');
+const {
+    extractGoogle,
+    extractMyMemory,
+    normalizeLanguage,
+    buildRichTranslationContent,
+    translate
+} = require('../src/Plugin/translationService');
 
 test('normalizes language tags to provider-compatible codes', () => {
     assert.equal(normalizeLanguage('fr-FR'), 'fr');
     assert.equal(normalizeLanguage('yo-NG'), 'yo');
     assert.equal(normalizeLanguage('not a language'), null);
+});
+
+test('builds rich translation sections with language names and codes', () => {
+    assert.deepEqual(buildRichTranslationContent({
+        text: "Je m'appelle Crysnova",
+        translated: 'My name is Crysnova',
+        from: 'fr',
+        to: 'en'
+    }), {
+        sections: [
+            {
+                type: 'plain',
+                text: '`ⓘ Original French` *[fr]*\n`♲ New English` *[en]*\n\n\n Je m\'appelle Crysnova\n'
+            },
+            {
+                type: 'list',
+                title: 'Translated',
+                items: ['🌐 My name is Crysnova']
+            }
+        ]
+    });
 });
 
 test('extracts Google translation segments safely', () => {
