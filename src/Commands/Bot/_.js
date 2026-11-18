@@ -90,6 +90,34 @@ function trimOutput(value) {
     return text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n…(output truncated)` : text;
 }
 
+function buildNpmResponseContent({ action, projectRoot, args, output, success }) {
+    return {
+        sections: [
+            {
+                type: 'plain',
+                text: `${success ? '✅' : '❌'} npm ${action} ${success ? 'completed' : 'failed'} in ${path.basename(projectRoot)}.`,
+            },
+            {
+                type: 'codeBlock',
+                language: 'bash',
+                code: `${npmExecutable()} ${args.join(' ')}`,
+            },
+            {
+                type: 'codeBlock',
+                language: 'text',
+                code: trimOutput(output),
+            },
+        ],
+    };
+}
+
+function buildNpmFallbackText(content) {
+    return content.sections.map(section => {
+        if (section.type === 'plain') return section.text;
+        return `${section.language || 'code'}:\n${section.code}`;
+    }).join('\n\n');
+}
+
 module.exports = {
     name: 'npm',
     alias: [],
@@ -125,15 +153,29 @@ module.exports = {
         await reply(`_*Running in ${path.basename(project.root)}:*_\n\`${npmExecutable()} ${args.join(' ')}\``);
         try {
             const result = await runNpm(args, { cwd: project.root });
-            const output = trimOutput(`${result.stdout}\n${result.stderr}`);
-            await reply(`*✓ ${action === 'update' ? 'Updated in place' : 'Completed'}*\n\`\`\`\n${output}\n\`\`\``);
+            const content = buildNpmResponseContent({
+                action,
+                projectRoot: project.root,
+                args,
+                output: `${result.stdout}\n${result.stderr}`,
+                success: true,
+            });
+            if (typeof sock.sendRichAIResponse === 'function') await sock.sendRichAIResponse(m.chat, content, m);
+            else await reply(buildNpmFallbackText(content));
             await sock.sendMessage(m.chat, { react: { text: '📦', key: m.key } }).catch(() => {});
         } catch (error) {
-            const output = trimOutput(`${error.stdout || ''}\n${error.stderr || error.message}`);
-            await reply(`*✘ npm ${action} failed*\n\`\`\`\n${output}\n\`\`\``);
+            const content = buildNpmResponseContent({
+                action,
+                projectRoot: project.root,
+                args,
+                output: `${error.stdout || ''}\n${error.stderr || error.message}`,
+                success: false,
+            });
+            if (typeof sock.sendRichAIResponse === 'function') await sock.sendRichAIResponse(m.chat, content, m);
+            else await reply(buildNpmFallbackText(content));
             await sock.sendMessage(m.chat, { react: { text: '✘', key: m.key } }).catch(() => {});
         }
     },
 };
 
-module.exports._test = { buildNpmArgs, trimOutput, isCodyProject, resolveNpmProject };
+module.exports._test = { buildNpmArgs, trimOutput, isCodyProject, resolveNpmProject, buildNpmResponseContent, buildNpmFallbackText };
