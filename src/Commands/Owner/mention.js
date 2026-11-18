@@ -8,7 +8,9 @@ const { loadMentionSticker } = require('../../Plugin/mentionSticker');
 const {
     parseReactionCount,
     MAX_STICKER_REACTION_ATTEMPTS,
+    getQuotedStickerEnvelope,
     getQuotedStickerMessage,
+    isSpecialStickerMessage,
     saveStickerReactionMessage
 } = require('./sreact');
 
@@ -97,11 +99,14 @@ async function isPrivilegedMentioned(sock, m, mek) {
 }
 
 async function sendMentionSticker(sock, jid, options = {}) {
-    if (mentionConfig.stickerKind === 'lottie') {
+    if (mentionConfig.stickerKind === 'lottie' || mentionConfig.stickerKind === 'protocol') {
         if (!fs.existsSync(MENTION_PROTOCOL_FILE) || typeof sock.relayMessage !== 'function') {
-            throw new Error('Lottie mention stickers require a preserved protocol message');
+            throw new Error('Special mention stickers require a preserved protocol message');
         }
         const saved = JSON.parse(fs.readFileSync(MENTION_PROTOCOL_FILE, 'utf8'));
+        if (!saved || !['stickerMessage', 'lottieStickerMessage'].includes(saved.type) || !saved.value) {
+            throw new Error('Saved special mention sticker has an invalid protocol envelope');
+        }
         return sock.relayMessage(jid, { [saved.type]: saved.value }, {
             messageId: options.messageId || undefined
         });
@@ -111,6 +116,11 @@ async function sendMentionSticker(sock, jid, options = {}) {
         isAnimated: mentionConfig.stickerIsAnimated
     });
     return sock.sendMessage(jid, { sticker: payload.buffer, isAnimated: payload.isAnimated }, options.quoted ? { quoted: options.quoted } : undefined);
+}
+
+function saveMentionStickerEnvelope(envelope) {
+    fs.mkdirSync(path.dirname(MENTION_PROTOCOL_FILE), { recursive: true });
+    fs.writeFileSync(MENTION_PROTOCOL_FILE, JSON.stringify({ type: envelope.type, value: envelope.value }));
 }
 
 async function sendMentionVoice(sock, jid, options = {}) {
@@ -245,18 +255,24 @@ module.exports = {
 
         // STICKER: quote a sticker, or provide a direct sticker URL.
         if (option === 'sticker' || option === '-sticker') {
-            const quotedSticker = m.quoted?.stickerMessage || m.quoted?.message?.stickerMessage || (m.quoted?.mtype === 'stickerMessage' ? m.quoted : null);
-            const quotedLottie = m.quoted?.lottieStickerMessage || m.quoted?.message?.lottieStickerMessage || (m.quoted?.mtype === 'lottieStickerMessage' ? m.quoted : null);
-            if (quotedLottie) {
+            const quotedEnvelope = getQuotedStickerEnvelope(m.quoted);
+            const quotedSticker = quotedEnvelope?.type === 'stickerMessage' ? quotedEnvelope.value : null;
+            if (quotedEnvelope?.type === 'lottieStickerMessage') {
                 // Lottie is a distinct WAProto wrapper; plogme intentionally
                 // does not expose it as a normal downloadable sticker type.
                 // Preserve and relay that wrapper rather than creating the
                 // "cannot view sticker" placeholder.
-                fs.mkdirSync(path.dirname(MENTION_PROTOCOL_FILE), { recursive: true });
-                fs.writeFileSync(MENTION_PROTOCOL_FILE, JSON.stringify({ type: 'lottieStickerMessage', value: quotedLottie }));
+                saveMentionStickerEnvelope(quotedEnvelope);
                 mentionConfig.sticker = MENTION_PROTOCOL_FILE;
                 mentionConfig.stickerKind = 'lottie';
                 mentionConfig.stickerIsAnimated = true;
+            } else if (isSpecialStickerMessage(quotedSticker)) {
+                // Re-relay the original proto so premium/AI flags and media keys
+                // survive; downloading and re-uploading would strip that metadata.
+                saveMentionStickerEnvelope(quotedEnvelope);
+                mentionConfig.sticker = MENTION_PROTOCOL_FILE;
+                mentionConfig.stickerKind = 'protocol';
+                mentionConfig.stickerIsAnimated = Boolean(quotedSticker.isAnimated);
             } else if (quotedSticker) {
                 const stream = await downloadContentFromMessage(quotedSticker, 'sticker');
                 const chunks = [];

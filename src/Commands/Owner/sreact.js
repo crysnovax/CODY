@@ -36,39 +36,97 @@ function parseReactionCount(value) {
     return Number.isSafeInteger(count) && count <= MAX_STICKER_REACTION_ATTEMPTS ? count : null;
 }
 
-function getQuotedStickerMessage(quoted) {
-    if (!quoted) return null;
-    return quoted.stickerMessage || quoted.lottieStickerMessage ||
-        (quoted.mtype === 'stickerMessage' || quoted.mtype === 'lottieStickerMessage' ? quoted : null);
+function getQuotedStickerEnvelope(quoted) {
+    if (!quoted || typeof quoted !== 'object') return null;
+    if (quoted.lottieStickerMessage) {
+        return { type: 'lottieStickerMessage', value: quoted.lottieStickerMessage };
+    }
+    if (quoted.mtype === 'lottieStickerMessage') {
+        return { type: 'lottieStickerMessage', value: quoted.message ? { message: quoted.message } : quoted };
+    }
+    if (quoted.message?.lottieStickerMessage) {
+        return { type: 'lottieStickerMessage', value: quoted.message.lottieStickerMessage };
+    }
+    const stickerMessage = quoted.stickerMessage || quoted.message?.stickerMessage ||
+        (quoted.mtype === 'stickerMessage' ? quoted : null);
+    return stickerMessage ? { type: 'stickerMessage', value: stickerMessage } : null;
 }
 
-function loadStickerReactionMessage() {
+function getQuotedStickerMessage(quoted) {
+    return getQuotedStickerEnvelope(quoted)?.value || null;
+}
+
+function isSpecialStickerMessage(stickerMessage) {
+    return Boolean(stickerMessage && (
+        stickerMessage.isLottie === true ||
+        stickerMessage.isAiSticker === true ||
+        Number(stickerMessage.premium) > 0
+    ));
+}
+
+function loadStickerReactionEnvelope() {
     try {
-        if (!fs.existsSync(CUSTOM_STICKER_FILE)) return DEFAULT_STICKER_MESSAGE;
-        const saved = JSON.parse(fs.readFileSync(CUSTOM_STICKER_FILE, 'utf8'));
-        if (saved && typeof saved === 'object' && (saved.stickerMessage || saved.lottieStickerMessage)) {
-            return saved.stickerMessage || saved.lottieStickerMessage;
+        if (!fs.existsSync(CUSTOM_STICKER_FILE)) {
+            return { type: 'stickerMessage', value: DEFAULT_STICKER_MESSAGE };
         }
-        return saved && typeof saved === 'object' ? saved : DEFAULT_STICKER_MESSAGE;
+        const saved = JSON.parse(fs.readFileSync(CUSTOM_STICKER_FILE, 'utf8'));
+        if (saved && typeof saved === 'object' && saved.__codyStickerEnvelope === 1 &&
+            ['stickerMessage', 'lottieStickerMessage'].includes(saved.type) && saved.value && typeof saved.value === 'object') {
+            return { type: saved.type, value: saved.value };
+        }
+        if (saved && typeof saved === 'object' && saved.lottieStickerMessage) {
+            return { type: 'lottieStickerMessage', value: saved.lottieStickerMessage };
+        }
+        if (saved && typeof saved === 'object' && saved.stickerMessage) {
+            return { type: 'stickerMessage', value: saved.stickerMessage };
+        }
+        // Older Lottie saves contain the FutureProofMessage value, sometimes
+        // with command-only mtype fields and sometimes without them.
+        if (saved?.mtype === 'lottieStickerMessage') {
+            return {
+                type: 'lottieStickerMessage',
+                value: saved?.message ? { message: saved.message } : saved
+            };
+        }
+        if (saved?.message?.lottieStickerMessage) {
+            return { type: 'lottieStickerMessage', value: saved.message.lottieStickerMessage };
+        }
+        if (saved?.message?.stickerMessage) {
+            return { type: 'lottieStickerMessage', value: { message: saved.message } };
+        }
+        return saved && typeof saved === 'object'
+            ? { type: 'stickerMessage', value: saved }
+            : { type: 'stickerMessage', value: DEFAULT_STICKER_MESSAGE };
     } catch (error) {
         console.error('[SREACT] Could not load saved sticker:', error.message);
-        return DEFAULT_STICKER_MESSAGE;
+        return { type: 'stickerMessage', value: DEFAULT_STICKER_MESSAGE };
     }
 }
 
-function saveStickerReactionMessage(quoted) {
-    const stickerMessage = getQuotedStickerMessage(quoted);
-    if (!stickerMessage) return false;
+function loadStickerReactionMessage() {
+    return loadStickerReactionEnvelope().value;
+}
+
+function saveStickerEnvelope(envelope) {
     fs.mkdirSync(path.dirname(CUSTOM_STICKER_FILE), { recursive: true });
-    fs.writeFileSync(CUSTOM_STICKER_FILE, JSON.stringify(stickerMessage, null, 2));
+    const saved = envelope.type === 'lottieStickerMessage'
+        ? { __codyStickerEnvelope: 1, type: envelope.type, value: envelope.value }
+        : envelope.value;
+    fs.writeFileSync(CUSTOM_STICKER_FILE, JSON.stringify(saved, null, 2));
     return true;
+}
+
+function saveStickerReactionMessage(quoted) {
+    const envelope = getQuotedStickerEnvelope(quoted);
+    if (!envelope) return false;
+    return saveStickerEnvelope(envelope);
 }
 
 async function sendStickerReaction(sock, jid, parentMessageKey, count = 1) {
     const attempts = parseReactionCount(count);
     if (!attempts || !parentMessageKey?.id || typeof sock?.relayMessage !== 'function') return false;
 
-    const stickerMessage = loadStickerReactionMessage();
+    const sticker = loadStickerReactionEnvelope();
     for (let attempt = 0; attempt < attempts; attempt += 1) {
         await sock.relayMessage(jid, {
             messageContextInfo: {
@@ -77,7 +135,7 @@ async function sendStickerReaction(sock, jid, parentMessageKey, count = 1) {
                     parentMessageKey
                 }
             },
-            stickerMessage: { ...stickerMessage }
+            [sticker.type]: { ...sticker.value }
         }, {});
 
         if (attempt + 1 < attempts) {
@@ -138,7 +196,10 @@ module.exports = {
     CUSTOM_STICKER_FILE,
     MAX_STICKER_REACTION_ATTEMPTS,
     parseReactionCount,
+    getQuotedStickerEnvelope,
     getQuotedStickerMessage,
+    isSpecialStickerMessage,
+    loadStickerReactionEnvelope,
     loadStickerReactionMessage,
     saveStickerReactionMessage,
     sendStickerReaction

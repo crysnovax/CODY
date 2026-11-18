@@ -102,7 +102,9 @@ test('.sreact saves a replied sticker and uses it for the association reaction',
     const sticker = {
         url: 'https://example.test/custom.webp',
         mimetype: 'image/webp',
-        fileSha256: 'custom-sha256'
+        fileSha256: 'custom-sha256',
+        isAiSticker: true,
+        premium: 1
     };
     const targetKey = { remoteJid: '123@g.us', id: 'sticker-message' };
     const originalExistsSync = fs.existsSync;
@@ -137,6 +139,65 @@ test('.sreact saves a replied sticker and uses it for the association reaction',
     }
 });
 
+test('.sreact relays Lottie stickers with the Lottie protocol wrapper', async () => {
+    const stickerPath = path.resolve(sreact.CUSTOM_STICKER_FILE);
+    const originalExistsSync = fs.existsSync;
+    const originalReadFileSync = fs.readFileSync;
+    const originalWriteFileSync = fs.writeFileSync;
+    const saved = new Map();
+    const lottie = {
+        mtype: 'lottieStickerMessage',
+        message: { stickerMessage: { url: 'https://example.test/lottie.tgs', mimetype: 'application/gzip' } }
+    };
+    fs.existsSync = file => path.resolve(String(file)) === stickerPath || originalExistsSync(file);
+    fs.readFileSync = (file, encoding) => path.resolve(String(file)) === stickerPath
+        ? JSON.stringify(saved.get(stickerPath))
+        : originalReadFileSync(file, encoding);
+    fs.writeFileSync = (file, data, ...rest) => {
+        if (path.resolve(String(file)) === stickerPath) {
+            saved.set(stickerPath, JSON.parse(String(data)));
+            return;
+        }
+        return originalWriteFileSync.call(this, file, data, ...rest);
+    };
+    try {
+        const calls = [];
+        await sreact.execute({ relayMessage: async (...args) => calls.push(args) }, {
+            chat: '123@g.us',
+            quoted: { key: { id: 'lottie-source' }, ...lottie }
+        }, { args: [], reply: async () => {} });
+
+        assert.equal(calls.length, 1);
+        assert.deepEqual(calls[0][1].lottieStickerMessage, { message: lottie.message });
+        assert.equal(calls[0][1].stickerMessage, undefined);
+        assert.equal(saved.get(stickerPath).__codyStickerEnvelope, 1);
+    } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        fs.writeFileSync = originalWriteFileSync;
+    }
+});
+
+test('.sreact recognizes previously saved raw Lottie FutureProofMessage payloads', () => {
+    const stickerPath = path.resolve(sreact.CUSTOM_STICKER_FILE);
+    const originalExistsSync = fs.existsSync;
+    const originalReadFileSync = fs.readFileSync;
+    const legacy = { message: { stickerMessage: { url: 'https://example.test/legacy.tgs' } } };
+    fs.existsSync = file => path.resolve(String(file)) === stickerPath || originalExistsSync(file);
+    fs.readFileSync = (file, encoding) => path.resolve(String(file)) === stickerPath
+        ? JSON.stringify(legacy)
+        : originalReadFileSync(file, encoding);
+    try {
+        assert.deepEqual(sreact.loadStickerReactionEnvelope(), {
+            type: 'lottieStickerMessage',
+            value: legacy
+        });
+    } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+    }
+});
+
 test('.mention sreact saves a replied sticker for future mention reactions', async () => {
     const configPath = path.resolve(__dirname, '../database/mention_config.json');
     const stickerPath = path.resolve(sreact.CUSTOM_STICKER_FILE);
@@ -162,6 +223,66 @@ test('.mention sreact saves a replied sticker for future mention reactions', asy
         assert.deepEqual(JSON.parse(writes.get(stickerPath)), { url: 'https://example.test/mention.webp' });
         assert.equal(mention.mentionConfig.action, 'sreact');
     } finally {
+        fs.writeFileSync = originalWriteFileSync;
+        Object.assign(mention.mentionConfig, previousConfig);
+    }
+});
+
+test('.mention sticker action preserves Lottie and premium sticker protocol payloads', async () => {
+    const configPath = path.resolve(__dirname, '../database/mention_config.json');
+    const protocolPath = path.resolve(__dirname, '../database/mention-sticker-message.json');
+    const previousConfig = { ...mention.mentionConfig };
+    const originalExistsSync = fs.existsSync;
+    const originalReadFileSync = fs.readFileSync;
+    const originalWriteFileSync = fs.writeFileSync;
+    const writes = new Map();
+    const cases = [
+        {
+            name: 'Lottie',
+            quoted: { mtype: 'lottieStickerMessage', message: { stickerMessage: { url: 'https://example.test/lottie.tgs' } } },
+            type: 'lottieStickerMessage',
+            expected: { message: { stickerMessage: { url: 'https://example.test/lottie.tgs' } } },
+            kind: 'lottie'
+        },
+        {
+            name: 'premium',
+            quoted: { mtype: 'stickerMessage', url: 'https://example.test/premium.webp', isAiSticker: true, premium: 1, fileSha256: 'premium-hash' },
+            type: 'stickerMessage',
+            expected: { mtype: 'stickerMessage', url: 'https://example.test/premium.webp', isAiSticker: true, premium: 1, fileSha256: 'premium-hash' },
+            kind: 'protocol'
+        }
+    ];
+    fs.existsSync = file => path.resolve(String(file)) === protocolPath || originalExistsSync(file);
+    fs.readFileSync = (file, encoding) => {
+        if (path.resolve(String(file)) === protocolPath) return writes.get(protocolPath);
+        return originalReadFileSync(file, encoding);
+    };
+    fs.writeFileSync = (file, data, ...rest) => {
+        const resolved = path.resolve(String(file));
+        if (resolved === configPath || resolved === protocolPath) {
+            writes.set(resolved, String(data));
+            return;
+        }
+        return originalWriteFileSync.call(this, file, data, ...rest);
+    };
+    try {
+        for (const item of cases) {
+            writes.clear();
+            await mention.execute({}, { quoted: item.quoted }, {
+                args: ['sticker'],
+                prefix: '.',
+                reply: async () => {}
+            });
+            assert.equal(mention.mentionConfig.stickerKind, item.kind, `${item.name} sticker kind`);
+            const saved = JSON.parse(writes.get(protocolPath));
+            assert.equal(saved.type, item.type, `${item.name} protocol type`);
+            const calls = [];
+            await mention.sendMentionSticker({ relayMessage: async (...args) => calls.push(args) }, '123@g.us');
+            assert.deepEqual(calls[0][1][item.type], item.expected, `${item.name} protocol payload`);
+        }
+    } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
         fs.writeFileSync = originalWriteFileSync;
         Object.assign(mention.mentionConfig, previousConfig);
     }
