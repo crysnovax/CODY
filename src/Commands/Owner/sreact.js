@@ -64,6 +64,30 @@ function isSpecialStickerMessage(stickerMessage) {
     ));
 }
 
+function preparePremiumStickerForResend(envelope) {
+    const resendMessage = (message) => {
+        if (!message || typeof message !== 'object') return message;
+        if (message.stickerMessage) {
+            const stickerMessage = { ...message.stickerMessage, premium: 1 };
+            // Forwarding indicators live in StickerMessage.contextInfo. Keep
+            // association context on the outer message, but never copy the
+            // source sticker's quote/forward metadata into this new send.
+            delete stickerMessage.contextInfo;
+            return { ...message, stickerMessage };
+        }
+        if (message.lottieStickerMessage) {
+            return { ...message, lottieStickerMessage: resendMessage(message.lottieStickerMessage) };
+        }
+        if (message.message) {
+            return { ...message, message: resendMessage(message.message) };
+        }
+        const stickerMessage = { ...message, premium: 1 };
+        delete stickerMessage.contextInfo;
+        return stickerMessage;
+    };
+    return { type: envelope.type, value: resendMessage(envelope.value) };
+}
+
 function loadStickerReactionEnvelope() {
     try {
         if (!fs.existsSync(CUSTOM_STICKER_FILE)) {
@@ -126,7 +150,7 @@ async function sendStickerReaction(sock, jid, parentMessageKey, count = 1) {
     const attempts = parseReactionCount(count);
     if (!attempts || !parentMessageKey?.id || typeof sock?.relayMessage !== 'function') return false;
 
-    const sticker = loadStickerReactionEnvelope();
+    const sticker = preparePremiumStickerForResend(loadStickerReactionEnvelope());
     for (let attempt = 0; attempt < attempts; attempt += 1) {
         await sock.relayMessage(jid, {
             messageContextInfo: {
@@ -199,6 +223,7 @@ module.exports = {
     getQuotedStickerEnvelope,
     getQuotedStickerMessage,
     isSpecialStickerMessage,
+    preparePremiumStickerForResend,
     loadStickerReactionEnvelope,
     loadStickerReactionMessage,
     saveStickerReactionMessage,

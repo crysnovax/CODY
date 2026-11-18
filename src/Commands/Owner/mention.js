@@ -11,6 +11,7 @@ const {
     getQuotedStickerEnvelope,
     getQuotedStickerMessage,
     isSpecialStickerMessage,
+    preparePremiumStickerForResend,
     saveStickerReactionMessage
 } = require('./sreact');
 
@@ -107,7 +108,8 @@ async function sendMentionSticker(sock, jid, options = {}) {
         if (!saved || !['stickerMessage', 'lottieStickerMessage'].includes(saved.type) || !saved.value) {
             throw new Error('Saved special mention sticker has an invalid protocol envelope');
         }
-        return sock.relayMessage(jid, { [saved.type]: saved.value }, {
+        const sticker = preparePremiumStickerForResend(saved);
+        return sock.relayMessage(jid, { [sticker.type]: sticker.value }, {
             messageId: options.messageId || undefined
         });
     }
@@ -115,7 +117,11 @@ async function sendMentionSticker(sock, jid, options = {}) {
         kind: mentionConfig.stickerKind,
         isAnimated: mentionConfig.stickerIsAnimated
     });
-    return sock.sendMessage(jid, { sticker: payload.buffer, isAnimated: payload.isAnimated }, options.quoted ? { quoted: options.quoted } : undefined);
+    return sock.sendMessage(jid, {
+        sticker: payload.buffer,
+        isAnimated: payload.isAnimated,
+        premium: 1
+    }, options.quoted ? { quoted: options.quoted } : undefined);
 }
 
 function saveMentionStickerEnvelope(envelope) {

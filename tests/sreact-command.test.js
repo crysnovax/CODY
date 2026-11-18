@@ -35,7 +35,8 @@ test('.sreact relays the supplied default sticker as a reaction to the replied-t
         associationType: 11,
         parentMessageKey: targetKey
     });
-    assert.deepEqual(calls[0][1].stickerMessage, sreact.DEFAULT_STICKER_MESSAGE);
+    assert.equal(calls[0][1].stickerMessage.premium, 1);
+    assert.equal(calls[0][1].stickerMessage.contextInfo, undefined);
     assert.equal(calls[0][2] && Object.keys(calls[0][2]).length, 0);
     assert.equal(replies.length, 0);
     assert.equal(sreact.DEFAULT_STICKER_MESSAGE.url,
@@ -104,7 +105,8 @@ test('.sreact saves a replied sticker and uses it for the association reaction',
         mimetype: 'image/webp',
         fileSha256: 'custom-sha256',
         isAiSticker: true,
-        premium: 1
+        premium: 0,
+        contextInfo: { isForwarded: true, forwardingScore: 4 }
     };
     const targetKey = { remoteJid: '123@g.us', id: 'sticker-message' };
     const originalExistsSync = fs.existsSync;
@@ -131,7 +133,13 @@ test('.sreact saves a replied sticker and uses it for the association reaction',
             chat: '123@g.us',
             quoted: { key: targetKey, stickerMessage: sticker }
         }, { args: [], reply: async () => {} });
-        assert.deepEqual(calls[0][1].stickerMessage, sticker);
+        assert.deepEqual(calls[0][1].stickerMessage, {
+            url: sticker.url,
+            mimetype: sticker.mimetype,
+            fileSha256: sticker.fileSha256,
+            isAiSticker: true,
+            premium: 1
+        });
     } finally {
         fs.existsSync = originalExistsSync;
         fs.readFileSync = originalReadFileSync;
@@ -147,7 +155,12 @@ test('.sreact relays Lottie stickers with the Lottie protocol wrapper', async ()
     const saved = new Map();
     const lottie = {
         mtype: 'lottieStickerMessage',
-        message: { stickerMessage: { url: 'https://example.test/lottie.tgs', mimetype: 'application/gzip' } }
+        message: { stickerMessage: {
+            url: 'https://example.test/lottie.tgs',
+            mimetype: 'application/gzip',
+            premium: 0,
+            contextInfo: { isForwarded: true, forwardingScore: 2 }
+        } }
     };
     fs.existsSync = file => path.resolve(String(file)) === stickerPath || originalExistsSync(file);
     fs.readFileSync = (file, encoding) => path.resolve(String(file)) === stickerPath
@@ -168,7 +181,13 @@ test('.sreact relays Lottie stickers with the Lottie protocol wrapper', async ()
         }, { args: [], reply: async () => {} });
 
         assert.equal(calls.length, 1);
-        assert.deepEqual(calls[0][1].lottieStickerMessage, { message: lottie.message });
+        assert.deepEqual(calls[0][1].lottieStickerMessage, {
+            message: { stickerMessage: {
+                url: 'https://example.test/lottie.tgs',
+                mimetype: 'application/gzip',
+                premium: 1
+            } }
+        });
         assert.equal(calls[0][1].stickerMessage, undefined);
         assert.equal(saved.get(stickerPath).__codyStickerEnvelope, 1);
     } finally {
@@ -239,14 +258,25 @@ test('.mention sticker action preserves Lottie and premium sticker protocol payl
     const cases = [
         {
             name: 'Lottie',
-            quoted: { mtype: 'lottieStickerMessage', message: { stickerMessage: { url: 'https://example.test/lottie.tgs' } } },
+            quoted: { mtype: 'lottieStickerMessage', message: { stickerMessage: {
+                url: 'https://example.test/lottie.tgs',
+                premium: 0,
+                contextInfo: { isForwarded: true, forwardingScore: 3 }
+            } } },
             type: 'lottieStickerMessage',
-            expected: { message: { stickerMessage: { url: 'https://example.test/lottie.tgs' } } },
+            expected: { message: { stickerMessage: { url: 'https://example.test/lottie.tgs', premium: 1 } } },
             kind: 'lottie'
         },
         {
             name: 'premium',
-            quoted: { mtype: 'stickerMessage', url: 'https://example.test/premium.webp', isAiSticker: true, premium: 1, fileSha256: 'premium-hash' },
+            quoted: {
+                mtype: 'stickerMessage',
+                url: 'https://example.test/premium.webp',
+                isAiSticker: true,
+                premium: 0,
+                fileSha256: 'premium-hash',
+                contextInfo: { isForwarded: true, forwardingScore: 5 }
+            },
             type: 'stickerMessage',
             expected: { mtype: 'stickerMessage', url: 'https://example.test/premium.webp', isAiSticker: true, premium: 1, fileSha256: 'premium-hash' },
             kind: 'protocol'
@@ -284,6 +314,25 @@ test('.mention sticker action preserves Lottie and premium sticker protocol payl
         fs.existsSync = originalExistsSync;
         fs.readFileSync = originalReadFileSync;
         fs.writeFileSync = originalWriteFileSync;
+        Object.assign(mention.mentionConfig, previousConfig);
+    }
+});
+
+test('mention sticker uploads are sent as premium:1 stickers', async () => {
+    const stickerPath = path.join(require('node:os').tmpdir(), `cody-premium-${process.pid}-${Date.now()}.webp`);
+    const previousConfig = { sticker: mention.mentionConfig.sticker, stickerKind: mention.mentionConfig.stickerKind, stickerIsAnimated: mention.mentionConfig.stickerIsAnimated };
+    fs.writeFileSync(stickerPath, Buffer.from('RIFF0000WEBP'));
+    try {
+        mention.mentionConfig.sticker = stickerPath;
+        mention.mentionConfig.stickerKind = 'sticker';
+        mention.mentionConfig.stickerIsAnimated = false;
+        const calls = [];
+        await mention.sendMentionSticker({ sendMessage: async (...args) => calls.push(args) }, '123@g.us');
+        assert.equal(calls[0][1].premium, 1);
+        assert.equal(calls[0][1].isAnimated, false);
+        assert.ok(Buffer.isBuffer(calls[0][1].sticker));
+    } finally {
+        fs.rmSync(stickerPath, { force: true });
         Object.assign(mention.mentionConfig, previousConfig);
     }
 });
