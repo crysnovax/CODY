@@ -247,6 +247,101 @@ test('.mention sreact saves a replied sticker for future mention reactions', asy
     }
 });
 
+test('.mention sreact resends premium and Lottie stickers as fresh premium reactions', async () => {
+    const configPath = path.resolve(__dirname, '../database/mention_config.json');
+    const stickerPath = path.resolve(sreact.CUSTOM_STICKER_FILE);
+    const previousConfig = { ...mention.mentionConfig };
+    const originalExistsSync = fs.existsSync;
+    const originalReadFileSync = fs.readFileSync;
+    const originalWriteFileSync = fs.writeFileSync;
+    const savedFiles = new Map();
+    const cases = [
+        {
+            name: 'premium',
+            quoted: {
+                mtype: 'stickerMessage',
+                url: 'https://example.test/mention-premium.webp',
+                premium: 0,
+                isAiSticker: true,
+                contextInfo: { isForwarded: true, forwardingScore: 4 }
+            },
+            expectedType: 'stickerMessage',
+            assertPayload(message) {
+                assert.equal(message.stickerMessage.url, this.quoted.url);
+                assert.equal(message.stickerMessage.premium, 1);
+                assert.equal(message.stickerMessage.isAiSticker, true);
+                assert.equal(message.stickerMessage.contextInfo, undefined);
+            }
+        },
+        {
+            name: 'Lottie',
+            quoted: {
+                mtype: 'lottieStickerMessage',
+                message: { stickerMessage: {
+                    url: 'https://example.test/mention-lottie.tgs',
+                    mimetype: 'application/gzip',
+                    premium: 0,
+                    contextInfo: { isForwarded: true, forwardingScore: 3 }
+                } }
+            },
+            expectedType: 'lottieStickerMessage',
+            assertPayload(message) {
+                const sticker = message.lottieStickerMessage.message.stickerMessage;
+                assert.equal(sticker.url, this.quoted.message.stickerMessage.url);
+                assert.equal(sticker.premium, 1);
+                assert.equal(sticker.contextInfo, undefined);
+            }
+        }
+    ];
+    fs.existsSync = file => {
+        const resolved = path.resolve(String(file));
+        if (resolved === stickerPath) return savedFiles.has(stickerPath);
+        return originalExistsSync(file);
+    };
+    fs.readFileSync = (file, encoding) => {
+        if (path.resolve(String(file)) === stickerPath) return JSON.stringify(savedFiles.get(stickerPath));
+        return originalReadFileSync(file, encoding);
+    };
+    fs.writeFileSync = function (file, data, ...rest) {
+        const resolved = path.resolve(String(file));
+        if (resolved === stickerPath || resolved === configPath) {
+            savedFiles.set(resolved, JSON.parse(String(data)));
+            return;
+        }
+        return originalWriteFileSync.call(this, file, data, ...rest);
+    };
+    try {
+        for (const item of cases) {
+            savedFiles.clear();
+            Object.assign(mention.mentionConfig, previousConfig);
+            await mention.execute({}, {
+                quoted: { key: { id: `${item.name}-sticker` }, ...item.quoted }
+            }, {
+                args: ['sreact'],
+                prefix: '.',
+                reply: async () => {}
+            });
+            assert.equal(mention.mentionConfig.action, 'sreact');
+
+            const calls = [];
+            await sreact.sendStickerReaction({ relayMessage: async (...args) => calls.push(args) }, '123@g.us', {
+                remoteJid: '123@g.us',
+                id: 'mentioned-message'
+            }, mention.mentionConfig.sreactCount);
+
+            assert.equal(calls.length, 1, `${item.name} resend count`);
+            assert.ok(calls[0][1][item.expectedType], `${item.name} message wrapper`);
+            assert.equal(calls[0][1].messageContextInfo.messageAssociation.parentMessageKey.id, 'mentioned-message');
+            item.assertPayload(calls[0][1]);
+        }
+    } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        fs.writeFileSync = originalWriteFileSync;
+        Object.assign(mention.mentionConfig, previousConfig);
+    }
+});
+
 test('.mention sticker action preserves Lottie and premium sticker protocol payloads', async () => {
     const configPath = path.resolve(__dirname, '../database/mention_config.json');
     const protocolPath = path.resolve(__dirname, '../database/mention-sticker-message.json');
