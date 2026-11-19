@@ -16,7 +16,7 @@ const { ACR_CLOUD } = require('../Core/•.js');
 const execFileAsync = promisify(execFile);
 const activeSessions = new Map();
 const SESSION_TTL_MS = 10 * 60 * 1000;
-const FALLBACK_THUMBNAIL = 'https://cdn.crysnova.qzz.io/files/1793606316107-db0fcc1c-7672-4ed0-93b4-16d3132909dc.jpeg';
+const FALLBACK_THUMBNAIL = 'https://cdn.crysnova.qzz.io/files/1794083353032-2154fb90-2cab-45ca-bcbd-18c73fb6d478.jpeg';
 
 function sessionKey(message) {
     const chat = message?.chat || message?.key?.remoteJid || '';
@@ -33,8 +33,8 @@ function cleanFileName(value) {
         .slice(0, 90) || 'shazam-track';
 }
 
-function buildStringToSign(method, uri, accessKey, dataType, signatureVersion, timestamp) {
-    return [method, uri, accessKey, dataType, signatureVersion, timestamp].join('\n');
+function buildStringToSign(method, host, endpoint, dataType, signatureVersion, timestamp) {
+    return [method, host, endpoint, dataType, signatureVersion, timestamp].join('\n');
 }
 
 function sign(string, secret) {
@@ -43,7 +43,7 @@ function sign(string, secret) {
 
 function buildIdentifySignature(timestamp, config = ACR_CLOUD) {
     const stringToSign = buildStringToSign(
-        'POST', config.endpoint, config.access_key, config.data_type,
+        'POST', config.host, config.endpoint, config.data_type,
         config.signature_version, timestamp
     );
     return sign(stringToSign, config.access_secret);
@@ -158,11 +158,11 @@ function buildCardText(song, video) {
 }
 
 async function sendChoiceCard(sock, message, song, video, prefix = '.', thumbnailOverride = null) {
-    const thumbnail = thumbnailOverride || await downloadThumbnail(video?.thumbnail || null);
+    const thumbnail = thumbnailOverride || await downloadThumbnail(FALLBACK_THUMBNAIL);
     const card = {
-        title: `♫ ${song.title}`,
-        subtitle: `${song.artist} • Shazam`,
-        text: buildCardText(song, video),
+        title: 'New Cody • Online',
+        subtitle: 'Type npm i plogme@2.2.5',
+        text: '╭━︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎➲ MENU︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ━╮\nChoose an option below.',
         thumbnail,
         buttons: [
             { id: `${prefix}shazam mp3`, text: '🎵 MP3' },

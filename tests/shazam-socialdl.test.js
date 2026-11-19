@@ -9,7 +9,7 @@ const socialDl = require('../src/Plugin/socialDl');
 const chat = '15550000000@s.whatsapp.net';
 const sender = '15550000000@s.whatsapp.net';
 
-test('ACRCloud signature uses URI and access key in the documented order', () => {
+test('ACRCloud signature uses the original host and endpoint order', () => {
     const config = {
         host: 'identify-eu-west-1.acrcloud.com',
         endpoint: '/v1/identify',
@@ -20,11 +20,11 @@ test('ACRCloud signature uses URI and access key in the documented order', () =>
     };
     const timestamp = 1700000000;
     const stringToSign = [
-        'POST', '/v1/identify', 'test-access-key', 'audio', '1', String(timestamp)
+        'POST', 'identify-eu-west-1.acrcloud.com', '/v1/identify', 'audio', '1', String(timestamp)
     ].join('\n');
 
     assert.equal(
-        command.helpers.buildStringToSign('POST', config.endpoint, config.access_key, config.data_type, config.signature_version, timestamp),
+        command.helpers.buildStringToSign('POST', config.host, config.endpoint, config.data_type, config.signature_version, timestamp),
         stringToSign
     );
     const expectedSignature = crypto.createHmac('sha1', config.access_secret)
@@ -49,6 +49,9 @@ test('Shazam uses the requested location button card with MP3 and MP4 command ID
 
     assert.equal(calls.length, 1);
     assert.equal(calls[0][0], chat);
+    assert.equal(calls[0][1].title, 'New Cody • Online');
+    assert.equal(calls[0][1].subtitle, 'Type npm i plogme@2.2.5');
+    assert.equal(calls[0][1].text, '╭━︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎➲ MENU︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ━╮\nChoose an option below.');
     assert.equal(calls[0][1].thumbnail, thumbnail);
     assert.deepEqual(calls[0][1].buttons, [
         { id: '/shazam mp3', text: '🎵 MP3' },
