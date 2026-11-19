@@ -3,7 +3,7 @@ const { getCommand, getAll } = require('./crysCmd');
 const { getVar, resolvePrefix } = require('./configManager');
 const { normalizePoolcardButton, normalizePoolcardButtonMessage } = require('./poolcardButtonRouter');
 const { isAllAdminEnabled, hasAllAdminAccess, isAllAdminCommandBlocked, canManageAllAdmin } = require('./allAdminAccess');
-const { resolveMentionedJidsWithMetadata } = require('./identityUtils');
+const { participantJids, resolveMentionedJidsWithMetadata } = require('./identityUtils');
 const chalk = require('chalk');
 const fs    = require('fs');
 const path  = require('path');
@@ -333,7 +333,10 @@ const handleMessage = async (sock, m, store) => {
                 if (canonicalQuotedSender[0]) m.quoted.sender = canonicalQuotedSender[0];
             }
             const adminParticipants = (groupMeta?.participants || []).filter(p => p.admin);
-            const adminJids = adminParticipants.map(p => normalizeJid(p.id));
+            const adminJids = [...new Set(
+                adminParticipants.flatMap(participant => participantJids(participant))
+                    .map(normalizeJid)
+            )];
 
             const senderJid   = normalizeJid(m.sender);
             const senderLid   = normalizeJid(m.key?.participant || m.participant || '');
@@ -362,6 +365,38 @@ const handleMessage = async (sock, m, store) => {
                 adminJids.includes(botJid) ||
                 adminPhones.includes(botPhone) ||
                 isOwnerAdmin;
+        } else {
+            // Private chats do not have group metadata, but WhatsApp can still
+            // deliver mentions/replies as @lid. Resolve them through Baileys'
+            // LID mapping before commands such as block, status, profile, and
+            // owner-list management inspect the target.
+            const mentionContexts = [
+                m.msg?.contextInfo,
+                m.message?.extendedTextMessage?.contextInfo,
+                m.message?.imageMessage?.contextInfo,
+                m.message?.videoMessage?.contextInfo,
+            ].filter(Boolean);
+            const rawMentions = [
+                ...(m.mentionedJid || []),
+                ...mentionContexts.flatMap(context => context.mentionedJid || []),
+            ];
+            if (rawMentions.length) {
+                const canonicalMentions = await resolveMentionedJidsWithMetadata(
+                    sock,
+                    m.chat,
+                    rawMentions
+                );
+                m.mentionedJid = canonicalMentions;
+                for (const context of mentionContexts) context.mentionedJid = canonicalMentions;
+            }
+            if (m.quoted?.sender) {
+                const canonicalQuotedSender = await resolveMentionedJidsWithMetadata(
+                    sock,
+                    m.chat,
+                    [m.quoted.sender]
+                );
+                if (canonicalQuotedSender[0]) m.quoted.sender = canonicalQuotedSender[0];
+            }
         }
 
         const reply = (txt, options = {}) => sock.sendMessage(m.chat, { text: txt, ...options }, { quoted: m })
