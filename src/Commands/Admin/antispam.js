@@ -7,6 +7,7 @@ const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antispam_warns.json')
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
+const { participantJids } = require('../../Plugin/identityUtils');
 
 // Spam tracking cache (in-memory, cleared on restart)
 const messageCache = new Map(); // group: { userId: { count, firstTime, lastTime } }
@@ -238,7 +239,9 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 return;
             }
             if (meta) {
-                const admins = meta.participants.filter(p => p.admin).map(p => norm(p.id));
+                const admins = meta.participants
+                    .filter(p => p.admin)
+                    .flatMap(participant => participantJids(participant).map(norm));
                 const senderNorm = norm(sender);
                 if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) {
                     // Admin exempt - reset count

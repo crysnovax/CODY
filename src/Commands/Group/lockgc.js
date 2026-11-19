@@ -1,3 +1,5 @@
+const { normalizeJid, participantJids } = require('../../Plugin/identityUtils');
+
 /**
  * Command: .lockgc
  * Description: Locks group settings — only admins can edit group info, add/remove members, change subject/desc, etc.
@@ -25,7 +27,13 @@ module.exports = {
 
         try {
             const groupMetadata = await sock.groupMetadata(chatId);
-            const botParticipant = groupMetadata.participants.find(p => p.id === sock.user.id);
+            const botIds = new Set([
+                normalizeJid(sock.user?.id || ''),
+                normalizeJid(`${String(sock.user?.id || '').split(':')[0]}@s.whatsapp.net`),
+            ].filter(Boolean));
+            const botParticipant = groupMetadata.participants.find(participant =>
+                participantJids(participant).some(jid => botIds.has(normalizeJid(jid)))
+            );
 
             if (!botParticipant || !botParticipant.admin) {
                 return reply('_*𓉤 Make me an admin first!*_');

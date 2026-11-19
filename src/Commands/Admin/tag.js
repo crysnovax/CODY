@@ -1,3 +1,5 @@
+const { participantJids } = require('../../Plugin/identityUtils');
+
 module.exports = {
     name: 'tag',
     alias: [],
@@ -13,7 +15,10 @@ module.exports = {
             const text = custom.startsWith("@") ? custom : `@${custom}`;
 
             const metadata = await sock.groupMetadata(m.chat);
-            const participants = metadata.participants.map(p => p.id);
+            const participants = [...new Set(metadata.participants.flatMap(participant => {
+                const ids = participantJids(participant);
+                return ids.find(jid => jid.endsWith('@s.whatsapp.net')) || ids[0] || '';
+            }).filter(Boolean))];
 
             await sock.sendMessage(m.chat, {
                 text: text,

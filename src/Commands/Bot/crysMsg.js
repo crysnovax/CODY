@@ -1,5 +1,11 @@
 const { getCommand } = require('../../Plugin/crysCmd')
 const { getVar } = require('../../Plugin/configManager');
+const {
+    normalizeJid,
+    participantJids,
+    resolveMentionedJidsWithMetadata,
+    resolvePhoneJidWithMetadata,
+} = require('../../Plugin/identityUtils');
 const chalk = require('chalk');
 
 const cooldowns = new Map();
@@ -21,7 +27,44 @@ const handleMessage = async (sock, m, store) => {
 
         const ownerNum = getVar('OWNER_NUMBER', config().owner);
 
-        const isOwner = m.sender?.startsWith(ownerNum) || false;
+        const ownerDigits = String(ownerNum || '').replace(/[^0-9]/g, '');
+        const ownerJid = ownerDigits ? `${ownerDigits}@s.whatsapp.net` : '';
+
+        // Canonicalize every explicit target before a command sees it. This
+        // dispatcher is the production entry point, so group-only normalization
+        // in the newer plugin dispatcher is not sufficient here.
+        const mentionContexts = [
+            m.msg?.contextInfo,
+            m.message?.extendedTextMessage?.contextInfo,
+            m.message?.imageMessage?.contextInfo,
+            m.message?.videoMessage?.contextInfo,
+        ].filter(Boolean);
+        const rawMentions = [
+            ...(m.mentionedJid || []),
+            ...mentionContexts.flatMap(context => context.mentionedJid || []),
+        ];
+        if (rawMentions.length) {
+            const canonicalMentions = await resolveMentionedJidsWithMetadata(
+                sock,
+                m.chat,
+                rawMentions
+            );
+            m.mentionedJid = canonicalMentions;
+            for (const context of mentionContexts) context.mentionedJid = canonicalMentions;
+        }
+        if (m.quoted?.sender) {
+            const canonicalQuotedSender = await resolveMentionedJidsWithMetadata(
+                sock,
+                m.chat,
+                [m.quoted.sender]
+            );
+            if (canonicalQuotedSender[0]) m.quoted.sender = canonicalQuotedSender[0];
+        }
+
+        const senderJids = [m.sender, m.key?.participant, m.key?.participantAlt].filter(Boolean);
+        const senderPhone = await resolvePhoneJidWithMetadata(sock, m.chat, senderJids).catch(() => null);
+        const isOwner = ownerJid && [...new Set([...senderJids, senderPhone].filter(Boolean))]
+            .some(sender => normalizeJid(sender) === ownerJid);
 
         const body = m.text || '';
 
@@ -48,10 +91,18 @@ const handleMessage = async (sock, m, store) => {
 
             const admins = (groupMeta?.participants || [])
                 .filter(p => p.admin)
-                .map(p => p.id);
+                .flatMap(participant => participantJids(participant));
+            const senderCandidates = [...new Set([
+                ...senderJids,
+                senderPhone,
+            ].filter(Boolean).map(normalizeJid))];
+            const botCandidates = [
+                normalizeJid(sock.user?.id || ''),
+                normalizeJid(`${String(sock.user?.id || '').split(':')[0]}@s.whatsapp.net`),
+            ].filter(Boolean);
 
-            isAdmin = admins.includes(m.sender);
-            isBotAdmin = admins.includes(sock.user?.id);
+            isAdmin = admins.some(admin => senderCandidates.includes(normalizeJid(admin)));
+            isBotAdmin = admins.some(admin => botCandidates.includes(normalizeJid(admin)));
             // bot + owner are the SAME account — if the owner is an admin
             // here, the bot is an admin here too (@crysnovax—FIX09-08-26)
             if (!isBotAdmin && ownerNum) {
@@ -118,6 +169,7 @@ const handleMessage = async (sock, m, store) => {
                 isBotAdmin,
                 isGroup: m.isGroup,
                 groupMeta,
+                mentionedJid: m.mentionedJid || [],
                 reply,
                 config: config(),
                 store,

@@ -12,17 +12,35 @@ const yts = require('yt-search');
 const axios = require('axios');
 const socialDl = require('../../Plugin/socialDl');
 const { ACR_CLOUD } = require('../Core/•.js');
+const { resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
 
 const execFileAsync = promisify(execFile);
 const activeSessions = new Map();
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const FALLBACK_THUMBNAIL = 'https://cdn.crysnova.qzz.io/files/1794083353032-2154fb90-2cab-45ca-bcbd-18c73fb6d478.jpeg';
 
-function sessionKey(message) {
+async function sessionKey(sock, message) {
     const chat = message?.chat || message?.key?.remoteJid || '';
-    const sender = message?.sender || message?.key?.participant || chat;
+    const senderCandidates = [
+        message?.sender,
+        message?.key?.participant,
+        message?.key?.participantAlt,
+        message?.key?.remoteJidAlt,
+        chat,
+    ].filter(Boolean);
+    const sender = await resolvePhoneJidWithMetadata(sock, chat, senderCandidates)
+        || String(senderCandidates[0] || chat).replace(/:\d+@/, '@');
     return `${chat}:${sender}`;
 }
+
+function cleanupSessions(now = Date.now()) {
+    for (const [key, session] of activeSessions) {
+        if (now - session.createdAt > SESSION_TTL_MS) activeSessions.delete(key);
+    }
+}
+
+const sessionCleanupTimer = setInterval(cleanupSessions, 60 * 1000);
+sessionCleanupTimer.unref?.();
 
 function cleanFileName(value) {
     return String(value || 'shazam-track')
@@ -49,7 +67,21 @@ function buildIdentifySignature(timestamp, config = ACR_CLOUD) {
     return sign(stringToSign, config.access_secret);
 }
 
+let ffmpegCheck;
+async function ensureFfmpeg() {
+    if (!ffmpegCheck) {
+        ffmpegCheck = execFileAsync('ffmpeg', ['-version'], { timeout: 5000 })
+            .then(() => true)
+            .catch(() => {
+                ffmpegCheck = null;
+                throw new Error('FFMPEG_NOT_INSTALLED');
+            });
+    }
+    return ffmpegCheck;
+}
+
 async function prepareAudioSample(buffer) {
+    await ensureFfmpeg();
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'cody-shazam-'));
     const inputPath = path.join(directory, 'input-media');
     const outputPath = path.join(directory, 'sample.mp3');
@@ -114,7 +146,7 @@ async function downloadThumbnail(url) {
         try {
             const response = await axios.get(candidate, {
                 responseType: 'arraybuffer',
-                timeout: 12000,
+                timeout: 4000,
                 maxContentLength: 5 * 1024 * 1024,
                 headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'image/*' }
             });
@@ -137,7 +169,11 @@ function formatTrack(track) {
         released: track?.release_date || 'N/A',
         duration: Number.isFinite(duration) && duration > 0 ? `${Math.round(duration / 1000)}s` : 'N/A',
         spotifyId: track?.external_metadata?.spotify?.track?.id || null,
-        youtubeId: track?.external_metadata?.youtube?.vid || null
+        youtubeId: track?.external_metadata?.youtube?.vid || null,
+        thumbnail: track?.album?.coverart_500x500
+            || track?.album?.coverart_100x100
+            || track?.images?.background
+            || null
     };
 }
 
@@ -158,10 +194,10 @@ function buildCardText(song, video) {
 }
 
 async function sendChoiceCard(sock, message, song, video, prefix = '.', thumbnailOverride = null) {
-    const thumbnail = thumbnailOverride || await downloadThumbnail(FALLBACK_THUMBNAIL);
+    const thumbnail = await downloadThumbnail(thumbnailOverride || song.thumbnail || FALLBACK_THUMBNAIL);
     const card = {
         title: 'New Cody • Online',
-        subtitle: 'Type npm i plogme@2.2.5',
+        subtitle: 'Song identification and downloads',
         text: buildCardText(song, video),
         thumbnail,
         buttons: [
@@ -180,7 +216,8 @@ async function sendChoiceCard(sock, message, song, video, prefix = '.', thumbnai
 }
 
 async function sendDownload(sock, message, format, reply) {
-    const key = sessionKey(message);
+    const key = await sessionKey(sock, message);
+    cleanupSessions();
     const session = activeSessions.get(key);
     if (!session || Date.now() - session.createdAt > SESSION_TTL_MS) {
         activeSessions.delete(key);
@@ -235,20 +272,21 @@ module.exports = {
             const song = formatTrack(recognized);
             const video = await searchYouTube(song.title, song.artist);
             const videoUrl = video?.url || (song.youtubeId ? `https://www.youtube.com/watch?v=${song.youtubeId}` : null);
-            activeSessions.set(sessionKey(message), {
+            activeSessions.set(await sessionKey(sock, message), {
                 title: song.title,
                 videoUrl,
                 createdAt: Date.now()
             });
-            for (const [key, session] of activeSessions) {
-                if (Date.now() - session.createdAt > SESSION_TTL_MS) activeSessions.delete(key);
-            }
+            cleanupSessions();
             await sendChoiceCard(sock, message, song, video, prefix);
             await sock.sendMessage(message.chat, { react: { text: '✨', key: message.key } }).catch(() => {});
         } catch (error) {
             console.error('[SHAZAM ERROR]', error?.stack || error);
             await sock.sendMessage(message.chat, { react: { text: '❌', key: message.key } }).catch(() => {});
-            return reply(`Could not identify the audio: ${error?.message || 'unknown error'}`);
+            const reason = error?.message === 'FFMPEG_NOT_INSTALLED'
+                ? 'FFmpeg is not installed on the bot server.'
+                : (error?.message || 'unknown error');
+            return reply(`Could not identify the audio: ${reason}`);
         }
     },
     helpers: { sessionKey, cleanFileName, buildStringToSign, sign, buildIdentifySignature, formatTrack, buildCardText, sendChoiceCard, sendDownload },

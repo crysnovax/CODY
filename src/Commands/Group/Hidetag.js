@@ -1,3 +1,5 @@
+const { participantJids } = require('../../Plugin/identityUtils');
+
 module.exports = {
     name: 'hidetag',
     alias: ['htag', 'silenttag'],
@@ -16,7 +18,10 @@ module.exports = {
         if (!m.isGroup) return reply('✘ This command works only in groups');
 
         const metadata = await sock.groupMetadata(m.chat);
-        const participants = metadata.participants.map(p => p.id);
+        const participants = [...new Set(metadata.participants.flatMap(participant => {
+            const ids = participantJids(participant);
+            return ids.find(jid => jid.endsWith('@s.whatsapp.net')) || ids[0] || '';
+        }).filter(Boolean))];
 
         const text = args.join(' ') || '📢 Attention everyone';
 

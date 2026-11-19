@@ -1,3 +1,5 @@
+const { normalizeJid, participantJids } = require('../../Plugin/identityUtils');
+
 /**
  * Command: .unlockgc
  * Description: Unlocks the group — everyone can send messages, edit subject/desc (if permitted), etc.
@@ -31,7 +33,13 @@ module.exports = {
         try {
            
             const groupMetadata = await sock.groupMetadata(chatId);
-            const botParticipant = groupMetadata.participants.find(p => p.id === sock.user.id);
+            const botIds = new Set([
+                normalizeJid(sock.user?.id || ''),
+                normalizeJid(`${String(sock.user?.id || '').split(':')[0]}@s.whatsapp.net`),
+            ].filter(Boolean));
+            const botParticipant = groupMetadata.participants.find(participant =>
+                participantJids(participant).some(jid => botIds.has(normalizeJid(jid)))
+            );
 
             // Uncomment if you want to enforce bot is admin
             // if (!botParticipant || !botParticipant.admin) {
