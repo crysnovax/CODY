@@ -51,7 +51,8 @@ test('Shazam uses the requested location button card with MP3 and MP4 command ID
     assert.equal(calls[0][0], chat);
     assert.equal(calls[0][1].title, 'New Cody • Online');
     assert.equal(calls[0][1].subtitle, 'Type npm i plogme@2.2.5');
-    assert.equal(calls[0][1].text, '╭━︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎➲ MENU︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ━╮\nChoose an option below.');
+    assert.equal(calls[0][1].text, command.helpers.buildCardText(song, video));
+    assert.match(calls[0][1].text, /Title:\* Test song/);
     assert.equal(calls[0][1].thumbnail, thumbnail);
     assert.deepEqual(calls[0][1].buttons, [
         { id: '/shazam mp3', text: '🎵 MP3' },

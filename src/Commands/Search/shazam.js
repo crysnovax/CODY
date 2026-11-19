@@ -162,7 +162,7 @@ async function sendChoiceCard(sock, message, song, video, prefix = '.', thumbnai
     const card = {
         title: 'New Cody • Online',
         subtitle: 'Type npm i plogme@2.2.5',
-        text: '╭━︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎➲ MENU︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ━╮\nChoose an option below.',
+        text: buildCardText(song, video),
         thumbnail,
         buttons: [
             { id: `${prefix}shazam mp3`, text: '🎵 MP3' },
