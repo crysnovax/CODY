@@ -61,14 +61,15 @@ module.exports = {
 
         // Reply to a message
         if (m.quoted?.sender) {
-            targets.push(await resolvePhoneJidWithMetadata(sock, m.chat, [m.quoted.sender], meta) || m.quoted.sender)
+            const resolved = await resolvePhoneJidWithMetadata(sock, m.chat, [m.quoted.sender], meta)
+            if (resolved) targets.push(resolved)
         }
 
         // @mentions
         if (m.mentionedJid?.length) {
             for (const jid of m.mentionedJid) {
-                const resolved = await resolvePhoneJidWithMetadata(sock, m.chat, [jid], meta) || jid
-                if (!targets.includes(resolved)) targets.push(resolved)
+                const resolved = await resolvePhoneJidWithMetadata(sock, m.chat, [jid], meta)
+                if (resolved && !targets.includes(resolved)) targets.push(resolved)
             }
         }
 
