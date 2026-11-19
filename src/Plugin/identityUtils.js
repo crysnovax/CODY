@@ -1,6 +1,14 @@
 const normalizeJid = (jid = '') => String(jid).replace(/:\d+@/, '@');
 const cleanNumber = (value = '') => String(value).replace(/[^0-9]/g, '');
 const isPhoneJid = (jid = '') => normalizeJid(jid).endsWith('@s.whatsapp.net');
+const candidateJid = value => {
+    const normalized = normalizeJid(value);
+    if (normalized.includes('@')) return normalized;
+    const digits = cleanNumber(value);
+    return digits && /^\+?[\d\s().-]+$/.test(String(value).trim())
+        ? `${digits}@s.whatsapp.net`
+        : normalized;
+};
 
 function participantJids(participant) {
     if (!participant || typeof participant !== 'object') return [];
@@ -20,7 +28,7 @@ function participantJids(participant) {
 }
 
 async function resolvePhoneJid(sock, candidates = []) {
-    const values = [...new Set(candidates.filter(Boolean).map(normalizeJid))];
+    const values = [...new Set(candidates.filter(Boolean).map(candidateJid))];
     const direct = values.find(isPhoneJid);
     if (direct) return direct;
 
@@ -37,20 +45,24 @@ async function resolvePhoneJid(sock, candidates = []) {
     return null;
 }
 
-async function resolvePhoneJidWithMetadata(sock, chatId, candidates = []) {
+async function resolvePhoneJidWithMetadata(sock, chatId, candidates = [], suppliedMetadata = null) {
     const direct = await resolvePhoneJid(sock, candidates);
     if (direct) return direct;
 
     if (!String(chatId).endsWith('@g.us')) return null;
-    const metadata = await sock.groupMetadata?.(chatId)?.catch?.(() => null) || null;
+    const metadata = suppliedMetadata
+        || await sock.groupMetadata?.(chatId)?.catch?.(() => null)
+        || null;
     if (!metadata?.participants) return null;
 
-    const wanted = new Set(candidates.filter(Boolean).map(normalizeJid));
+    const wanted = new Set(candidates.filter(Boolean).map(candidateJid));
     for (const participant of metadata.participants) {
-        const ids = [participant.id, participant.lid, participant.jid].filter(Boolean).map(normalizeJid);
+        const ids = [participant.id, participant.lid, participant.jid, participant.phoneNumber]
+            .filter(Boolean)
+            .map(candidateJid);
         if (ids.some(jid => wanted.has(jid))) {
             const phone = [participant.phoneNumber, participant.id, participant.jid]
-                .filter(Boolean).map(normalizeJid).find(isPhoneJid);
+                .filter(Boolean).map(candidateJid).find(isPhoneJid);
             if (phone) return phone;
         }
     }

@@ -1,3 +1,5 @@
+const { normalizeJid, resolvePhoneJidWithMetadata } = require('../../Plugin/identityUtils');
+
 module.exports = {
     name: 'promote',
     alias: ['admin'],
@@ -13,22 +15,28 @@ module.exports = {
         const meta     = await sock.groupMetadata(m.chat).catch(() => null)
         if (!meta) return reply('✘ Could not fetch group info')
 
-        const participants = meta.participants
-        const admins       = participants.filter(p => p.admin).map(p => p.id.replace(/:\d+@/, '@'))
+        const participants = meta.participants || []
+        const participantJid = async participant =>
+            await resolvePhoneJidWithMetadata(
+                sock,
+                m.chat,
+                [participant?.phoneNumber, participant?.id, participant?.jid, participant?.lid],
+                meta
+            ) || normalizeJid(participant?.id || participant?.jid || participant?.lid || '')
+        const admins       = (await Promise.all(participants.filter(p => p.admin).map(participantJid))).filter(Boolean)
         const botJid       = (sock.user?.id || '').replace(/:\d+@/, '@')
 
         // ── @all — promote everyone who is NOT already admin ──
         if (args[0]?.toLowerCase() === 'all') {
-            const targets = participants
-                .map(p => p.id)
-                .filter(id => {
-                    const norm = id.replace(/:\d+@/, '@')
+            const targets = (await Promise.all(participants.map(participantJid)))
+                .filter(jid => {
+                    const norm = normalizeJid(jid)
                     return !admins.includes(norm) && norm !== botJid
                 })
 
             if (!targets.length) return reply('✘ Everyone is already admin')
 
-            await reply(`⚉ Promoting ${targetslength} members...`)
+            await reply(`⚉ Promoting ${targets.length} members...`)
 
             let success = 0
             for (const jid of targets) {
@@ -53,13 +61,14 @@ module.exports = {
 
         // Reply to a message
         if (m.quoted?.sender) {
-            targets.push(m.quoted.sender)
+            targets.push(await resolvePhoneJidWithMetadata(sock, m.chat, [m.quoted.sender], meta) || m.quoted.sender)
         }
 
         // @mentions
         if (m.mentionedJid?.length) {
             for (const jid of m.mentionedJid) {
-                if (!targets.includes(jid)) targets.push(jid)
+                const resolved = await resolvePhoneJidWithMetadata(sock, m.chat, [jid], meta) || jid
+                if (!targets.includes(resolved)) targets.push(resolved)
             }
         }
 
@@ -88,7 +97,7 @@ module.exports = {
         const failed   = []
 
         for (const jid of targets) {
-            const norm = jid.replace(/:\d+@/, '@')
+            const norm = normalizeJid(jid)
             if (admins.includes(norm)) {
                 failed.push(`@${jid.split('@')[0]} (already admin)`)
                 continue
@@ -111,7 +120,7 @@ module.exports = {
                 mentions: promoted
             })
         } else {
-            reply(`✘ Could not promote:\n${failedjoin('\n')}`)
+            reply(`✘ Could not promote:\n${failed.join('\n')}`)
         }
     }
 }
