@@ -4,7 +4,7 @@ const axios = require('axios');
 const AdmZip = require('adm-zip');
 
 const CONFIG = {
-    repo: 'crysnovax/CRYSNOVA_AI',
+    repo: 'crysnovax/CODY',
     branch: 'main',
     requestTimeout: 30000
 };
@@ -208,5 +208,6 @@ module.exports = {
     desc: 'Check for new updates without applying (skips personal data)',
     usage: `${prefix}checkup`,
     reactions: { start: '🔍', success: '💾', error: '🏗️' },
-    execute: newUpdate
+    execute: newUpdate,
+    config: CONFIG
 };

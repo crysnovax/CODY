@@ -11,6 +11,35 @@ const CONFIG = {
     requestTimeout: 30000
 };
 
+async function getBranchCommit() {
+    const url = `https://api.github.com/repos/${CONFIG.repo}/commits/${CONFIG.branch}`;
+    const response = await axios.get(url, {
+        timeout: CONFIG.requestTimeout,
+        headers: {
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'CODY-Updater'
+        }
+    });
+    const sha = response.data?.sha;
+    if (!/^[a-f0-9]{40}$/i.test(String(sha || ''))) {
+        throw new Error('GitHub did not return a valid commit SHA.');
+    }
+    return { sha, message: String(response.data?.commit?.message || 'No commit description provided.').trim() };
+}
+
+function buildArchiveUrl(sha) {
+    return `https://github.com/${CONFIG.repo}/archive/${sha}.zip`;
+}
+
+function buildArchiveRoot(sha) {
+    return `${CONFIG.repo.split('/')[1]}-${sha}`;
+}
+
+function buildAppliedCommitMessage(commit) {
+    const description = String(commit?.message || 'No commit description provided.').trim().slice(0, 800);
+    return `✅ *Update applied*\nCommit: \`${String(commit?.sha || '').slice(0, 12)}\`\n\n${description}`;
+}
+
 const PROTECTED_PATHS = [
     'sessions',
     'database',
@@ -85,8 +114,9 @@ module.exports = {
             }
             await edit(10);
 
-            // Download
-            const zipUrl = `https://github.com/${CONFIG.repo}/archive/refs/heads/${CONFIG.branch}.zip`;
+            // Resolve main once, then apply the immutable archive for that exact commit.
+            const commit = await getBranchCommit();
+            const zipUrl = buildArchiveUrl(commit.sha);
             const zipRes = await axios.get(zipUrl, { responseType: 'arraybuffer', timeout: CONFIG.requestTimeout });
             safeFs.remove(CONFIG.tempDir);
             safeFs.mkdir(CONFIG.tempDir);
@@ -99,7 +129,7 @@ module.exports = {
             await edit(50);
 
             // Copy
-            const extractedFolder = path.join(CONFIG.tempDir, `${CONFIG.repo.split('/')[1]}-${CONFIG.branch}`);
+            const extractedFolder = path.join(CONFIG.tempDir, buildArchiveRoot(commit.sha));
             safeFs.copy(extractedFolder, './');
             await edit(75);
 
@@ -117,6 +147,7 @@ module.exports = {
             cleanupUntracked('.', repoFiles);
             safeFs.remove(CONFIG.tempDir);
             await edit(100);
+            await sock.sendMessage(m.chat, { text: buildAppliedCommitMessage(commit), edit: key });
 
             // Restart — carry the uptime over so updates don't reset it (@crysnovax—FIX06-08-26)
             try { require('../../Plugin/uptime').markRestart(); } catch (e) {}
@@ -130,5 +161,7 @@ module.exports = {
                 if (fs.existsSync(bp)) safeFs.copy(bp, file);
             }
         }
-    }
+    },
+    config: CONFIG,
+    helpers: { getBranchCommit, buildArchiveUrl, buildArchiveRoot, buildAppliedCommitMessage }
 };
