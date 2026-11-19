@@ -67,10 +67,11 @@ module.exports = {
 
         // @mentions
         if (m.mentionedJid?.length) {
-            for (const jid of m.mentionedJid) {
-                const resolved = await resolvePhoneJidWithMetadata(sock, m.chat, [jid], meta)
-                if (resolved && !targets.includes(resolved)) targets.push(resolved)
-            }
+            // The singular @user form can arrive with both PN and LID
+            // identities for the same person. Only use the first mention;
+            // otherwise the action and confirmation run twice.
+            const resolved = await resolvePhoneJidWithMetadata(sock, m.chat, [m.mentionedJid[0]], meta)
+            if (resolved && !targets.includes(resolved)) targets.push(resolved)
         }
 
         // Phone numbers from args
