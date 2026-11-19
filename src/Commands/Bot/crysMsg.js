@@ -92,7 +92,7 @@ const handleMessage = async (sock, m, store) => {
             const exp = cooldowns.get(key);
 
             if (exp && now < exp) {
-                return reply(`${prefix}⏳ Wait ${((exp - now) / 1000).toFixed(1)}s`);
+                return reply(`⏳ Wait ${((exp - now) / 1000).toFixed(1)}s`);
             }
 
             cooldowns.set(key, now + cooldown * 1000);

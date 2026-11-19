@@ -317,7 +317,7 @@ module.exports = {
                 const current = botFontSettings[chatId];
                 if (current) {
                     const font = fonts[current];
-                    return reply(`${prefix}⚉ Current bot font: *${font?.name || 'None'}*\n\nUse \`${prefix}botfont <name or number>\` to change\nUse \`${prefix}botfont off\` to disable`);
+                    return reply(`⚉ Current bot font: *${font?.name || 'None'}*\n\nUse \`${prefix}botfont <name or number>\` to change\nUse \`${prefix}botfont off\` to disable`);
                 }
                 return reply(`⚉ No bot font set\n\nUse \`${prefix}botfont <name or number>\` to set one`);
             }
@@ -340,7 +340,7 @@ module.exports = {
             saveSettings();
 
             const sample = convertText('CRYSNOVA AI', font.id);
-            return reply(`${prefix}✓ *Bot font set to: ${font.name}*\n\nSample: ${sample}\n\n_*All bot replies will now use this font in this chat!*_`);
+            return reply(`✓ *Bot font set to: ${font.name}*\n\nSample: ${sample}\n\n_*All bot replies will now use this font in this chat!*_`);
         }
 
         // ── CONVERT TEXT ──

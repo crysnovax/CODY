@@ -77,7 +77,7 @@ module.exports = {
 
         } catch (err) {
             console.error('[COMHTML ERROR]', err.message);
-            reply(`${prefix}✘ *Failed to create HTML file*\n⎙ _${err?.message || err}_`);
+            reply(`✘ *Failed to create HTML file*\n⎙ _${err?.message || err}_`);
         }
     }
 };

@@ -22,7 +22,7 @@ module.exports = [
             }
 
             if (!target) {
-                return reply(`${prefix}⊘ *Usage:* getstatus <@user or phone>`);
+                return reply(`⊘ *Usage:* getstatus <@user or phone>`);
             }
 
             try {
@@ -48,7 +48,7 @@ module.exports = [
                     `${statusText || 'No status set or unavailable'}`
                 );
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -65,11 +65,11 @@ module.exports = [
 
         execute: async (sock, m, { reply, prefix }) => {
             if (!m.isGroup) {
-                return reply(`${prefix}⊘ *Usage:* Only works in groups`);
+                return reply(`⊘ *Usage:* Only works in groups`);
             }
 
             if (!m.quoted?.mimetype?.startsWith('image/')) {
-                return reply(`${prefix}⊘ *Usage:* Reply to an image`);
+                return reply(`⊘ *Usage:* Reply to an image`);
             }
 
             try {
@@ -78,7 +78,7 @@ module.exports = [
                 await sock.updateGroupPicture(m.chat, image, { quality: 'full' });
                 return reply(`✓ *Group icon updated (HD)*`);
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -97,14 +97,14 @@ module.exports = [
             const code = args[0];
 
             if (!code) {
-                return reply(`${prefix}⊘ *Usage:* joingroup <invite_code>`);
+                return reply(`⊘ *Usage:* joingroup <invite_code>`);
             }
 
             try {
                 const result = await sock.groupAcceptInviteCode(code);
                 return reply(`✓ *Joined group:* ${result}`);
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -123,18 +123,18 @@ module.exports = [
             const newText = args.join(' ');
 
             if (!newText) {
-                return reply(`${prefix}⊘ *Usage:* editmsg <new_text>`);
+                return reply(`⊘ *Usage:* editmsg <new_text>`);
             }
 
             if (!m.quoted?.key) {
-                return reply(`${prefix}⊘ *Usage:* Reply to a message to edit it`);
+                return reply(`⊘ *Usage:* Reply to a message to edit it`);
             }
 
             try {
                 await sock.editMessage(m.chat, m.quoted.key, { text: newText });
                 return reply(`✓ *Message edited*`);
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -165,7 +165,7 @@ module.exports = [
                     `Bot Status: ${info.connected}`
                 );
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -184,7 +184,7 @@ module.exports = [
             const name = args.join(' ');
 
             if (!name) {
-                return reply(`${prefix}⊘ *Usage:* createnewsletter <name>`);
+                return reply(`⊘ *Usage:* createnewsletter <name>`);
             }
 
             try {
@@ -195,7 +195,7 @@ module.exports = [
                     `Name: ${name}`
                 );
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -212,14 +212,14 @@ module.exports = [
 
         execute: async (sock, m, { reply, prefix }) => {
             if (!m.chat.endsWith('@newsletter')) {
-                return reply(`${prefix}⊘ *Usage:* Use this command in a newsletter`);
+                return reply(`⊘ *Usage:* Use this command in a newsletter`);
             }
 
             try {
                 await sock.newsletterLeave(m.chat);
                 return reply(`✓ *Left the newsletter*`);
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     },
@@ -236,7 +236,7 @@ module.exports = [
 
         execute: async (sock, m, { args, reply, prefix }) => {
             if (!m.chat.endsWith('@newsletter')) {
-                return reply(`${prefix}⊘ *Usage:* Use this command in a newsletter`);
+                return reply(`⊘ *Usage:* Use this command in a newsletter`);
             }
 
             const setting = args[0]?.toLowerCase();
@@ -244,7 +244,7 @@ module.exports = [
 
             if (!setting || !value) {
                 return reply(
-                    `${prefix}⊘ *Usage:* updatechannel <setting> <value>\n\n` +
+                    `⊘ *Usage:* updatechannel <setting> <value>\n\n` +
                     `Settings:\n` +
                     `• name - Change channel name\n` +
                     `• description - Update description`
@@ -259,7 +259,7 @@ module.exports = [
                 await sock.newsletterUpdateSettings(m.chat, updates);
                 return reply(`✓ *${setting} updated*`);
             } catch (err) {
-                return reply(`${prefix}⊘ Error: ${err.message}`);
+                return reply(`⊘ Error: ${err.message}`);
             }
         }
     }

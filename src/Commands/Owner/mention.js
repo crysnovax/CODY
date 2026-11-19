@@ -346,7 +346,7 @@ module.exports = {
             mentionConfig.text   = value;
             mentionConfig.emoji  = '';
             saveMentionConfig();
-            return reply(`${prefix}╭─❍ *MENTION*\n│\n│ ✦ Status : ON\n│ 𓄄 Action : TEXT\n│ ⚉ Text   : ${value.slice(0, 30)}${value.length > 30 ? '...' : ''}\n╰──────────────────`);
+            return reply(`╭─❍ *MENTION*\n│\n│ ✦ Status : ON\n│ 𓄄 Action : TEXT\n│ ⚉ Text   : ${value.slice(0, 30)}${value.length > 30 ? '...' : ''}\n╰──────────────────`);
         }
 
         // HELP

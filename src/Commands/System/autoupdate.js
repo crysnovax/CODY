@@ -46,7 +46,7 @@ module.exports = {
             return reply(`Auto‑Update is currently: *${enabled ? 'ON' : 'OFF'}*`);
         }
 
-        return reply(`${prefix}𖣘 *AUTO‑UPDATE*\n\nUsage:\nautoupdate on\n.autoupdate off\n.autoupdate status`);
+        return reply(`𖣘 *AUTO‑UPDATE*\n\nUsage:\nautoupdate on\n.autoupdate off\n.autoupdate status`);
     },
 
     // Export getter for use in startup

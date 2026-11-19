@@ -21,7 +21,7 @@ module.exports = {
                 mentionAll: true
             }, { quoted: m });
         } catch (err) {
-            reply(`${prefix}⊘ ${err?.message || err}`);
+            reply(`⊘ ${err?.message || err}`);
         }
     }
 };

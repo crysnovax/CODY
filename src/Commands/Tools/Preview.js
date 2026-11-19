@@ -61,7 +61,7 @@ module.exports = {
        //     reply('✅ Link preview sent!');
         } catch (e) {
             console.error('[PREVIEW]', e);
-            reply(`${prefix}☠︎︎ Error: ${e?.message || e}`);
+            reply(`☠︎︎ Error: ${e?.message || e}`);
         }
     }
 };

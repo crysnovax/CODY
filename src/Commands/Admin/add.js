@@ -128,7 +128,7 @@ module.exports = {
 
         } catch (e) {
             console.error('ADD ERROR:', e);
-            reply(`${prefix}𓆉 Error: ${e?.message || e}`);
+            reply(`𓆉 Error: ${e?.message || e}`);
         }
     }
 };

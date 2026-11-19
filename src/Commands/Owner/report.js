@@ -107,7 +107,7 @@ module.exports = {
         const requestKey = `${mode}:${target}`;
         const lastReport = recentReports.get(requestKey) || 0;
         const cooldownRemaining = REPORT_COOLDOWN_MS - (Date.now() - lastReport);
-        if (cooldownRemaining > 0) return reply(`${prefix}That target was recently reported. Wait ${Math.ceil(cooldownRemaining / 60000)} minute(s) before trying again.`);
+        if (cooldownRemaining > 0) return reply(`That target was recently reported. Wait ${Math.ceil(cooldownRemaining / 60000)} minute(s) before trying again.`);
         if (inFlight.has(requestKey)) return reply('That report is already being processed.');
         inFlight.add(requestKey);
         try {
@@ -124,7 +124,7 @@ module.exports = {
             }, { quoted: m });
         } catch (error) {
             console.error('[REPORT ERROR]', error?.stack || error);
-            return reply(`${prefix}Report failed: ${error?.message || 'unknown WhatsApp error'}`);
+            return reply(`Report failed: ${error?.message || 'unknown WhatsApp error'}`);
         } finally {
             inFlight.delete(requestKey);
         }

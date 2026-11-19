@@ -26,7 +26,7 @@ module.exports = {
 
         // ── HELP ──
         if (!sub || sub === 'help') {
-            return reply(`${prefix}📝 *GIST PLUGIN HELP*
+            return reply(`📝 *GIST PLUGIN HELP*
 
 Commands:
 • ${prefix}gist start [filename] - Start a new session
@@ -61,7 +61,7 @@ Workflow:
             session.code.push(snippet);
             sessions.set(sessionKey, session);
 
-            return reply(`${prefix}➕ Snippet added! Total snippets: ${sessioncode.length}`);
+            return reply(`➕ Snippet added! Total snippets: ${sessioncode.length}`);
         }
 
         // ── STATUS ──
@@ -131,7 +131,7 @@ Workflow:
                 );
             } catch (err) {
                 console.error('[GIST PUSH ERROR]', err);
-                return reply(`${prefix}❌ Failed to create Gist: ${err?.message || err}`);
+                return reply(`❌ Failed to create Gist: ${err?.message || err}`);
             }
         }
 

@@ -77,7 +77,7 @@ module.exports = {
             env.MENU_URL = next;
             writeEnv(env);
         } catch (err) {
-            return reply(`${prefix}𓄄 MENU_URL set to runtime, but env write failed: ${err.message}`);
+            return reply(`𓄄 MENU_URL set to runtime, but env write failed: ${err.message}`);
         }
 
         reply(`✪ *MENU_URL* → ${next === VIDEO_URL ? 'video (mp4)' : 'image (jpeg)'}`);

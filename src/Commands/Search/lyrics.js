@@ -12,7 +12,7 @@ module.exports = {
 
     execute: async (sock, m, { args, reply }) => {
         const query = args.join(' ').trim();
-        if (!query) return reply(`${prefix}Usage: lyrics <song title>`);
+        if (!query) return reply(`Usage: lyrics <song title>`);
 
         await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
 

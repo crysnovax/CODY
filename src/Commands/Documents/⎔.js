@@ -142,7 +142,7 @@ module.exports = {
             } catch (err) {
                 console.error('[COLLAGE PUSH ERROR]', err.message);
                 await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } }).catch(() => {});
-                reply(`${prefix}✘ Failed: ${err?.message || err}`);
+                reply(`✘ Failed: ${err?.message || err}`);
             }
             return;
         }
@@ -150,7 +150,7 @@ module.exports = {
         // ── No valid subcommand: show usage ──────────────────────
         reply(
             `╭─❍ *🖼️ COLLAGE*\n│\n` +
-            `│ *Usage:*\n` +
+            `│ *Usage:*\${prefix}n` +
             `│ 1. Reply to an image with:\n` +
             `│    _.collage add_\n` +
             `│ 2. Repeat for 2+ images\n` +

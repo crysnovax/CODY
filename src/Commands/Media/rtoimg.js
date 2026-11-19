@@ -85,7 +85,7 @@ module.exports = {
 
         } catch (e) {
             console.error('[RTOIMG]', e);
-            reply(`${prefix}✘ Failed: ${e?.message || e}`);
+            reply(`✘ Failed: ${e?.message || e}`);
         }
     }
 };

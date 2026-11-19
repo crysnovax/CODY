@@ -73,7 +73,7 @@ module.exports = {
             }, { quoted: m });
 
         } catch (err) {
-            return reply(`${prefix}╭─❍ *RINGTONE*\n│\n│ ✘ Failed\n│\n│ 𓄇 ${err?.message || err}\n╰──────────────────`);
+            return reply(`╭─❍ *RINGTONE*\n│\n│ ✘ Failed\n│\n│ 𓄇 ${err?.message || err}\n╰──────────────────`);
         }
     }
 };

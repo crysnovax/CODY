@@ -51,10 +51,10 @@ module.exports = {
         if (cmd === 'remove') {
             const num = parseInt(args[1])
             if (!num || num < 1 || num > queue.length) {
-                return reply(`${prefix}Invalid number! Current items: ${queuelength}`)
+                return reply(`Invalid number! Current items: ${queuelength}`)
             }
             queue.splice(num - 1, 1)
-            return reply(`${prefix}✦ Item ${num} removed Queue now has ${queue.length} items.`)
+            return reply(`✦ Item ${num} removed Queue now has ${queue.length} items.`)
         }
 
         // ── PUSH / CREATE ZIP ──────────────────────────────────
@@ -161,6 +161,6 @@ module.exports = {
         // If position already exists, overwrite
         queue[index - 1] = item
 
-        reply(`${prefix}✦ Added as item #\( {index} ( \){itemname})\nQueue now has ${queue.length} items.\n\nUse .zip push to create zip`)
+        reply(`✦ Added as item #\( {index} ( \){itemname})\nQueue now has ${queue.length} items.\n\nUse .zip push to create zip`)
     }
 }

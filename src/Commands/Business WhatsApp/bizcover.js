@@ -158,7 +158,7 @@ module.exports = {
 
         } catch (err) {
             console.error('[BIZCOVER]', err.message);
-            reply(`${prefix}✘ ${err?.message || err}`);
+            reply(`✘ ${err?.message || err}`);
         }
     }
 };

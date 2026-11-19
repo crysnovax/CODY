@@ -135,7 +135,7 @@ module.exports = {
 
         } catch (err) {
             console.log('[APK ERROR]', err.message);
-            reply(`${prefix}✘ APK download failed\nReason: ${err?.message || err}`);
+            reply(`✘ APK download failed\nReason: ${err?.message || err}`);
         }
     }
 };

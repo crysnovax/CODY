@@ -31,7 +31,7 @@ module.exports = {
             console.error('[CALLME ERROR]', error.message);
             await sock.sendMessage(m.chat, { react: { text: '❔', key: m.key } });
             
-       //     reply(`${prefix}📞 *Call me:* https://wame/${phoneNumber}`);
+       //     reply(`📞 *Call me:* https://wame/${phoneNumber}`);
         }
     }
 };

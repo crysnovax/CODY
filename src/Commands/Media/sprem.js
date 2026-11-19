@@ -70,7 +70,7 @@ module.exports = {
 
         } catch (e) {
             console.error(e);
-            reply(`${prefix}✘ Failed: ${e?.message || e}`);
+            reply(`✘ Failed: ${e?.message || e}`);
         }
     }
 };

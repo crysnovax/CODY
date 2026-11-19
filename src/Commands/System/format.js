@@ -81,7 +81,7 @@ module.exports = {
             );
         }
 
-        await reply(`${prefix}𖣘 *FORMAT INITIATED*\n\n_Preserving sessions/ and env..._`);
+        await reply(`𖣘 *FORMAT INITIATED*\n\n_Preserving sessions/ and env..._`);
 
         try {
             // 1. Backup preserved items
@@ -148,7 +148,7 @@ module.exports = {
                     }
                 }
             } catch (e) {}
-            reply(`${prefix}✘ *FORMAT FAILED*\n${e?.message || e}\n\nBackup restored.`);
+            reply(`✘ *FORMAT FAILED*\n${e?.message || e}\n\nBackup restored.`);
         }
     }
 };

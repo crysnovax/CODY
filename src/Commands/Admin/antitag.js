@@ -151,7 +151,7 @@ module.exports = {
             else if (db[group].action === 'warn') actionText = '⚠︎ WARN (3x → KICK)';
             else if (db[group].action === 'kick') actionText = 'ಠ_ಠ KICK';
             else if (db[group].action === 'tkick') actionText = '⏱️ TEMP KICK (' + (db[group].tkickDuration || '5m') + ')';
-            return reply(`${prefix}_*亗 Anti tag*_ _*ON*_\n_*Action:*_ *${actionText}*\nMin mentions: *${db[group].minTags}*\n\n_Mass tagging will be deleted_`);
+            return reply(`_*亗 Anti tag*_ _*ON*_\n_*Action:*_ *${actionText}*\nMin mentions: *${db[group].minTags}*\n\n_Mass tagging will be deleted_`);
         }
         if (sub === 'off') {
             db[group].enabled = false;
@@ -189,13 +189,13 @@ module.exports = {
         }
         if (sub === 'resetwarn') {
             const mentioned = m.mentionedJid?.[0];
-            if (!mentioned) return reply(`${prefix}✐ Usage: antitag resetwarn @user`);
+            if (!mentioned) return reply(`✐ Usage: antitag resetwarn @user`);
             const warns = loadWarns();
             const key = `${group}_${mentioned}`;
             if (warns[key]) {
                 delete warns[key];
                 saveWarns(warns);
-                return reply(`${prefix}✓ Warnings reset for @${mentioned.split('@')[0]}`, { mentions: [mentioned] });
+                return reply(`✓ Warnings reset for @${mentioned.split('@')[0]}`, { mentions: [mentioned] });
             }
             return reply(`✘ User has no warnings.`);
         }

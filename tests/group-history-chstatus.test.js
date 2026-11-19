@@ -34,11 +34,25 @@ test('togglehistory rejects missing mode and private chats without calling the s
     let calls = 0;
     const replies = [];
     const sock = { toggleGroupHistory: async () => { calls++; } };
-    await toggleHistory.execute(sock, { chat: '12345@g.us' }, { args: [], reply: async value => replies.push(value) });
+    await toggleHistory.execute(sock, { chat: '12345@g.us' }, { args: [], prefix: '/', reply: async value => replies.push(value) });
     await toggleHistory.execute(sock, { chat }, { args: ['on'], reply: async value => replies.push(value) });
     assert.equal(calls, 0);
     assert.match(replies[0], /Usage:/);
+    assert.match(replies[0], /Usage: \/togglehistory/);
+    assert.doesNotMatch(replies[0], /^\//);
     assert.match(replies[1], /only be used in a group/i);
+});
+
+test('chstatus usage keeps the configured prefix on command examples only', async () => {
+    const replies = [];
+    await channelStatus.execute({ sendNewsletterStatus: async () => { throw new Error('must not send'); } }, makeMessage(), {
+        args: [],
+        prefix: '/',
+        reply: async value => replies.push(value)
+    });
+    assert.match(replies[0], /^Usage:/);
+    assert.match(replies[0], /Usage: \/chstatus/);
+    assert.doesNotMatch(replies[0], /^\//);
 });
 
 test('chstatus posts text to a channel JID using sendNewsletterStatus', async () => {

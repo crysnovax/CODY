@@ -61,7 +61,7 @@ module.exports = {
                 }]
             });
 
-            reply(`${prefix}✓ Select list sent with ${rowslength} options!`);
+            reply(`✓ Select list sent with ${rowslength} options!`);
 
         } catch (err) {
             console.error('[SELECT ERROR]', err);
@@ -69,7 +69,7 @@ module.exports = {
             if (err.message?.includes('rows')) {
                 reply(`⊘ WhatsApp may have a limit on number of rows. Try with fewer options.`);
             } else {
-                reply(`${prefix}𓃵 Failed: ${err?.message || err}`);
+                reply(`𓃵 Failed: ${err?.message || err}`);
             }
         }
     }

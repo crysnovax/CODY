@@ -96,7 +96,7 @@ module.exports = {
 
         } catch (err) {
             console.error('[LISTONLINE ERROR]', err.message)
-            reply(`${prefix}✘ Error: ${err?.message || err}`)
+            reply(`✘ Error: ${err?.message || err}`)
         }
     }
                 }

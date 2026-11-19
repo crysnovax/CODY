@@ -18,7 +18,7 @@ module.exports = [
             const description = args.slice(1).join(' ') || '';
 
             if (!name) {
-                return reply(`${prefix}⊘ *Usage:* createcommunity <name> [description]\n\nExample: .createcommunity Tech Hub`);
+                return reply(`⊘ *Usage:* createcommunity <name> [description]\n\nExample: .createcommunity Tech Hub`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '🏘️', key: m.key } });
@@ -52,7 +52,7 @@ module.exports = [
             } catch (err) {
                 console.error('CREATE COMMUNITY ERROR:', err);
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -72,7 +72,7 @@ module.exports = [
             const jid = args[0];
 
             if (!jid || !jid.includes('@')) {
-                return reply(`${prefix}⊘ *Usage:* leavecommunity <community_jid>\n\nExample: .leavecommunity 1234567890@community`);
+                return reply(`⊘ *Usage:* leavecommunity <community_jid>\n\nExample: .leavecommunity 1234567890@community`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '🚪', key: m.key } });
@@ -83,7 +83,7 @@ module.exports = [
                 return reply(`✓ *Left community:* ${jid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -104,7 +104,7 @@ module.exports = [
             const groupName = args.slice(1).join(' ');
 
             if (!communityJid || !groupName) {
-                return reply(`${prefix}⊘ *Usage:* communitygroup <community_jid> <group_name>\n\nExample: .communitygroup 1234567890@community Announcements`);
+                return reply(`⊘ *Usage:* communitygroup <community_jid> <group_name>\n\nExample: .communitygroup 1234567890@community Announcements`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '👥', key: m.key } });
@@ -112,10 +112,10 @@ module.exports = [
             try {
                 const group = await sock.communityCreateGroup(groupName, [], communityJid);
                 await sock.sendMessage(m.chat, { react: { text: '🍃', key: m.key } });
-                return reply(`${prefix}✓ *Group Created Inside Community*\n\n📛 *Group Name:* ${groupName}\n🆔 *Group JID:* ${group?.jid || 'Created'}\n🏘️ *Community:* ${communityJid}`);
+                return reply(`✓ *Group Created Inside Community*\n\n📛 *Group Name:* ${groupName}\n🆔 *Group JID:* ${group?.jid || 'Created'}\n🏘️ *Community:* ${communityJid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -136,7 +136,7 @@ module.exports = [
             const newName = args.slice(1).join(' ');
 
             if (!jid || !newName) {
-                return reply(`${prefix}⊘ *Usage:* communityname <community_jid> <new_name>\n\nExample: .communityname 1234567890@community Tech Hub`);
+                return reply(`⊘ *Usage:* communityname <community_jid> <new_name>\n\nExample: .communityname 1234567890@community Tech Hub`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '✏️', key: m.key } });
@@ -147,7 +147,7 @@ module.exports = [
                 return reply(`✓ *Community name updated to:* ${newName}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -168,7 +168,7 @@ module.exports = [
             const groupJid = args[1];
 
             if (!communityJid || !groupJid) {
-                return reply(`${prefix}⊘ *Usage:* linkgroup <community_jid> <group_jid>\n\nExample: .linkgroup 1234567890@community 1234567890-123456@g.us`);
+                return reply(`⊘ *Usage:* linkgroup <community_jid> <group_jid>\n\nExample: .linkgroup 1234567890@community 1234567890-123456@g.us`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '🔗', key: m.key } });
@@ -179,7 +179,7 @@ module.exports = [
                 return reply(`✓ *Group linked to community*\n\n👥 *Group:* ${groupJid}\n🏘️ *Community:* ${communityJid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -200,7 +200,7 @@ module.exports = [
             const groupJid = args[1];
 
             if (!communityJid || !groupJid) {
-                return reply(`${prefix}⊘ *Usage:* unlinkgroup <community_jid> <group_jid>\n\nExample: .unlinkgroup 1234567890@community 1234567890-123456@g.us`);
+                return reply(`⊘ *Usage:* unlinkgroup <community_jid> <group_jid>\n\nExample: .unlinkgroup 1234567890@community 1234567890-123456@g.us`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '🔓', key: m.key } });
@@ -211,7 +211,7 @@ module.exports = [
                 return reply(`✓ *Group unlinked from community*\n\n👥 *Group:* ${groupJid}\n🏘️ *Community:* ${communityJid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -231,7 +231,7 @@ module.exports = [
             const jid = args[0];
 
             if (!jid) {
-                return reply(`${prefix}⊘ *Usage:* linkedgroups <community_jid>\n\nExample: .linkedgroups 1234567890@community`);
+                return reply(`⊘ *Usage:* linkedgroups <community_jid>\n\nExample: .linkedgroups 1234567890@community`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '📋', key: m.key } });
@@ -256,7 +256,7 @@ module.exports = [
                 return reply(text);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -298,7 +298,7 @@ module.exports = [
                 return reply(text);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -318,7 +318,7 @@ module.exports = [
             const jid = args[0];
 
             if (!jid) {
-                return reply(`${prefix}⊘ *Usage:* communityinfo <community_jid>\n\nExample: .communityinfo 1234567890@community`);
+                return reply(`⊘ *Usage:* communityinfo <community_jid>\n\nExample: .communityinfo 1234567890@community`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: 'ℹ️', key: m.key } });
@@ -350,7 +350,7 @@ module.exports = [
 
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -371,7 +371,7 @@ module.exports = [
             const userJid = args[1];
 
             if (!communityJid || !userJid) {
-                return reply(`${prefix}⊘ *Usage:* addtocommunity <community_jid> <user_jid>\n\nExample: .addtocommunity 1234567890@community 2348077134210@s.whatsapp.net`);
+                return reply(`⊘ *Usage:* addtocommunity <community_jid> <user_jid>\n\nExample: .addtocommunity 1234567890@community 2348077134210@s.whatsapp.net`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '👤', key: m.key } });
@@ -382,7 +382,7 @@ module.exports = [
                 return reply(`✓ *Added user to community*\n\n👤 *User:* ${userJid}\n🏘️ *Community:* ${communityJid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -403,7 +403,7 @@ module.exports = [
             const userJid = args[1];
 
             if (!communityJid || !userJid) {
-                return reply(`${prefix}⊘ *Usage:* removefromcommunity <community_jid> <user_jid>\n\nExample: .removefromcommunity 1234567890@community 2348077134210@s.whatsapp.net`);
+                return reply(`⊘ *Usage:* removefromcommunity <community_jid> <user_jid>\n\nExample: .removefromcommunity 1234567890@community 2348077134210@s.whatsapp.net`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '🚫', key: m.key } });
@@ -414,7 +414,7 @@ module.exports = [
                 return reply(`✓ *Removed user from community*\n\n👤 *User:* ${userJid}\n🏘️ *Community:* ${communityJid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     },
@@ -435,7 +435,7 @@ module.exports = [
             const userJid = args[1];
 
             if (!communityJid || !userJid) {
-                return reply(`${prefix}⊘ *Usage:* communityadmin <community_jid> <user_jid>\n\nExample: .communityadmin 1234567890@community 2348077134210@s.whatsapp.net`);
+                return reply(`⊘ *Usage:* communityadmin <community_jid> <user_jid>\n\nExample: .communityadmin 1234567890@community 2348077134210@s.whatsapp.net`);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '👑', key: m.key } });
@@ -446,7 +446,7 @@ module.exports = [
                 return reply(`✓ *Promoted to community admin*\n\n👤 *User:* ${userJid}\n🏘️ *Community:* ${communityJid}`);
             } catch (err) {
                 await sock.sendMessage(m.chat, { react: { text: '🥵', key: m.key } });
-                return reply(`${prefix}⊘ *Error:* ${err.message}`);
+                return reply(`⊘ *Error:* ${err.message}`);
             }
         }
     }

@@ -216,7 +216,7 @@ module.exports = {
       if (cmd === vvCmd && args[0] === 'cmd' && args[1]) {
         reactionTriggers[sender] = args[1];
         saveTriggers();
-        return reply(`${prefix}╭─❍ *CRYSNOVA AI V20*\n│ ✓ Reaction trigger set: ${args[1]}\n╰──────────────────`);
+        return reply(`╭─❍ *CRYSNOVA AI V20*\n│ ✓ Reaction trigger set: ${args[1]}\n╰──────────────────`);
       }
 
       // ───── MUST REPLY ─────

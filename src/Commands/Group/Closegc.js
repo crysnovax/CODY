@@ -77,7 +77,7 @@ module.exports = {
 
             if (toRemove.length > 0) {
                 await sock.groupParticipantsUpdate(chatId, toRemove, 'remove');
-                await reply(`${prefix}_*Kicked ${toRemovelength} members...*_`);
+                await reply(`_*Kicked ${toRemovelength} members...*_`);
             }
 
             // Bot leaves the group

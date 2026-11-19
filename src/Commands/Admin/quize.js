@@ -42,7 +42,7 @@ module.exports = {
 
         } catch (err) {
             console.error('[QUIZ ERROR]', err);
-            reply(`${prefix}Error: ${err?.message || err}`);
+            reply(`Error: ${err?.message || err}`);
         }
     }
 };

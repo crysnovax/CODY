@@ -42,7 +42,7 @@ module.exports = {
             }
 
             if (cmd !== 'resize') {
-                return reply(`${prefix}⚉ *${cmd}* isn't supported for GIFs yet — only *.resize WIDTHxHEIGHT* works on GIFs right now (e.g. .resize 640x360).`);
+                return reply(`⚉ *${cmd}* isn't supported for GIFs yet — only *.resize WIDTHxHEIGHT* works on GIFs right now (e.g. .resize 640x360).`);
             }
 
             const arg = args[0] || '';

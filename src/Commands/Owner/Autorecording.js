@@ -18,7 +18,7 @@ module.exports = {
             return reply('`✘ Recording DISABLED`');
         } else {
             const current = getVar('AUTO_RECORDING', true);
-            return reply(`${prefix}Auto Recording is currently: *${current ? 'ON' : 'OFF'}*\n\nUsage: autorecording on/off`);
+            return reply(`Auto Recording is currently: *${current ? 'ON' : 'OFF'}*\n\nUsage: autorecording on/off`);
         }
     }
 };

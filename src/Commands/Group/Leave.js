@@ -19,7 +19,7 @@ module.exports = {
 
             console.error('[LEAVE ERROR]', err);
 
-            reply(`${prefix}
+            reply(`
 𓉤 CRYSNOVA AI
 
 ✘ Failed to Leave

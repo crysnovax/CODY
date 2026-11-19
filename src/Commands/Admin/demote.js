@@ -28,7 +28,7 @@ module.exports = {
 
             if (!targets.length) return reply('✘ No admins to demote')
 
-            await reply(`${prefix}⚉ Demoting ${targetslength} admins...`)
+            await reply(`⚉ Demoting ${targetslength} admins...`)
 
             let success = 0
             for (const jid of targets) {
@@ -115,7 +115,7 @@ module.exports = {
                 mentions: demoted
             })
         } else {
-            reply(`${prefix}✘ Could not demote:\n${failedjoin('\n')}`)
+            reply(`✘ Could not demote:\n${failedjoin('\n')}`)
         }
     }
             }

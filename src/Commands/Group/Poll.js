@@ -134,7 +134,7 @@ module.exports = {
             await sock.sendMessage(m.chat, { poll: parsed.poll }, { quoted: m });
         } catch (error) {
             console.error('[POLL ERROR]', error.message);
-            return reply(`${prefix}_✘ Failed to create poll: ${error?.message || error}_`);
+            return reply(`_✘ Failed to create poll: ${error?.message || error}_`);
         }
     },
     parsePollInput,

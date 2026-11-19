@@ -176,7 +176,7 @@ module.exports = {
         } catch (error) {
             console.error('[QUOTED ERROR]', error);
             await sock.sendMessage(m.chat, { react: { text: '🙈', key: m.key } });
-            return reply(`${prefix}⊘ *Error:* ${error?.message || 'Unknown error'}`);
+            return reply(`⊘ *Error:* ${error?.message || 'Unknown error'}`);
         }
     },
     findRepliedMessage,

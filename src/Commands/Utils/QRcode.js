@@ -79,12 +79,12 @@ module.exports = {
                 ctx.drawImage(img, 0, 0, img.width, img.height);
 
                 const imageData = ctx.getImageData(0, 0, img.width, img.height);
-                const code = jsQR(imageData.data, img.width, img.height, {
+                const decodedCode = jsQR(imageData.data, img.width, img.height, {
                     inversionAttempts: 'attemptBoth'
                 });
 
-                if (code?.data) {
-                    return reply(`✓ _*QR Decoded:*_\n\n${code.data}`);
+                if (typeof decodedCode?.data === 'string' && decodedCode.data.length > 0) {
+                    return reply(`✓ _*QR Decoded:*_\n\n${decodedCode.data}`);
                 }
 
                 return reply(

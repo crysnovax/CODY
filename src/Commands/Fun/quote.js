@@ -11,6 +11,6 @@ module.exports = {
     desc: 'Get a motivational quote',
     category: 'Fun',
     execute: async (sock, m, { reply }) => {
-        await reply(`${prefix}💬 ${quotes[Mathfloor(Math.random() * quotes.length)]}`);
+        await reply(`💬 ${quotes[Mathfloor(Math.random() * quotes.length)]}`);
     }
 };

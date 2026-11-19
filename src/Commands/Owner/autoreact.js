@@ -54,7 +54,7 @@ module.exports = {
         // List current emojis
         if (cmd === 'list') {
             const emojis = config.emojis.join(' ');
-            return reply(`${prefix}_Current emoji pool:_\n${emojis}\n\n_Total: ${configemojis.length}_`);
+            return reply(`_Current emoji pool:_\n${emojis}\n\n_Total: ${configemojis.length}_`);
         }
 
         // Add emoji to pool
@@ -86,7 +86,7 @@ module.exports = {
         }
 
         // Show help
-        return reply(`${prefix}_Auto‑react is ${configenabled ? 'enabled' : 'disabled'}._\n\n` +
+        return reply(`_Auto‑react is ${configenabled ? 'enabled' : 'disabled'}._\n\n` +
                      `Commands:\n.autoreact on/off\n.autoreact list\n.autoreact add 🎈\n.autoreact remove 🎈\n.autoreact reset`);
     },
 

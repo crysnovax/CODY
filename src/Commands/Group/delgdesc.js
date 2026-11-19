@@ -11,7 +11,7 @@ module.exports = {
             await sock.groupUpdateDescription(m.chat, newDesc);
             reply('_*✓ Group description has been deleted successfully.*_');
         } catch (error) {
-            reply(`${prefix}Failed to delete group description: ${errormessage}`);
+            reply(`Failed to delete group description: ${errormessage}`);
         }
     }
 };

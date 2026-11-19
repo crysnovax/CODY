@@ -53,7 +53,7 @@ module.exports = {
 
     execute: async (sock, m, { args, reply }) => {
         const query = args.join(' ').trim();
-        if (!query) return reply(`${prefix}彡 *Usage:* movieintel <movie name>\n\nExample: .movieintel The boys`);
+        if (!query) return reply(`彡 *Usage:* movieintel <movie name>\n\nExample: .movieintel The boys`);
 
         await sock.sendMessage(m.chat, { react: { text: '🎬', key: m.key } });
 

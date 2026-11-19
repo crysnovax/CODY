@@ -33,3 +33,24 @@ test('qrread replies with the decoded QR payload for a quoted image', async () =
     assert.match(replies[0], new RegExp(payload));
     assert.doesNotMatch(replies[0], /Error reading QR/);
 });
+
+test('qrread error replies do not put the configured prefix before the message', async () => {
+    const replies = [];
+    const message = {
+        body: '/qrread',
+        chat: '15550000000@s.whatsapp.net',
+        key: { id: 'qrread-error-test' },
+        quoted: { mtype: 'imageMessage', download: async () => { throw new Error('invalid image data'); } }
+    };
+
+    await command.execute({ sendMessage: async () => ({}) }, message, {
+        args: [],
+        prefix: '/',
+        reply: async text => replies.push(text)
+    });
+
+    assert.equal(replies.length, 1);
+    assert.match(replies[0], /^✘ Error reading QR:/);
+    assert.match(replies[0], /invalid image data/);
+    assert.doesNotMatch(replies[0], /^\//);
+});

@@ -12,7 +12,7 @@ module.exports = {
 
     execute: async (sock, m, { args, reply }) => {
         const query = args.join(' ').trim();
-        if (!query) return reply(`${prefix}Usage: tiktok <query>`);
+        if (!query) return reply(`Usage: tiktok <query>`);
 
         await sock.sendMessage(m.chat, { react: { text: '📥', key: m.key } });
 

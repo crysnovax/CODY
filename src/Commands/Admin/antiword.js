@@ -137,7 +137,7 @@ module.exports = {
 
         if (sub === 'add') {
             const words = args.slice(1).filter(w => w && w.trim());
-            if (!words.length) return reply(`${prefix}✐ Usage: antiword add <word1> <word2> ...`);
+            if (!words.length) return reply(`✐ Usage: antiword add <word1> <word2> ...`);
             
             const newWords = [];
             for (const w of words) {
@@ -149,7 +149,7 @@ module.exports = {
             }
             saveDB(db);
             if (newWords.length) {
-                return reply(`${prefix}✓ Added:\n${newWords.map(w => `❏ ${w}`).join('\n')}`);
+                return reply(`✓ Added:\n${newWords.map(w => `❏ ${w}`).join('\n')}`);
             } else {
                 return reply(`✘ All words already banned.`);
             }
@@ -157,7 +157,7 @@ module.exports = {
 
         if (sub === 'remove') {
             const word = args[1]?.toLowerCase();
-            if (!word) return reply(`${prefix}✐ Usage: antiword remove <word>`);
+            if (!word) return reply(`✐ Usage: antiword remove <word>`);
             const idx = db[group].words.indexOf(word);
             if (idx === -1) return reply(`✘ "${word}" not found.`);
             db[group].words.splice(idx, 1);
@@ -175,18 +175,18 @@ module.exports = {
         
         if (sub === 'resetwarn') {
             const mentioned = m.mentionedJid?.[0];
-            if (!mentioned) return reply(`${prefix}✐ Usage: antiword resetwarn @user`);
+            if (!mentioned) return reply(`✐ Usage: antiword resetwarn @user`);
             const warns = loadWarns();
             const key = `${group}_${mentioned}`;
             if (warns[key]) {
                 delete warns[key];
                 saveWarns(warns);
-                return reply(`${prefix}✓ Warnings reset for @${mentioned.split('@')[0]}`);
+                return reply(`✓ Warnings reset for @${mentioned.split('@')[0]}`);
             }
             return reply(`✘ User has no warnings.`);
         }
 
-        return reply(`${prefix}𒆜 Usage:\nantiword on/off\n.antiword delete/warn/kick/tkick 5m\n.antiword add <words>\n.antiword remove <word>\n.antiword list\n.antiword resetwarn @user`);
+        return reply(`𒆜 Usage:\nantiword on/off\n.antiword delete/warn/kick/tkick 5m\n.antiword add <words>\n.antiword remove <word>\n.antiword list\n.antiword resetwarn @user`);
     }
 };
 

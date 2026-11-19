@@ -15,7 +15,7 @@ module.exports = {
 
         const validFormats = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'mp3', 'gif', 'pdf'];
         if (!validFormats.includes(format)) {
-            return reply(`${prefix}_*⚉ Invalid format Use: ${validFormats.join(', ')}*_`);
+            return reply(`_*⚉ Invalid format Use: ${validFormats.join(', ')}*_`);
         }
 
         const quoted = m.quoted || m;
@@ -71,7 +71,7 @@ module.exports = {
 
         } catch (e) {
             console.error('[CONVERT]', e);
-            reply(`${prefix}✘ Conversion failed: ${e?.message || e}`);
+            reply(`✘ Conversion failed: ${e?.message || e}`);
         }
     }
 };

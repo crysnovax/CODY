@@ -38,7 +38,7 @@ module.exports = {
                     const response = await fetch(ppUrl);
                     targetBuffer = Buffer.from(await response.arrayBuffer());
                 } catch (err) {
-                    return reply(`${prefix}❔ Could not fetch profile picture for @${targetJidsplit('@')[0]}. They may have no profile picture or privacy settings.`);
+                    return reply(`❔ Could not fetch profile picture for @${targetJidsplit('@')[0]}. They may have no profile picture or privacy settings.`);
                 }
             }
         }

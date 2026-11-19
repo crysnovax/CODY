@@ -31,7 +31,7 @@ module.exports = {
         return reply(
             `╭─❍ *AI BADGE STATUS*\n│\n` +
             `│ ✨ Current: ${current ? '*֎ ON*' : '*▢ OFF*'}\n│\n` +
-            `│ ⚉ Usage: .aibadge on | off\n` +
+            `│ ⚉ Usage: .aibadge on | off\${prefix}n` +
             `╰──────────────────`
         );
     }

@@ -16,7 +16,7 @@ module.exports = {
         const runtime = allVars()
         const keys = Object.keys(runtime)
         if (!keys.length) {
-            return reply(`${prefix}📋 *No runtime variables set yet*\n\n*Usage:* setvar VARIABLE=VALUE`)
+            return reply(`📋 *No runtime variables set yet*\n\n*Usage:* setvar VARIABLE=VALUE`)
         }
         const entries = keys.map(k => `${k} = ${runtime[k]}`)
         await sock.sendList(m.chat, `⚙️ Runtime Variables (${keys.length})`, entries, m)

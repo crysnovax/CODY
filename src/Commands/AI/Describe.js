@@ -72,7 +72,7 @@ module.exports = {
         } catch (err) {
             console.error('[CAPTION ERROR]', err.message);
             await sock.sendMessage(m.chat, { react: { text: '✘', key: m.key } });
-            reply(`${prefix}✘ ${err?.message || err || 'Analysis failed'}`);
+            reply(`✘ ${err?.message || err || 'Analysis failed'}`);
         }
     }
 };

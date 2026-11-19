@@ -142,7 +142,7 @@ module.exports = {
             );
         }
 
-   //     await reply(`${prefix}╭─❍ *INSTALLING PLUGINS*\n│\n│ ⚉ Processing ${urlslength} URL(s)...\n╰──────────────────`);
+   //     await reply(`╭─❍ *INSTALLING PLUGINS*\n│\n│ ⚉ Processing ${urlslength} URL(s)...\n╰──────────────────`);
 
         const results = [];
         for (const url of urls) {

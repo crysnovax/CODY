@@ -239,7 +239,7 @@ module.exports = {
         text += `˗ˏˋ ☏ ˎˊ˗  *Hello, ${userName}*  ✦\n`;
         text += `${DIVIDER}\n`;
         text += `⎔ Number  · ⇆ ${userNum}\n`;
-        text += `⎔ Prefix  ·  ⇆ [ ${prefix} ]\n`;
+        text += `⎔ Prefix  ·  ⇆ [  ]\n`;
         text += `⎔ Cmds    ·  ⇆ ${totalCmds} commands\n`;
         text += `⎔ Uptime  · ⇆ ${formatUptime(uptimeMin)}\n`;
         text += `⎔ Chat  .  ⇆ ${chatType}\n`;
@@ -261,7 +261,7 @@ module.exports = {
                 if (cmd.aliasOf) continue;
                 if (seen.has(cmdName.toLowerCase())) continue;
                 seen.add(cmdName.toLowerCase());
-                text += `︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎⊹ ${prefix}${cmdName}\n`;
+                text += `︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎ ︎⊹ ${cmdName}\n`;
             }
         }
         

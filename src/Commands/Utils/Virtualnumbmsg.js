@@ -7,7 +7,7 @@ module.exports = {
     execute: async (sock, m, { args, reply }) => {
         try {
             if (!args.length) {
-                return reply(`${prefix}📩 Usage:
+                return reply(`📩 Usage:
 sms24msg <number>
 
 Example:
@@ -25,7 +25,7 @@ Example:
             const res = await fetch(apiUrl, { timeout: 15000 });
             
             if (!res.ok) {
-                return reply(`${prefix}_*⚉ API Error ${resstatus}*_\n☬ Failed to fetch messages`);
+                return reply(`_*⚉ API Error ${resstatus}*_\n☬ Failed to fetch messages`);
             }
 
             const json = await res.json();

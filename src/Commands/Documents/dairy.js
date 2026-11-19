@@ -70,7 +70,7 @@ module.exports = {
             try {
                 const decoded = Buffer.from(latest.entry, 'base64').toString();
                 const decrypted = decrypt(decoded, password);
-                return reply(`${prefix}📔 *Diary Entry*\n📅 ${latestdate}\n\n${decrypted}`);
+                return reply(`📔 *Diary Entry*\n📅 ${latestdate}\n\n${decrypted}`);
             } catch (e) {
                 return reply('`🔒 Wrong password or corrupted entry`');
             }

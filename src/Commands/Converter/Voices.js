@@ -7,7 +7,7 @@ module.exports = {
     execute: async (sock, m, { args, reply }) => {
         try {
             if (args.length < 2) {
-                return reply(`${prefix}🎙️ Usage:
+                return reply(`🎙️ Usage:
 ttsm <voice_number> <text>
 .ttsm 13 Hello world
 
@@ -65,7 +65,7 @@ ttsm <voice_number> <text>
 
             // Get JSON with audio URL
             const res = await fetch(apiUrl);
-            if (!res.ok) return reply(`${prefix}_*⚉ Voice API failed: ${resstatus}*_`);
+            if (!res.ok) return reply(`_*⚉ Voice API failed: ${resstatus}*_`);
 
             const json = await res.json();
             console.log('[TTS] Response:', JSON.stringify(json));
@@ -90,7 +90,7 @@ ttsm <voice_number> <text>
             console.log('[TTS] Audio status:', audioRes.status);
 
             if (!audioRes.ok) {
-                return reply(`${prefix}_*⚉ Cannot fetch audio: ${audioResstatus}*_\n☬ Tmpfiles URL expired or blocked`);
+                return reply(`_*⚉ Cannot fetch audio: ${audioResstatus}*_\n☬ Tmpfiles URL expired or blocked`);
             }
 
             const buffer = Buffer.from(await audioRes.arrayBuffer());

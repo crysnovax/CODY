@@ -112,7 +112,7 @@ module.exports = {
 
         } catch (err) {
             console.error('[BIZUPDATE]', err.message);
-            reply(`${prefix}✘ ${err?.message || err}`);
+            reply(`✘ ${err?.message || err}`);
         }
     }
 };

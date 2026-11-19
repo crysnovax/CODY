@@ -28,7 +28,7 @@ module.exports = {
 
             if (!targets.length) return reply('✘ Everyone is already admin')
 
-            await reply(`${prefix}⚉ Promoting ${targetslength} members...`)
+            await reply(`⚉ Promoting ${targetslength} members...`)
 
             let success = 0
             for (const jid of targets) {
@@ -111,7 +111,7 @@ module.exports = {
                 mentions: promoted
             })
         } else {
-            reply(`${prefix}✘ Could not promote:\n${failedjoin('\n')}`)
+            reply(`✘ Could not promote:\n${failedjoin('\n')}`)
         }
     }
 }

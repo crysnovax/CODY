@@ -101,7 +101,7 @@ module.exports = {
             writeEnv(env);
             reply(`*${key}* = ${value}`);
         } catch (err) {
-            reply(`${prefix}𓄄 *${key}* = ${value}\n\n_Runtime saved .env write failed: ${err.message}_`);
+            reply(`𓄄 *${key}* = ${value}\n\n_Runtime saved .env write failed: ${err.message}_`);
         }
     }
 };
