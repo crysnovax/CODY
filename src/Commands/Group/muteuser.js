@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { participantJids } = require('../../Plugin/identityUtils');
 
 /* ================= DATABASE ================= */
 
@@ -144,7 +145,7 @@ const botParticipant=meta.participants.find(p=>p.id===botJid);
 //botParticipant?.admin==='admin'||
 //botParticipant?.admin==='superadmin';
 
-const targetParticipant=meta.participants.find(p=>p.id===targetJid);
+const targetParticipant=meta.participants.find(p=>participantJids(p).includes(targetJid));
 
 const isTargetAdmin=
 targetParticipant?.admin==='admin'||

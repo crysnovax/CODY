@@ -3,6 +3,7 @@ const { getCommand, getAll } = require('./crysCmd');
 const { getVar, resolvePrefix } = require('./configManager');
 const { normalizePoolcardButton, normalizePoolcardButtonMessage } = require('./poolcardButtonRouter');
 const { isAllAdminEnabled, hasAllAdminAccess, isAllAdminCommandBlocked, canManageAllAdmin } = require('./allAdminAccess');
+const { resolveMentionedJidsWithMetadata } = require('./identityUtils');
 const chalk = require('chalk');
 const fs    = require('fs');
 const path  = require('path');
@@ -295,6 +296,35 @@ const handleMessage = async (sock, m, store) => {
         let groupMeta, isAdmin, isBotAdmin, isOwnerAdmin;
         if (m.isGroup) {
             groupMeta = await sock.groupMetadata(m.chat).catch(() => null);
+            const mentionContexts = [
+                m.msg?.contextInfo,
+                m.message?.extendedTextMessage?.contextInfo,
+                m.message?.imageMessage?.contextInfo,
+                m.message?.videoMessage?.contextInfo,
+            ].filter(Boolean);
+            const rawMentions = [
+                ...(m.mentionedJid || []),
+                ...mentionContexts.flatMap(context => context.mentionedJid || []),
+            ];
+            if (rawMentions.length) {
+                const canonicalMentions = await resolveMentionedJidsWithMetadata(
+                    sock,
+                    m.chat,
+                    rawMentions,
+                    groupMeta
+                );
+                m.mentionedJid = canonicalMentions;
+                for (const context of mentionContexts) context.mentionedJid = canonicalMentions;
+            }
+            if (m.quoted?.sender) {
+                const canonicalQuotedSender = await resolveMentionedJidsWithMetadata(
+                    sock,
+                    m.chat,
+                    [m.quoted.sender],
+                    groupMeta
+                );
+                if (canonicalQuotedSender[0]) m.quoted.sender = canonicalQuotedSender[0];
+            }
             const adminParticipants = (groupMeta?.participants || []).filter(p => p.admin);
             const adminJids = adminParticipants.map(p => normalizeJid(p.id));
 
@@ -391,7 +421,8 @@ const handleMessage = async (sock, m, store) => {
         try {
             await cmd.execute(sock, m, {
                 args, text, prefix, command: cmdName, isOwner, isSudo, isDual, isAdmin, isGroupAdmin: isAdmin,
-                isBotAdmin, isOwnerAdmin, isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar
+                isBotAdmin, isOwnerAdmin, isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar,
+                sender: m.sender, mentionedJid: m.mentionedJid || []
             });
 
             if (m.isGroup && isAdmin) {

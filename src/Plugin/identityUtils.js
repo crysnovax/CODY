@@ -69,6 +69,15 @@ async function resolvePhoneJidWithMetadata(sock, chatId, candidates = [], suppli
     return null;
 }
 
+async function resolveMentionedJidsWithMetadata(sock, chatId, candidates = [], suppliedMetadata = null) {
+    const resolved = [];
+    for (const candidate of [...new Set(candidates.filter(Boolean))]) {
+        const jid = await resolvePhoneJidWithMetadata(sock, chatId, [candidate], suppliedMetadata);
+        if (jid && !resolved.includes(jid)) resolved.push(jid);
+    }
+    return resolved;
+}
+
 async function identityVariants(sock, jid) {
     const normalized = normalizeJid(jid);
     const variants = new Set(normalized ? [normalized] : []);
@@ -129,6 +138,7 @@ module.exports = {
     normalizeJid,
     participantJids,
     resolveCommandTarget,
+    resolveMentionedJidsWithMetadata,
     resolvePhoneJid,
     resolvePhoneJidWithMetadata,
 };

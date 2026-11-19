@@ -2,6 +2,7 @@
 // The old mutesticker behavior moved here. @crysnovax—FIX06-08-26
 const fs = require('fs');
 const path = require('path');
+const { participantJids } = require('../../Plugin/identityUtils');
 
 const STICKER_MUTE_FILE = path.join(__dirname, '../../database/mutedStickersAll.json');
 
@@ -85,7 +86,7 @@ module.exports = {
 
         /* ================= META ================= */
         const meta = await sock.groupMetadata(chatId);
-        const targetParticipant = meta.participants.find(p => p.id === targetJid);
+        const targetParticipant = meta.participants.find(p => participantJids(p).includes(targetJid));
         const isTargetAdmin = targetParticipant?.admin === 'admin' || targetParticipant?.admin === 'superadmin';
         const targetName = getUserName(sock, targetJid);
 
