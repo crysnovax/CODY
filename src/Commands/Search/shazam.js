@@ -33,8 +33,8 @@ function cleanFileName(value) {
         .slice(0, 90) || 'shazam-track';
 }
 
-function buildStringToSign(method, host, endpoint, dataType, signatureVersion, timestamp) {
-    return [method, host, endpoint, dataType, signatureVersion, timestamp].join('\n');
+function buildStringToSign(method, uri, accessKey, dataType, signatureVersion, timestamp) {
+    return [method, uri, accessKey, dataType, signatureVersion, timestamp].join('\n');
 }
 
 function sign(string, secret) {
@@ -43,7 +43,7 @@ function sign(string, secret) {
 
 function buildIdentifySignature(timestamp, config = ACR_CLOUD) {
     const stringToSign = buildStringToSign(
-        'POST', config.host, config.endpoint, config.data_type,
+        'POST', config.endpoint, config.access_key, config.data_type,
         config.signature_version, timestamp
     );
     return sign(stringToSign, config.access_secret);

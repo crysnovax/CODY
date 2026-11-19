@@ -9,7 +9,7 @@ const socialDl = require('../src/Plugin/socialDl');
 const chat = '15550000000@s.whatsapp.net';
 const sender = '15550000000@s.whatsapp.net';
 
-test('ACRCloud signature uses the original host and endpoint order', () => {
+test('ACRCloud signature uses URI and access key in the documented order', () => {
     const config = {
         host: 'identify-eu-west-1.acrcloud.com',
         endpoint: '/v1/identify',
@@ -20,11 +20,11 @@ test('ACRCloud signature uses the original host and endpoint order', () => {
     };
     const timestamp = 1700000000;
     const stringToSign = [
-        'POST', 'identify-eu-west-1.acrcloud.com', '/v1/identify', 'audio', '1', String(timestamp)
+        'POST', '/v1/identify', 'test-access-key', 'audio', '1', String(timestamp)
     ].join('\n');
 
     assert.equal(
-        command.helpers.buildStringToSign('POST', config.host, config.endpoint, config.data_type, config.signature_version, timestamp),
+        command.helpers.buildStringToSign('POST', config.endpoint, config.access_key, config.data_type, config.signature_version, timestamp),
         stringToSign
     );
     const expectedSignature = crypto.createHmac('sha1', config.access_secret)
