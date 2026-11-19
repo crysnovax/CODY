@@ -114,9 +114,6 @@ function getContextInfo(m) {
 
 async function resolveCommandTarget(sock, m, rawValue = '') {
     const contextInfo = getContextInfo(m);
-    const explicitNumber = cleanNumber(rawValue);
-    if (explicitNumber) return `${explicitNumber}@s.whatsapp.net`;
-
     const candidates = [
         ...(m?.mentionedJid || []),
         ...(contextInfo.mentionedJid || []),
@@ -126,7 +123,14 @@ async function resolveCommandTarget(sock, m, rawValue = '') {
         contextInfo.participant,
     ];
 
-    return resolvePhoneJidWithMetadata(sock, m?.chat, candidates);
+    // WhatsApp may place a LID's numeric representation in rawValue even
+    // when the user actually mentioned a contact. Resolve the identity first;
+    // only use raw numeric text when no mention/reply identity is available.
+    const resolved = await resolvePhoneJidWithMetadata(sock, m?.chat, candidates);
+    if (resolved) return resolved;
+
+    const explicitNumber = cleanNumber(rawValue);
+    return explicitNumber ? `${explicitNumber}@s.whatsapp.net` : null;
 }
 
 module.exports = {

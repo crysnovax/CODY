@@ -43,6 +43,13 @@ const extractPhoneNumber = (jid, store = null) => {
         }
     }
 
+    if (jid.endsWith('@lid')) {
+        const mapped = lidToPhoneMap.get(jid) || lidToPhoneMap.get(jid.split('@')[0]);
+        if (mapped?.endsWith('@s.whatsapp.net')) {
+            return mapped.split('@')[0].replace(/[^0-9]/g, '');
+        }
+    }
+
     return jid.split('@')[0].replace(/[^0-9]/g, '');
 };
 
