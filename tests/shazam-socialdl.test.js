@@ -1,12 +1,37 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const test = require('node:test');
 const command = require('../src/Commands/Search/shazam');
 const socialDl = require('../src/Plugin/socialDl');
 
 const chat = '15550000000@s.whatsapp.net';
 const sender = '15550000000@s.whatsapp.net';
+
+test('ACRCloud signature uses URI and access key in the documented order', () => {
+    const config = {
+        host: 'identify-eu-west-1.acrcloud.com',
+        endpoint: '/v1/identify',
+        data_type: 'audio',
+        signature_version: '1',
+        access_key: 'test-access-key',
+        access_secret: 'test-access-secret'
+    };
+    const timestamp = 1700000000;
+    const stringToSign = [
+        'POST', '/v1/identify', 'test-access-key', 'audio', '1', String(timestamp)
+    ].join('\n');
+
+    assert.equal(
+        command.helpers.buildStringToSign('POST', config.endpoint, config.access_key, config.data_type, config.signature_version, timestamp),
+        stringToSign
+    );
+    const expectedSignature = crypto.createHmac('sha1', config.access_secret)
+        .update(stringToSign, 'utf8')
+        .digest('base64');
+    assert.equal(command.helpers.buildIdentifySignature(timestamp, config), expectedSignature);
+});
 
 function makeMessage(id) {
     return { chat, sender, key: { id, remoteJid: chat } };

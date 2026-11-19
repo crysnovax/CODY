@@ -33,12 +33,20 @@ function cleanFileName(value) {
         .slice(0, 90) || 'shazam-track';
 }
 
-function buildStringToSign(method, host, endpoint, dataType, signatureVersion, timestamp) {
-    return [method, host, endpoint, dataType, signatureVersion, timestamp].join('\n');
+function buildStringToSign(method, uri, accessKey, dataType, signatureVersion, timestamp) {
+    return [method, uri, accessKey, dataType, signatureVersion, timestamp].join('\n');
 }
 
 function sign(string, secret) {
     return crypto.createHmac('sha1', secret).update(Buffer.from(string, 'utf8')).digest('base64');
+}
+
+function buildIdentifySignature(timestamp, config = ACR_CLOUD) {
+    const stringToSign = buildStringToSign(
+        'POST', config.endpoint, config.access_key, config.data_type,
+        config.signature_version, timestamp
+    );
+    return sign(stringToSign, config.access_secret);
 }
 
 async function prepareAudioSample(buffer) {
@@ -66,17 +74,13 @@ async function identifyAudio(buffer) {
 
     const sample = await prepareAudioSample(buffer);
     const timestamp = Math.floor(Date.now() / 1000);
-    const stringToSign = buildStringToSign(
-        'POST', ACR_CLOUD.host, ACR_CLOUD.endpoint, ACR_CLOUD.data_type,
-        ACR_CLOUD.signature_version, timestamp
-    );
     const form = new FormData();
     form.append('sample', sample, { filename: 'sample.mp3', contentType: 'audio/mpeg' });
     form.append('sample_bytes', sample.length);
     form.append('data_type', ACR_CLOUD.data_type);
     form.append('access_key', ACR_CLOUD.access_key);
     form.append('signature_version', ACR_CLOUD.signature_version);
-    form.append('signature', sign(stringToSign, ACR_CLOUD.access_secret));
+    form.append('signature', buildIdentifySignature(timestamp));
     form.append('timestamp', timestamp);
 
     const response = await fetch(`https://${ACR_CLOUD.host}${ACR_CLOUD.endpoint}`, {
@@ -247,6 +251,6 @@ module.exports = {
             return reply(`Could not identify the audio: ${error?.message || 'unknown error'}`);
         }
     },
-    helpers: { sessionKey, cleanFileName, buildStringToSign, sign, formatTrack, buildCardText, sendChoiceCard, sendDownload },
+    helpers: { sessionKey, cleanFileName, buildStringToSign, sign, buildIdentifySignature, formatTrack, buildCardText, sendChoiceCard, sendDownload },
     activeSessions
 };
