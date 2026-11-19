@@ -10,10 +10,10 @@ module.exports = {
     category: 'AI',
     desc: 'Generate horror AI images powered by CRYSNOVA',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply, prefix = '.' }) => {
         try {
             if (!args.length) {
-                return reply(`${prefix}ಠ_ಠ *HORROR AI*\n\nUsage: horror <prompt>\n       .horror cinematic <prompt>`);
+                return reply(`ಠ_ಠ *HORROR AI*\n\nUsage: ${prefix}horror <prompt>\n       ${prefix}horror cinematic <prompt>`);
             }
 
             let isCinematic = false;

@@ -10,10 +10,10 @@ module.exports = {
     category: 'AI',
     desc: 'Generate pixel art AI images powered by CRYSNOVA',
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply, prefix = '.' }) => {
         try {
             if (!args.length) {
-                return reply(`${prefix}ಠ_ಠ *PIXEL ART AI*\n\nUsage: pixelart <prompt>\nExample: .pixelart cyberpunk city`);
+                return reply(`ಠ_ಠ *PIXEL ART AI*\n\nUsage: ${prefix}pixelart <prompt>\nExample: ${prefix}pixelart cyberpunk city`);
             }
 
             const basePrompt = args.join(' ').trim();

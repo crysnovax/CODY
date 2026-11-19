@@ -44,7 +44,7 @@ Workflow:
 
         // ── START SESSION ──
         if (sub === 'start') {
-            if (sessions.has(sessionKey)) return reply('⚠️ Session already active! Use `${prefix}gist push` or `${prefix}gist cancel`');
+            if (sessions.has(sessionKey)) return reply(`⚠️ Session already active! Use \`${prefix}gist push\` or \`${prefix}gist cancel\``);
             const filename = args[1] || `snippet_${Date.now()}.txt`;
             sessions.set(sessionKey, { filename, code: [], startedAt: Date.now() });
             return reply(`✅ Session started with file: ${filename}\n➡️ Add snippets with \`${prefix}gist code=<your code>\``);
@@ -53,7 +53,7 @@ Workflow:
         // ── ADD CODE ──
         if (args[0]?.startsWith('code=')) {
             const session = sessions.get(sessionKey);
-            if (!session) return reply('❌ No active session. Start one with `${prefix}gist start`');
+            if (!session) return reply(`❌ No active session. Start one with \`${prefix}gist start\``);
 
             const snippet = args.join(' ').replace(/^code=/i, '').trim();
             if (!snippet) return reply('⚠️ No code detected after `code=`');
@@ -135,6 +135,6 @@ Workflow:
             }
         }
 
-        return reply('⚠️ Unknown subcommand. Use `${prefix}gist help`');
+        return reply(`⚠️ Unknown subcommand. Use \`${prefix}gist help\``);
     }
 };

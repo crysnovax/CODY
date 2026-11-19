@@ -7,9 +7,9 @@ module.exports = {
     desc: 'Download YouTube video',
     category: 'downloader',
 
-    execute: async (sock, m, { text, reply }) => {
+    execute: async (sock, m, { text, reply, prefix = '.' }) => {
         try {
-            if (!text) return reply('✘ Provide a video name\nExample: `${prefix}video Alan Walker Lily`');
+            if (!text) return reply(`✘ Provide a video name\nExample: \`${prefix}video Alan Walker Lily\``);
             await sock.sendMessage(m.chat, { react: { text: '🔎', key: m.key } });
             const { videos } = await yts(text);
             if (!videos.length) {

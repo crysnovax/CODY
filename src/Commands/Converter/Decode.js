@@ -17,14 +17,14 @@ module.exports = {
     category: 'Utils',
     reactions: { start: '🎙️', success: '📑' },
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply, prefix = '.' }) => {
         try {
             const isVoiceNote = 
                 m.message?.audioMessage?.ptt === true ||
                 m.message?.extendedTextMessage?.contextInfo?.quotedMessage?.audioMessage?.ptt === true;
 
             if (!isVoiceNote) {
-                return reply('✘ Reply to a voice note with `${prefix}dec`');
+                return reply(`✘ Reply to a voice note with \`${prefix}dec\``);
             }
 
             await sock.sendMessage(m.chat, { react: { text: '🎙️', key: m.key } });
@@ -61,7 +61,7 @@ module.exports = {
                 return reply('𓄄 Could not understand the audio clearly.');
             }
 
-            await reply(`${prefix}🎙️ *Voice Transcription:*\n\n${transcriptiontrim()}\n\n_⚉ CRYSNOVA Gateway_`);
+            await reply(`🎙️ *Voice Transcription:*\n\n${transcription.trim()}\n\n_⚉ CRYSNOVA Gateway_`);
 
         } catch (err) {
             console.error('[DEC ERROR]', err.message);

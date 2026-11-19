@@ -3,15 +3,15 @@ module.exports = {
     alias: ['setgrouppp', 'setppgroup'],
     desc: 'Set group profile picture (reply to image)',
     category: 'group',
-    usage: `${prefix}setppgc (reply to image)`,
+    usage: `${prefix}setgpp (reply to image)`,
 
-    execute: async (sock, m, { reply }) => {
+    execute: async (sock, m, { reply, prefix = '.' }) => {
 
         if (!m.isGroup)
             return reply('```⚉ Group only```');
 
         if (!m.quoted || !m.quoted.mtype?.includes('image'))
-            return reply('_✘ Reply to an image_\n✪ `${prefix}setppgc`');
+            return reply(`_✘ Reply to an image_\n✪ \`${prefix}setgpp\``);
 
         try {
 

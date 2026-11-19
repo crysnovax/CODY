@@ -10,7 +10,7 @@ module.exports = {
     usage: '.qr <text>   OR   .qrread (reply to QR image)',
     owner: true,
 
-    execute: async (sock, m, { args, reply }) => {
+    execute: async (sock, m, { args, reply, prefix = '.' }) => {
         const rawCmd = (m.body || '').trim().toLowerCase().split(/\s+/)[0];
         const cmd = rawCmd.replace(/^[^a-z0-9]+/, '');
 
@@ -84,7 +84,7 @@ module.exports = {
                 });
 
                 if (code?.data) {
-                    return reply(`${prefix}✓ _*QR Decoded:*_\n\n${codedata}`);
+                    return reply(`✓ _*QR Decoded:*_\n\n${code.data}`);
                 }
 
                 return reply(
@@ -96,7 +96,7 @@ module.exports = {
 
             } catch (err) {
                 console.error('QR read error:', err.message || err);
-                return reply(`${prefix}✘ Error reading QR:\n${err?.message || err}`);
+                return reply(`✘ Error reading QR:\n${err?.message || err}`);
             }
         }
 
@@ -104,9 +104,9 @@ module.exports = {
         else {
             return reply(
                 '*QR Code Commands:*\n\n' +
-                '`${prefix}qr <text>` — generate QR from text\n' +
-                '`${prefix}qr` _(reply to a message)_ — generate QR from that message\n' +
-                '`${prefix}qrread` _(reply to a QR image)_ — decode QR'
+                `\`${prefix}qr <text>\` — generate QR from text\n` +
+                `\`${prefix}qr\` _(reply to a message)_ — generate QR from that message\n` +
+                `\`${prefix}qrread\` _(reply to a QR image)_ — decode QR`
             );
         }
     }
