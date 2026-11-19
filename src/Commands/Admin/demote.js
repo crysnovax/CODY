@@ -74,12 +74,15 @@ module.exports = {
             if (resolved && !targets.includes(resolved)) targets.push(resolved)
         }
 
-        // Phone numbers from args
-        for (const arg of args) {
-            const num = arg.replace(/[^0-9]/g, '')
-            if (num.length >= 7) {
-                const jid = num + '@s.whatsapp.net'
-                if (!targets.includes(jid)) targets.push(jid)
+        // Phone numbers from args. When WhatsApp includes the tagged user's
+        // hidden numeric text in args, do not treat it as a second target.
+        if (!targets.length) {
+            for (const arg of args) {
+                const num = arg.replace(/[^0-9]/g, '')
+                if (num.length >= 7) {
+                    const jid = num + '@s.whatsapp.net'
+                    if (!targets.includes(jid)) targets.push(jid)
+                }
             }
         }
 
