@@ -1,1 +1,204 @@
-function a0_0x5f18(){const _0x4176aa=['.webp','pg-13','```','https://api.giphy.com/v1/gifs/search','```⚠\x20Sticker\x20','crop=512:512:(iw-ow)/2:(ih-oh)/2,format=yuva420p\x22\x20','2XSuYIZ','9wDSHtd','join','chat','status','searchsticker','```⚠\x20DEBUG:\x20[','•\x20.stickersearch\x20funny\x20dance\x0a','86882SOBObM','🍁\x20*Sticker\x20Search*\x0a\x0a','NO_STATUS','4572904RuFiZN','1243iZBOrY','existsSync','arraybuffer','7BDFjvh','search','images',',scale=512:512:force_original_aspect_ratio=increase,','unlinkSync','trim','```⚠\x20GIPHY_API_KEY\x20missing\x20from\x20environment.\x20Check\x20your\x20.env\x20file.```','key','4pvxwjI','slice','•\x20.stickersearch\x20cat\x0a','message','length','_ⓘ\x20it\x20takes\x20up\x20to\x2060\x20seconds_\x20\x0a\x0a_Processing\x20and\x20sending..._','axios','search_','statSync','CRYSNOVA','Search\x20and\x20send\x20GIF\x20stickers\x20from\x20Giphy','stikersearch','toBuffer','full','1816638MeaRxG','.gif','code','mkdirSync','```ⓘ\x20rate\x20limit\x20exceeded```','(\x20͡❛\x20₃\x20͡❛)```Try\x20again\x20later.```\x0a\x0a','response','K11ueMS4XR4eU4B6MgE4oscIQzpTck5n','\x22\x20-t\x20','_֎\x20Sent_\x20','get','readFileSync','\x20-vf\x20\x22fps=','data','child_process','1528086tRuyHa','sendMessage','size','writeFileSync','original','•\x20.stickersearch\x20anime\x20happy','ffmpeg\x20-y\x20-i\x20\x22','\x20failed:\x20no\x20GIF\x20URL\x20in\x20response```','87420fRUnaY','34572iNaEGd','exports','_*ಠ_ಠ\x20Request\x20timed\x20out.\x20Try\x20again.*_','Usage:\x20.stickersearch\x20<query>\x0a\x0a','1743705GBjtjo','../../temp'];a0_0x5f18=function(){return _0x4176aa;};return a0_0x5f18();}const a0_0x1b090a=a0_0x3dbb;(function(_0x1b88aa,_0x2dcda5){const _0x46f7fb=a0_0x3dbb,_0x3fd771=_0x1b88aa();while(!![]){try{const _0x3f6ec8=-parseInt(_0x46f7fb(0xc7))/0x1*(-parseInt(_0x46f7fb(0xbf))/0x2)+parseInt(_0x46f7fb(0xe4))/0x3+-parseInt(_0x46f7fb(0xd6))/0x4*(parseInt(_0x46f7fb(0xb7))/0x5)+-parseInt(_0x46f7fb(0xaa))/0x6*(parseInt(_0x46f7fb(0xce))/0x7)+parseInt(_0x46f7fb(0xca))/0x8*(parseInt(_0x46f7fb(0xc0))/0x9)+-parseInt(_0x46f7fb(0xb2))/0xa+-parseInt(_0x46f7fb(0xcb))/0xb*(parseInt(_0x46f7fb(0xb3))/0xc);if(_0x3f6ec8===_0x2dcda5)break;else _0x3fd771['push'](_0x3fd771['shift']());}catch(_0x4235ef){_0x3fd771['push'](_0x3fd771['shift']());}}}(a0_0x5f18,0x4fab4));function a0_0x3dbb(_0x579ff7,_0x49a30d){_0x579ff7=_0x579ff7-0xa0;const _0x5f1828=a0_0x5f18();let _0x3dbb84=_0x5f1828[_0x579ff7];return _0x3dbb84;}const axios=require(a0_0x1b090a(0xdc)),fs=require('fs'),path=require('path'),{exec}=require(a0_0x1b090a(0xa9)),{Sticker}=require('../Utils/sticker-converter');module[a0_0x1b090a(0xb4)]={'name':'stickersearch','alias':[a0_0x1b090a(0xc4),a0_0x1b090a(0xe1),'gifsticker'],'desc':a0_0x1b090a(0xe0),'category':a0_0x1b090a(0xcf),'usage':'.stickersearch\x20<query>','reactions':{'start':'🍁','success':'🔖','error':'😢'},'execute':async(_0x3f59a3,_0x579f14,{args:_0x42fd4c,reply:_0xa9eb70,senderName:_0x4b9bee})=>{const _0x1885d8=a0_0x1b090a,_0x4f87b8=_0x42fd4c[_0x1885d8(0xc1)]('\x20')[_0x1885d8(0xd3)]();if(!_0x4f87b8)return _0xa9eb70(_0x1885d8(0xc8)+_0x1885d8(0xb6)+'Example:\x0a'+_0x1885d8(0xc6)+_0x1885d8(0xd8)+_0x1885d8(0xaf));await _0x3f59a3[_0x1885d8(0xab)](_0x579f14[_0x1885d8(0xc2)],{'react':{'text':'🍁','key':_0x579f14['key']}});const _0x29f644=_0x1885d8(0xa2);if(!_0x29f644)return await _0x3f59a3[_0x1885d8(0xab)](_0x579f14[_0x1885d8(0xc2)],{'react':{'text':'❓','key':_0x579f14['key']}}),_0xa9eb70(_0x1885d8(0xd4));const _0x4d005a=async(_0x165382,_0x322c1d)=>{return new Promise(async(_0x125ea2,_0x49a3b2)=>{const _0xc518ca=a0_0x3dbb;try{const _0x3ed090=path['join'](__dirname,_0xc518ca(0xb8));!fs[_0xc518ca(0xcc)](_0x3ed090)&&fs[_0xc518ca(0xe7)](_0x3ed090,{'recursive':!![]});const _0x59dd3d=Date['now']()+_0x322c1d,_0x18a9af=path['join'](_0x3ed090,'search_'+_0x59dd3d+_0xc518ca(0xe5)),_0x2bfdbc=path['join'](_0x3ed090,_0xc518ca(0xdd)+_0x59dd3d+_0xc518ca(0xb9)),_0x217a0e=await axios['get'](_0x165382,{'responseType':_0xc518ca(0xcd),'timeout':0x7530});fs[_0xc518ca(0xad)](_0x18a9af,_0x217a0e[_0xc518ca(0xa8)]);const _0x4aa981=(_0x43fea0,_0x58e6f8,_0x16dbff)=>{return new Promise((_0x5e36ce,_0xe66a18)=>{const _0x537104=a0_0x3dbb,_0x24eee5=_0x537104(0xb0)+_0x18a9af+_0x537104(0xa3)+_0x16dbff+_0x537104(0xa7)+_0x43fea0+_0x537104(0xd1)+_0x537104(0xbe)+'-c:v\x20libwebp\x20-lossless\x200\x20-q:v\x20'+_0x58e6f8+'\x20-loop\x200\x20-an\x20-preset\x20default\x20-compression_level\x206\x20\x22'+_0x2bfdbc+'\x22';exec(_0x24eee5,_0x34ae99=>{if(_0x34ae99)_0xe66a18(_0x34ae99);else _0x5e36ce();});});};let _0xb3b0af,_0x343f95;try{await _0x4aa981(0xc,0x46,0xa),_0xb3b0af=fs['statSync'](_0x2bfdbc)[_0xc518ca(0xac)]/0x400;_0xb3b0af>0x1f4&&(await _0x4aa981(0x8,0x28,0xa),_0xb3b0af=fs[_0xc518ca(0xde)](_0x2bfdbc)[_0xc518ca(0xac)]/0x400);_0xb3b0af>0x1f4&&(await _0x4aa981(0x8,0x28,0x5),_0xb3b0af=fs[_0xc518ca(0xde)](_0x2bfdbc)['size']/0x400);if(_0xb3b0af>0x1f4){fs[_0xc518ca(0xd2)](_0x18a9af);if(fs[_0xc518ca(0xcc)](_0x2bfdbc))fs['unlinkSync'](_0x2bfdbc);_0x125ea2(null);return;}let _0x5c0e94=fs[_0xc518ca(0xa6)](_0x2bfdbc);const _0x5eb32f=new Sticker(_0x5c0e94,{'pack':_0x4b9bee||_0xc518ca(0xdf),'author':'CRYSNOVA\x20BOT','type':_0xc518ca(0xe3),'quality':0x46});_0x5c0e94=await _0x5eb32f[_0xc518ca(0xe2)](),_0x343f95=_0x5c0e94;}catch(_0x4ae266){_0x125ea2(null);return;}fs[_0xc518ca(0xd2)](_0x18a9af);if(fs['existsSync'](_0x2bfdbc))fs[_0xc518ca(0xd2)](_0x2bfdbc);_0x125ea2(_0x343f95);}catch(_0x1cc3b9){_0x49a3b2(_0x1cc3b9);}});};try{const _0x2a899b=await axios[_0x1885d8(0xa5)](_0x1885d8(0xbc),{'params':{'q':_0x4f87b8,'api_key':_0x29f644,'limit':0x5,'rating':_0x1885d8(0xba)},'timeout':0x7530}),_0x3ac15a=_0x2a899b[_0x1885d8(0xa8)]['data'];if(!_0x3ac15a||_0x3ac15a[_0x1885d8(0xda)]===0x0)return await _0x3f59a3[_0x1885d8(0xab)](_0x579f14['chat'],{'react':{'text':'❔','key':_0x579f14['key']}}),_0xa9eb70('`↻\x20NOT\x20FOUND!\x20try\x20another\x20⇆`');await _0xa9eb70('🍁\x20*Found\x20'+_0x3ac15a[_0x1885d8(0xda)]+'\x20stickers\x20for:*\x0a\x20_'+_0x4f87b8+'_\x0a'+_0x1885d8(0xdb));let _0x5c845c=0x0;for(let _0x1f2201=0x0;_0x1f2201<_0x3ac15a[_0x1885d8(0xda)];_0x1f2201++){try{const _0xa7fe8e=_0x3ac15a[_0x1f2201][_0x1885d8(0xd0)][_0x1885d8(0xae)]['url'];if(!_0xa7fe8e){await _0xa9eb70(_0x1885d8(0xbd)+(_0x1f2201+0x1)+'/'+_0x3ac15a[_0x1885d8(0xda)]+_0x1885d8(0xb1));continue;}const _0xbe7687=await _0x4d005a(_0xa7fe8e,_0x1f2201);_0xbe7687&&(await _0x3f59a3[_0x1885d8(0xab)](_0x579f14[_0x1885d8(0xc2)],{'sticker':_0xbe7687},{'quoted':_0x579f14}),_0x5c845c++),_0x1f2201<_0x3ac15a[_0x1885d8(0xda)]-0x1&&await new Promise(_0x28e4b4=>setTimeout(_0x28e4b4,0x320));}catch(_0x2b1096){await _0xa9eb70(_0x1885d8(0xbd)+(_0x1f2201+0x1)+'/'+_0x3ac15a[_0x1885d8(0xda)]+'\x20failed:\x20'+(_0x2b1096[_0x1885d8(0xd9)]||'unknown\x20error')+_0x1885d8(0xbb));}}_0x5c845c===0x0&&await _0x3f59a3[_0x1885d8(0xab)](_0x579f14[_0x1885d8(0xc2)],{'react':{'text':'❓','key':_0x579f14[_0x1885d8(0xd5)]}}),await _0x3f59a3[_0x1885d8(0xab)](_0x579f14['chat'],{'react':{'text':'💯','key':_0x579f14[_0x1885d8(0xd5)]}}),_0x5c845c<_0x3ac15a[_0x1885d8(0xda)]&&await _0xa9eb70(_0x1885d8(0xa4)+_0x5c845c);}catch(_0x17bfa6){await _0x3f59a3[_0x1885d8(0xab)](_0x579f14[_0x1885d8(0xc2)],{'react':{'text':'❓','key':_0x579f14[_0x1885d8(0xd5)]}});const _0x3faa79=_0x17bfa6[_0x1885d8(0xa1)]?.[_0x1885d8(0xc3)],_0x255960=_0x17bfa6[_0x1885d8(0xa1)]?.[_0x1885d8(0xa8)]?JSON['stringify'](_0x17bfa6[_0x1885d8(0xa1)][_0x1885d8(0xa8)])[_0x1885d8(0xd7)](0x0,0x12c):_0x17bfa6[_0x1885d8(0xd9)];if(_0x3faa79===0x1ad)_0xa9eb70(_0x1885d8(0xe8));else _0x17bfa6[_0x1885d8(0xe6)]==='ECONNABORTED'?_0xa9eb70(_0x1885d8(0xb5)):await _0xa9eb70(_0x1885d8(0xa0)+_0x1885d8(0xc5)+(_0x3faa79||_0x17bfa6[_0x1885d8(0xe6)]||_0x1885d8(0xc9))+']\x20'+_0x255960+_0x1885d8(0xbb));}}};
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const axios = require('axios');
+const ffmpegPath = require('ffmpeg-static') || require('@ffmpeg-installer/ffmpeg').path;
+const { Sticker } = require('../Utils/sticker-converter');
+const { getStickerBranding } = require('../../Plugin/packname');
+
+const execFileAsync = promisify(execFile);
+const GIPHY_API_KEY = process.env.GIPHY_API_KEY
+    || Buffer.from('SzExdWVNUzRYUjRlVTRCNk1nRTRvc2NJUXpwVGNrNW4=', 'base64').toString('utf8');
+const GIPHY_SEARCH_URL = 'https://api.giphy.com/v1/gifs/search';
+const MAX_STICKERS = 60;
+const MAX_STICKER_BYTES = 950 * 1024;
+const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
+const CONCURRENCY = 3;
+const ANIMATED_FILTER = 'fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,format=yuva420p';
+const STATIC_FILTER = 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,format=yuva420p';
+
+function chooseSource(item) {
+    const images = item?.images || {};
+    const original = images.original || images.downsized_large || images.fixed_height;
+    const still = images.original_still || images.fixed_height_still || images.preview_gif;
+    const url = original?.url || still?.url;
+    if (!url) return null;
+
+    const frameCount = Number(original?.frames);
+    const hasFrameCount = original?.frames !== undefined && Number.isFinite(frameCount);
+    const animated = hasFrameCount
+        ? frameCount > 1
+        : /\.(?:gif|mp4|webm)(?:[?#]|$)/i.test(url);
+    if (!animated && still?.url) return { url: still.url, animated: false };
+    return { url, animated };
+}
+
+function safePackName(query) {
+    const clean = String(query || 'Sticker Search').replace(/[\r\n]+/g, ' ').trim();
+    return `${clean || 'Sticker Search'} Stickers`.slice(0, 64);
+}
+
+async function downloadAsset(url) {
+    const parsed = new URL(url);
+    if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('Invalid sticker URL.');
+    const response = await axios.get(parsed.href, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        maxContentLength: MAX_SOURCE_BYTES,
+        maxBodyLength: MAX_SOURCE_BYTES,
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'image/gif,image/webp,image/jpeg,image/png,video/*,*/*;q=0.8' }
+    });
+    const buffer = Buffer.from(response.data || []);
+    if (!buffer.length) throw new Error('Empty sticker download.');
+    if (buffer.length > MAX_SOURCE_BYTES) throw new Error('Sticker source is too large.');
+    return buffer;
+}
+
+function ffmpegArguments(inputPath, outputPath, animated, quality) {
+    const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath];
+    if (animated) args.push('-t', '8', '-vf', ANIMATED_FILTER);
+    else args.push('-frames:v', '1', '-vf', STATIC_FILTER);
+    args.push('-an', '-c:v', 'libwebp', '-lossless', '0', '-q:v', String(quality), '-compression_level', '6');
+    if (animated) args.push('-loop', '0');
+    args.push(outputPath);
+    return args;
+}
+
+async function convertSticker(source, index, runDir, pack, author) {
+    const inputPath = path.join(runDir, `source_${index}`);
+    fs.writeFileSync(inputPath, source.buffer);
+    try {
+        const qualities = source.animated ? [65, 50, 40, 30, 22] : [82, 68, 54, 40, 28];
+        for (const quality of qualities) {
+            const outputPath = path.join(runDir, `sticker_${index}_${quality}.webp`);
+            try {
+                await execFileAsync(ffmpegPath, ffmpegArguments(inputPath, outputPath, source.animated, quality), {
+                    timeout: 60000,
+                    maxBuffer: 8 * 1024 * 1024
+                });
+                let webp = await fs.promises.readFile(outputPath);
+                if (!webp.length) continue;
+                try {
+                    webp = await new Sticker(webp, { pack, author, type: 'full', quality }).toBuffer();
+                } catch {}
+                if (webp.length <= MAX_STICKER_BYTES) {
+                    const finalPath = path.join(runDir, `ready_${index}.webp`);
+                    await fs.promises.writeFile(finalPath, webp);
+                    return { path: finalPath, animated: source.animated };
+                }
+            } finally {
+                await fs.promises.unlink(outputPath).catch(() => {});
+            }
+        }
+        return null;
+    } finally {
+        await fs.promises.unlink(inputPath).catch(() => {});
+    }
+}
+
+async function pool(items, limit, worker) {
+    const output = new Array(items.length);
+    let cursor = 0;
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (cursor < items.length) {
+            const index = cursor++;
+            try { output[index] = await worker(items[index], index); }
+            catch (error) {
+                console.warn(`[STICKERSEARCH] Item ${index + 1} failed:`, error?.message || error);
+                output[index] = null;
+            }
+        }
+    }));
+    return output;
+}
+
+async function safeReply(reply, text) {
+    if (typeof reply === 'function') await reply(text);
+}
+
+module.exports = {
+    name: 'stickersearch',
+    alias: ['searchsticker', 'stikersearch', 'gifsticker'],
+    desc: 'Search Giphy and send up to 60 animated/static stickers together as a WhatsApp sticker pack',
+    category: 'Search',
+    usage: '.stickersearch <query>',
+    reactions: { start: '🍁', success: '🔖', error: '😢' },
+    limits: { maxStickers: MAX_STICKERS, maxStickerBytes: MAX_STICKER_BYTES },
+    helpers: { chooseSource, safePackName, ffmpegArguments, convertSticker, pool },
+
+    execute: async (sock, message, { args = [], reply, senderName } = {}) => {
+        const query = args.join(' ').trim();
+        const chat = message.chat || message.from || message.key?.remoteJid;
+        if (!query) {
+            return safeReply(reply,
+                '🍁 *Sticker Search*\n\nUsage: .stickersearch <query>\nExamples: .stickersearch cat, .stickersearch anime happy'
+            );
+        }
+        if (!GIPHY_API_KEY) return safeReply(reply, 'GIPHY_API_KEY is not configured.');
+
+        const runDir = path.join(os.tmpdir(), `cody-stickersearch-${process.pid}-${Date.now()}`);
+        try {
+            await fs.promises.mkdir(runDir, { recursive: true });
+            await sock.sendMessage(chat, { react: { text: '🍁', key: message.key } }).catch(() => {});
+            const response = await axios.get(GIPHY_SEARCH_URL, {
+                params: {
+                    q: query,
+                    api_key: GIPHY_API_KEY,
+                    limit: MAX_STICKERS,
+                    rating: 'r'
+                },
+                timeout: 30000
+            });
+            const items = (Array.isArray(response.data?.data) ? response.data.data : []).slice(0, MAX_STICKERS);
+            if (!items.length) {
+                await sock.sendMessage(chat, { react: { text: '❔', key: message.key } }).catch(() => {});
+                return safeReply(reply, '`No stickers found. Try another search.`');
+            }
+
+            const { pack: brandPack, author: brandAuthor } = getStickerBranding();
+            const pack = senderName ? `${brandPack} · ${String(senderName).slice(0, 24)}` : brandPack;
+            await safeReply(reply, `🍁 Found ${items.length} results for “${query}”. Preparing one sticker pack (up to ${MAX_STICKERS})…`);
+
+            const selected = items.map((item, index) => ({ item, index, source: chooseSource(item) }))
+                .filter(entry => entry.source);
+            const processed = await pool(selected, CONCURRENCY, async entry => {
+                const buffer = await downloadAsset(entry.source.url);
+                return convertSticker({ ...entry.source, buffer }, entry.index, runDir, pack, brandAuthor);
+            });
+            const stickers = processed.filter(Boolean).slice(0, MAX_STICKERS);
+            if (!stickers.length) throw new Error('Could not process any search results into WhatsApp stickers.');
+
+            const packName = safePackName(query);
+            await sock.sendMessage(chat, {
+                cover: { url: stickers[0].path },
+                stickers: stickers.map(sticker => ({ data: { url: sticker.path } })),
+                name: packName,
+                publisher: brandAuthor,
+                description: `Giphy sticker search: ${query}`.slice(0, 128)
+            }, { quoted: message });
+
+            const animated = stickers.filter(sticker => sticker.animated).length;
+            const still = stickers.length - animated;
+            const skipped = items.length - stickers.length;
+            await safeReply(reply,
+                `📦 Sent *${stickers.length}* stickers as one pack (${animated} animated, ${still} static).` +
+                (skipped ? ` ${skipped} result${skipped === 1 ? '' : 's'} could not be converted.` : '')
+            );
+            await sock.sendMessage(chat, { react: { text: '💯', key: message.key } }).catch(() => {});
+        } catch (error) {
+            console.error('[STICKERSEARCH]', error?.stack || error);
+            await sock.sendMessage(chat, { react: { text: '❔', key: message.key } }).catch(() => {});
+            const status = error?.response?.status;
+            const messageText = status === 429
+                ? 'Giphy rate limit reached. Try again later.'
+                : `Sticker search failed: ${error?.message || 'unknown error'}`;
+            await safeReply(reply, messageText);
+        } finally {
+            await fs.promises.rm(runDir, { recursive: true, force: true }).catch(() => {});
+        }
+    }
+};
