@@ -37,7 +37,7 @@ function buildArchiveRoot(sha) {
 
 function buildAppliedCommitMessage(commit) {
     const description = String(commit?.message || 'No commit description provided.').trim().slice(0, 800);
-    return `✅ *Update applied*\nCommit: \`${String(commit?.sha || '').slice(0, 12)}\`\n\n${description}`;
+    return `♲ *Update applied*\nCommit: \`${String(commit?.sha || '').slice(0, 12)}\`\n\n${description}`;
 }
 
 const PROTECTED_PATHS = [
