@@ -38,9 +38,9 @@ const axiosMock = {
 };
 
 const childProcessMock = {
-    execFile(_binary, args, _options, callback) {
+    execFile(binary, args, _options, callback) {
         const outputPath = args.at(-1);
-        calls.encodes.push({ args, outputPath });
+        calls.encodes.push({ binary, args, outputPath });
         fs.writeFile(outputPath, Buffer.from('mock-webp'), error => callback(error || null, '', ''));
     }
 };
@@ -48,8 +48,6 @@ const childProcessMock = {
 Module._load = function (request, parent, isMain) {
     if (parent?.filename === commandPath) {
         if (request === 'axios') return axiosMock;
-        if (request === 'ffmpeg-static') return '/mock/missing-ffmpeg';
-        if (request === '@ffmpeg-installer/ffmpeg') return { path: process.execPath };
         if (request === '../Utils/sticker-converter') {
             return { Sticker: class { constructor(buffer) { this.buffer = buffer; } async toBuffer() { return this.buffer; } } };
         }
@@ -100,6 +98,7 @@ test('Stickersearch creates one mixed pack of at most 60 results', async () => {
     assert.deepEqual(calls.packs[0].options, { quoted: message });
     assert.equal(calls.encodes.filter(encode => encode.args.includes('-loop')).length, 30);
     assert.equal(calls.encodes.filter(encode => !encode.args.includes('-loop')).length, 30);
+    assert.ok(calls.encodes.every(encode => encode.binary === 'ffmpeg'), 'use the host FFmpeg command like tgsticker');
     assert.ok(replies.some(text => /60\* stickers as one pack \(30 animated, 30 static\)/.test(text)));
     assert.ok(calls.packs[0].payload.stickers.length <= command.limits.maxStickers);
 });
@@ -116,6 +115,6 @@ test('Stickersearch chooses an animated original or a static still image', () =>
     assert.deepEqual(still, { url: 'https://example.test/b.jpg', animated: false });
 });
 
-test('Stickersearch uses the npm-bundled FFmpeg when ffmpeg-static binary is missing', () => {
-    assert.equal(command.helpers.ffmpegPath, process.execPath);
+test('Stickersearch uses the system FFmpeg command like tgsticker', () => {
+    assert.equal(command.helpers.ffmpegPath, 'ffmpeg');
 });

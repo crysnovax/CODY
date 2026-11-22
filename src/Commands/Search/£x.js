@@ -6,22 +6,14 @@ const os = require('node:os');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const axios = require('axios');
+const execFileAsync = promisify(execFile);
+// Use the host's FFmpeg from PATH, matching the working tgsticker command.
+// npm-bundled binaries are not reliably executable on the hosting container.
+const ffmpegPath = 'ffmpeg';
 
-function resolveFfmpegPath() {
-    const candidates = [];
-    if (process.env.FFMPEG_PATH) candidates.push(process.env.FFMPEG_PATH);
-    try { candidates.push(require('@ffmpeg-installer/ffmpeg').path); } catch {}
-    try { candidates.push(require('ffmpeg-static')); } catch {}
-    return candidates.find(candidate =>
-        typeof candidate === 'string' && candidate.length > 0 && fs.existsSync(candidate)
-    ) || 'ffmpeg';
-}
-
-const ffmpegPath = resolveFfmpegPath();
 const { Sticker } = require('../Utils/sticker-converter');
 const { getStickerBranding } = require('../../Plugin/packname');
 
-const execFileAsync = promisify(execFile);
 const GIPHY_API_KEY = process.env.GIPHY_API_KEY
     || Buffer.from('SzExdWVNUzRYUjRlVTRCNk1nRTRvc2NJUXpwVGNrNW4=', 'base64').toString('utf8');
 const GIPHY_SEARCH_URL = 'https://api.giphy.com/v1/gifs/search';
