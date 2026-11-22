@@ -663,6 +663,24 @@ module.exports = {
 
 Drop the file into the correct `src/Commands/<Category>/` folder and run `.reload` — no restart needed.
 
+### Mid-call VoIP video upgrade helper
+
+The owner-only `.voipready` command checks whether the local WhatsApp Web VoIP runtime files and native WebRTC dependency are present, then returns four JavaScript snippets ready for CODY's owner-only `.eval` command: attach a VoIP listener to CODY's existing socket, answer a pending incoming audio call, request video after the call connects, and disconnect the VoIP helper. Setup only listens; calls are answered only when the answer snippet is pasted. The video snippet sends an FFmpeg-generated test pattern, not a webcam feed.
+
+This feature requires Node.js 20+, `@roamhq/wrtc` (included in this repository's dependencies), FFmpeg (`ffmpeg-static` is used when available), Chrome with WhatsApp Web logged in, and the Baileys feature build pinned in this repository. Install/reinstall dependencies and restart CODY after pulling these changes. Start Chrome with its DevTools endpoint bound to loopback only, for example:
+
+```sh
+google-chrome --user-data-dir="$HOME/.cache/wa-voip-chrome" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 https://web.whatsapp.com
+```
+
+After installing dependencies and opening WhatsApp Web in that Chrome profile, download the runtime files into CODY's `call-resources` directory:
+
+```sh
+node ./node_modules/plogme/lib/Call/fetch-wasm-resources.mjs
+```
+
+The script creates `call-resources/assets/wasm/whatsapp.wasm` and `worker-modules.js`. Keep these account/runtime files private and out of Git. Restart CODY after updating/installing dependencies, then run `.voipready` in a private chat with the bot. Paste its snippets into `$` or `.eval` in the order shown: setup once; wait for an incoming audio call; paste answer; wait for the connected event; paste upgrade; and use cleanup when finished. CODY does not automatically capture the server's camera or microphone. To use a real camera, replace the generated test-pattern frame source with an application-specific camera adapter that yields tightly packed NV12 frames.
+
 ---
 
 ## 🛡️ Security & Safety
