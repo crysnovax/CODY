@@ -17,27 +17,74 @@ const { getStickerBranding } = require('../../Plugin/packname');
 const GIPHY_API_KEY = process.env.GIPHY_API_KEY
     || Buffer.from('SzExdWVNUzRYUjRlVTRCNk1nRTRvc2NJUXpwVGNrNW4=', 'base64').toString('utf8');
 const GIPHY_SEARCH_URL = 'https://api.giphy.com/v1/gifs/search';
-const MAX_STICKERS = 60;
+const MAX_STICKERS = 25; // TEST - still 5, was 60
 const MAX_STICKER_BYTES = 950 * 1024;
 const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
 const CONCURRENCY = 3;
-const ANIMATED_FILTER = 'fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,format=yuva420p';
+// SPEED FIX: fps 10 (was 15), 4s max (was 8s)
+const ANIMATED_FILTER = 'fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,format=yuva420p';
 const STATIC_FILTER = 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,format=yuva420p';
 
-function chooseSource(item) {
+function pickAnimated(item) {
     const images = item?.images || {};
-    const original = images.original || images.downsized_large || images.fixed_height;
-    const still = images.original_still || images.fixed_height_still || images.preview_gif;
-    const url = original?.url || still?.url;
-    if (!url) return null;
+    // Small -> large, MP4 decodes way faster than GIF
+    const candidates = [
+        images.downsized_small,
+        images.fixed_height_small,
+        images.fixed_width_small,
+        images.downsized,
+        images.fixed_height,
+        images.original
+    ];
+    for (const c of candidates) {
+        if (c?.mp4) return { url: c.mp4, animated: true };
+        if (c?.webp) return { url: c.webp, animated: Number(c.frames) > 1 };
+        if (c?.url) return { url: c.url, animated: true };
+    }
+    return null;
+}
 
-    const frameCount = Number(original?.frames);
-    const hasFrameCount = original?.frames !== undefined && Number.isFinite(frameCount);
-    const animated = hasFrameCount
-        ? frameCount > 1
-        : /\.(?:gif|mp4|webm)(?:[?#]|$)/i.test(url);
-    if (!animated && still?.url) return { url: still.url, animated: false };
-    return { url, animated };
+function pickStatic(item) {
+    const images = item?.images || {};
+    const stills = [
+        images.original_still,
+        images.fixed_height_still,
+        images.fixed_width_still,
+        images.downsized_still,
+        images.downsized_large_still,
+        images.fixed_height_small_still
+    ];
+    for (const s of stills) {
+        if (s?.url) return { url: s.url, animated: false };
+    }
+    return null;
+}
+
+// Half / half: wantAnimated = true for first half, false for second half
+function chooseSource(item, wantAnimated = true) {
+    if (wantAnimated) {
+        return pickAnimated(item) || pickStatic(item);
+    }
+    // Static slot: prefer still, fallback to animated source but force first-frame only
+    const still = pickStatic(item);
+    if (still) return still;
+    const anim = pickAnimated(item);
+    if (anim) return { url: anim.url, animated: false };
+    return null;
+}
+
+// NEW: parse --animated / --static flags
+function parseStickerSearchArgs(args = []) {
+    const lower = args.map(a => String(a).toLowerCase());
+    const hasAnimated = lower.includes('--animated') || lower.includes('--anim');
+    const hasStatic = lower.includes('--static') || lower.includes('--still');
+    let mode = 'mix';
+    if (hasAnimated && !hasStatic) mode = 'animated';
+    else if (hasStatic && !hasAnimated) mode = 'static';
+    else mode = 'mix'; // no flag, or both flags = mix
+    // Strip all --flags so Giphy only gets the real query
+    const query = args.filter(a => !String(a).startsWith('--')).join(' ').trim();
+    return { query, mode };
 }
 
 function safePackName(query) {
@@ -62,10 +109,10 @@ async function downloadAsset(url) {
 }
 
 function ffmpegArguments(inputPath, outputPath, animated, quality) {
-    const args = ['-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath];
-    if (animated) args.push('-t', '8', '-vf', ANIMATED_FILTER);
+    const args = ['-hide_banner', '-loglevel', 'error', '-y', '-threads', '2', '-i', inputPath];
+    if (animated) args.push('-t', '4', '-vf', ANIMATED_FILTER);
     else args.push('-frames:v', '1', '-vf', STATIC_FILTER);
-    args.push('-an', '-c:v', 'libwebp', '-lossless', '0', '-q:v', String(quality), '-compression_level', '6');
+    args.push('-an', '-c:v', 'libwebp', '-lossless', '0', '-q:v', String(quality), '-compression_level', '4'); // was 6
     if (animated) args.push('-loop', '0');
     args.push(outputPath);
     return args;
@@ -75,7 +122,8 @@ async function convertSticker(source, index, runDir, pack, author) {
     const inputPath = path.join(runDir, `source_${index}`);
     fs.writeFileSync(inputPath, source.buffer);
     try {
-        const qualities = source.animated ? [65, 50, 40, 30, 22] : [82, 68, 54, 40, 28];
+        // SPEED FIX: only 2 tries (was 5). First try usually passes now because source is small.
+        const qualities = source.animated ? [55, 35] : [75, 50];
         for (const quality of qualities) {
             const outputPath = path.join(runDir, `sticker_${index}_${quality}.webp`);
             try {
@@ -126,19 +174,24 @@ async function safeReply(reply, text) {
 module.exports = {
     name: 'stickersearch',
     alias: ['searchsticker', 'stikersearch', 'gifsticker'],
-    desc: 'Search Giphy and send up to 60 animated/static stickers together as a WhatsApp sticker pack',
+    desc: 'Search Giphy and send up to 5 stickers as one pack - mix / --animated / --static',
     category: 'Search',
-    usage: '.stickersearch <query>',
+    usage: '.stickersearch <query> [--animated | --static]',
     reactions: { start: '🍁', success: '🔖', error: '😢' },
     limits: { maxStickers: MAX_STICKERS, maxStickerBytes: MAX_STICKER_BYTES },
-    helpers: { chooseSource, safePackName, ffmpegArguments, convertSticker, pool, ffmpegPath },
+    helpers: { chooseSource, pickAnimated, pickStatic, parseStickerSearchArgs, safePackName, ffmpegArguments, convertSticker, pool, ffmpegPath },
 
     execute: async (sock, message, { args = [], reply, senderName } = {}) => {
-        const query = args.join(' ').trim();
+        const { query, mode } = parseStickerSearchArgs(args);
         const chat = message.chat || message.from || message.key?.remoteJid;
         if (!query) {
             return safeReply(reply,
-                '🍁 *Sticker Search*\n\nUsage: .stickersearch <query>\nExamples: .stickersearch cat, .stickersearch anime happy'
+                '🍁 *Sticker Search*\n\n' +
+                'Usage: .stickersearch <query> [--animated | --static]\n' +
+                'Examples:\n' +
+                '.stickersearch Ronaldo\n' +
+                '.stickersearch Ronaldo --animated\n' +
+                '.stickersearch Ronaldo --static'
             );
         }
         if (!GIPHY_API_KEY) return safeReply(reply, 'GIPHY_API_KEY is not configured.');
@@ -164,10 +217,35 @@ module.exports = {
 
             const { pack: brandPack, author: brandAuthor } = getStickerBranding();
             const pack = senderName ? `${brandPack} · ${String(senderName).slice(0, 24)}` : brandPack;
-            await safeReply(reply, `🍁 Found ${items.length} results for “${query}”. Preparing one sticker pack (up to ${MAX_STICKERS})…`);
 
-            const selected = items.map((item, index) => ({ item, index, source: chooseSource(item) }))
-                .filter(entry => entry.source);
+            // MODE: animated = all animated, static = all static, mix = half/half
+            let animatedTarget, staticTarget;
+            if (mode === 'animated') {
+                animatedTarget = MAX_STICKERS;
+                staticTarget = 0;
+            } else if (mode === 'static') {
+                animatedTarget = 0;
+                staticTarget = MAX_STICKERS;
+            } else {
+                animatedTarget = Math.ceil(MAX_STICKERS / 2); // 3 when MAX=5, 30 when MAX=60
+                staticTarget = MAX_STICKERS - animatedTarget; // 2 when MAX=5, 30 when MAX=60
+            }
+
+            const preparingText = mode === 'animated'
+                ? `🍁 Found ${items.length} results for “${query}”. Preparing ${animatedTarget} animated…`
+                : mode === 'static'
+                    ? `🍁 Found ${items.length} results for “${query}”. Preparing ${staticTarget} static…`
+                    : `🍁 Found ${items.length} results for “${query}”. Preparing ${animatedTarget} animated + ${staticTarget} static…`;
+            await safeReply(reply, preparingText);
+
+            const selected = items.map((item, index) => {
+                let wantAnimated;
+                if (mode === 'animated') wantAnimated = true;
+                else if (mode === 'static') wantAnimated = false;
+                else wantAnimated = index < animatedTarget;
+                return { item, index, wantAnimated, source: chooseSource(item, wantAnimated) };
+            }).filter(entry => entry.source);
+
             const processed = await pool(selected, CONCURRENCY, async entry => {
                 const buffer = await downloadAsset(entry.source.url);
                 return convertSticker({ ...entry.source, buffer }, entry.index, runDir, pack, brandAuthor);
@@ -175,29 +253,27 @@ module.exports = {
             const stickers = processed.filter(Boolean).slice(0, MAX_STICKERS);
             if (!stickers.length) throw new Error('Could not process any search results into WhatsApp stickers.');
 
+            // SEND AS PACK - same shape as tgsticker
             const packName = safePackName(query);
             await sock.sendMessage(chat, {
                 cover: { url: stickers[0].path },
                 stickers: stickers.map(sticker => ({ data: { url: sticker.path } })),
                 name: packName,
                 publisher: brandAuthor,
-                description: `Giphy sticker search: ${query}`.slice(0, 128)
+                description: `Giphy ${mode} stickers: ${query}`.slice(0, 128)
             }, { quoted: message });
 
             const animated = stickers.filter(sticker => sticker.animated).length;
             const still = stickers.length - animated;
             const skipped = items.length - stickers.length;
-            await safeReply(reply,
-                `📦 Sent *${stickers.length}* stickers as one pack (${animated} animated, ${still} static).` +
-                (skipped ? ` ${skipped} result${skipped === 1 ? '' : 's'} could not be converted.` : '')
-            );
+           
             await sock.sendMessage(chat, { react: { text: '💯', key: message.key } }).catch(() => {});
         } catch (error) {
             console.error('[STICKERSEARCH]', error?.stack || error);
             await sock.sendMessage(chat, { react: { text: '❔', key: message.key } }).catch(() => {});
             const status = error?.response?.status;
             const messageText = status === 429
-                ? 'Giphy rate limit reached. Try again later.'
+                ? '【entity-Giphy¦canonical_name=Giphy】 rate limit reached. Try again later.'
                 : `Sticker search failed: ${error?.message || 'unknown error'}`;
             await safeReply(reply, messageText);
         } finally {
