@@ -6,7 +6,18 @@ const os = require('node:os');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const axios = require('axios');
-const ffmpegPath = require('ffmpeg-static') || require('@ffmpeg-installer/ffmpeg').path;
+
+function resolveFfmpegPath() {
+    const candidates = [];
+    if (process.env.FFMPEG_PATH) candidates.push(process.env.FFMPEG_PATH);
+    try { candidates.push(require('@ffmpeg-installer/ffmpeg').path); } catch {}
+    try { candidates.push(require('ffmpeg-static')); } catch {}
+    return candidates.find(candidate =>
+        typeof candidate === 'string' && candidate.length > 0 && fs.existsSync(candidate)
+    ) || 'ffmpeg';
+}
+
+const ffmpegPath = resolveFfmpegPath();
 const { Sticker } = require('../Utils/sticker-converter');
 const { getStickerBranding } = require('../../Plugin/packname');
 
@@ -128,7 +139,7 @@ module.exports = {
     usage: '.stickersearch <query>',
     reactions: { start: '🍁', success: '🔖', error: '😢' },
     limits: { maxStickers: MAX_STICKERS, maxStickerBytes: MAX_STICKER_BYTES },
-    helpers: { chooseSource, safePackName, ffmpegArguments, convertSticker, pool },
+    helpers: { chooseSource, safePackName, ffmpegArguments, convertSticker, pool, ffmpegPath },
 
     execute: async (sock, message, { args = [], reply, senderName } = {}) => {
         const query = args.join(' ').trim();

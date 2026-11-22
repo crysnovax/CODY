@@ -48,7 +48,8 @@ const childProcessMock = {
 Module._load = function (request, parent, isMain) {
     if (parent?.filename === commandPath) {
         if (request === 'axios') return axiosMock;
-        if (request === 'ffmpeg-static') return '/mock/ffmpeg';
+        if (request === 'ffmpeg-static') return '/mock/missing-ffmpeg';
+        if (request === '@ffmpeg-installer/ffmpeg') return { path: process.execPath };
         if (request === '../Utils/sticker-converter') {
             return { Sticker: class { constructor(buffer) { this.buffer = buffer; } async toBuffer() { return this.buffer; } } };
         }
@@ -113,4 +114,8 @@ test('Stickersearch chooses an animated original or a static still image', () =>
     });
     assert.deepEqual(animated, { url: 'https://example.test/a.gif', animated: true });
     assert.deepEqual(still, { url: 'https://example.test/b.jpg', animated: false });
+});
+
+test('Stickersearch uses the npm-bundled FFmpeg when ffmpeg-static binary is missing', () => {
+    assert.equal(command.helpers.ffmpegPath, process.execPath);
 });
