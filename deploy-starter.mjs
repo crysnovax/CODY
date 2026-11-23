@@ -132,6 +132,13 @@ function ensureEnvFile() {
         const map = readEnvFile(ENV_PATH);
         map.set('SESSION_ID', DEPLOY_CONFIG.SESSION_ID);
         fs.writeFileSync(ENV_PATH, [...map].map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
+        // The local auth directory takes precedence over SESSION_ID during
+        // startup. Remove it when the operator deliberately changes the
+        // session source, otherwise the new ID is written to .env but the bot
+        // silently continues using the old credentials and derived keys.
+        const sessionDir = path.join(BOT_DIR, 'sessions');
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+        log.info('local session cleared; the new SESSION_ID will be restored on launch');
         log.warn('.env: refreshed SESSION_ID; all other existing values were preserved');
     } else {
         const kept = Object.keys(DEPLOY_CONFIG).filter(

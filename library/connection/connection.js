@@ -349,7 +349,16 @@ const konek = async ({ sock, update, clientstart, DisconnectReason, Boom }) => {
     }
 
     if (reason === DisconnectReason.loggedOut) {
-        console.log('🚫 WhatsApp reported logged out. Keeping the panel alive; re-pair is required before reconnecting.');
+        // A logged-out credential set can never recover by reconnecting. Keep
+        // the panel alive, but remove the local auth state so the next
+        // supervised restart can restore SESSION_ID or request pairing rather
+        // than repeatedly booting the same invalid credentials.
+        console.log('🚫 WhatsApp reported logged out. Clearing local auth; re-pair is required before reconnecting.');
+        try {
+            await clearSession();
+        } catch (error) {
+            console.warn('⚠️ Could not clear logged-out session:', error.message);
+        }
         return;
     }
 
@@ -369,7 +378,27 @@ const konek = async ({ sock, update, clientstart, DisconnectReason, Boom }) => {
     const safeStart = () => {
         replacedTimer = null;
         reconnectPending = false;
-        try { clientstart(); } catch (err) { console.log('❌ Reconnect failed:', err.message); }
+        // clientstart() is async. A synchronous try/catch does not catch a
+        // rejected reconnect Promise, which previously left the process alive
+        // with no working socket. Keep the existing single-flight behavior,
+        // but retry failed starts instead of silently dying.
+        let start;
+        try {
+            start = clientstart();
+        } catch (err) {
+            console.log('❌ Reconnect failed:', err.message);
+            start = Promise.reject(err);
+        }
+        Promise.resolve(start).catch(err => {
+            console.log('❌ Reconnect failed:', err?.message || err);
+            if (reconnectPending) return;
+            reconnectPending = true;
+            replacedTimer = setTimeout(() => {
+                replacedTimer = null;
+                reconnectPending = false;
+                safeStart();
+            }, 10000);
+        });
     };
 
     if (reason === DisconnectReason.connectionReplaced) {
