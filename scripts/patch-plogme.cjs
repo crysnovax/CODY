@@ -5,6 +5,18 @@ const root = path.join(__dirname, '..', 'node_modules', 'plogme');
 
 const patches = [
   {
+    id: 'atomic-auth-state-writes',
+    file: 'lib/Utils/use-multi-file-auth-state.js',
+    from: "import { mkdir, readFile, stat, unlink, writeFile } from 'fs/promises';",
+    to: "import { mkdir, readFile, rename, stat, unlink, writeFile } from 'fs/promises';"
+  },
+  {
+    id: 'atomic-auth-state-write-body',
+    file: 'lib/Utils/use-multi-file-auth-state.js',
+    from: "            try {\n                await writeFile(filePath, JSON.stringify(data, BufferJSON.replacer));\n            }\n            finally {",
+    to: "            const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;\n            try {\n                await writeFile(temporaryPath, JSON.stringify(data, BufferJSON.replacer));\n                await rename(temporaryPath, filePath);\n            }\n            finally {\n                await unlink(temporaryPath).catch(() => {});"
+  },
+  {
     id: 'website-preview-template-literal',
     file: 'lib/Utils/games/website-preview.js',
     from: 'color:${textMuted]}',
@@ -41,12 +53,12 @@ function occurrences(source, needle) {
   return source.split(needle).length - 1;
 }
 
-function apply() {
+function apply(rootDir = root) {
   const applied = [];
   const unknown = [];
 
   for (const patch of patches) {
-    const target = path.join(root, patch.file);
+    const target = path.join(rootDir, patch.file);
     if (!fs.existsSync(target)) continue;
 
     const source = fs.readFileSync(target, 'utf8');
