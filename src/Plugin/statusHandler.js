@@ -78,6 +78,15 @@ function hasGroupStatus(message) {
     return false;
 }
 
+function getStatusEventKind(event) {
+    if (event?.kind === 'group' || hasGroupStatus(event?.message)) return 'group';
+    const key = event?.message?.key || event?.message?.fakeObj?.key || {};
+    if (event?.kind === 'status'
+        || key.remoteJid === 'status@broadcast'
+        || key.remoteJidAlt === 'status@broadcast') return 'status';
+    return null;
+}
+
 function readConfig(filePath, defaults) {
     try {
         if (fs.existsSync(filePath)) {
@@ -202,19 +211,19 @@ async function autoSaveStatus(sock, event) {
 }
 
 async function markStatusViewed(sock, event) {
-    if (event.kind === 'group') return sock.viewGroupStatus(event.message);
+    if (getStatusEventKind(event) === 'group') return sock.viewGroupStatus(event.message);
     return sock.viewStatus(event.message);
 }
 
 async function sendStatusReaction(sock, event) {
     const emoji = getVar('STATUS_EMOJI', '💚');
-    if (event.kind === 'group') return sock.likeGroupStatus(event.message, emoji);
+    if (getStatusEventKind(event) === 'group') return sock.likeGroupStatus(event.message, emoji);
 
     return sock.likeStatus(event.message, emoji);
 }
 
 async function autoCommentStatus(sock, event) {
-    if (event.kind !== 'status') return false;
+    if (getStatusEventKind(event) !== 'status') return false;
     if (!hasResolvedStatusAuthor(event)) return false;
     const config = getAcsConfig();
     if (!config.enabled) return false;
@@ -226,7 +235,19 @@ async function autoCommentStatus(sock, event) {
         comment = String(config.text || '').trim();
         if (!comment) return false;
     }
-    await sock.commentStatus(event.message, comment);
+    const key = event?.message?.key || event?.message?.fakeObj?.key || {};
+    const authorJid = event.authorJid || key.participant || key.participantAlt || key.remoteJidAlt;
+    if (!authorJid) return false;
+    const content = typeof comment === 'string' ? { text: comment } : comment;
+    if (typeof sock.sendMessage !== 'function') {
+        if (typeof sock.commentStatus !== 'function') return false;
+        await sock.commentStatus(event.message, comment);
+    } else {
+        // A normal quoted reply is rendered as a status reply across Android,
+        // iOS, and Web. Plogme's native CommentMessage envelope is currently
+        // experimental and is not consistently displayed by Android clients.
+        await sock.sendMessage(authorJid, content, { quoted: event.message });
+    }
     return true;
 }
 
@@ -291,18 +312,20 @@ const setupStatusHandler = (sock) => {
     const unsubscribe = sock.onStatusMessage(async event => {
         const message = event?.message;
         const key = message?.key || message?.fakeObj?.key || {};
+        const kind = getStatusEventKind(event);
         console.log(`[STATUS] Baileys callback ${eventLogContext(event)} idPresent=${Boolean(key.id)}`);
         if (isStatusInteraction(message)) {
             console.log(`[STATUS] ignored status interaction ${eventLogContext(event)}`);
             return;
         }
-        if (!key.id || !['status', 'group'].includes(event.kind)) {
+        if (!key.id || !kind) {
             console.warn(`[STATUS] Ignored malformed/unsupported event ${eventLogContext(event)}`);
             return;
         }
 
         const author = event.authorJid || key.participant || key.participantAlt || key.remoteJidAlt || 'unknown';
-        const seenKey = `${event.kind}:${author}:${key.id}`;
+        const normalizedEvent = { ...event, kind };
+        const seenKey = `${kind}:${author}:${key.id}`;
         if (seen.has(seenKey)) {
             console.log(`[STATUS] duplicate ignored ${eventLogContext(event)}`);
             return;
@@ -312,7 +335,7 @@ const setupStatusHandler = (sock) => {
         const authorResolved = hasResolvedStatusAuthor(event);
 
         if (getVar('AUTO_STATUS_VIEW', true)) {
-            if (authorResolved) await runAction('VIEW', () => markStatusViewed(sock, event), event);
+            if (authorResolved) await runAction('VIEW', () => markStatusViewed(sock, normalizedEvent), normalizedEvent);
             else console.warn(`[STATUS] VIEW skipped: status author unresolved ${eventLogContext(event)}`);
         } else {
             console.log(`[STATUS] VIEW disabled ${eventLogContext(event)}`);
@@ -320,13 +343,13 @@ const setupStatusHandler = (sock) => {
         if (getVar('AUTO_STATUS_LIKE', true)) {
             if (authorResolved) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                await runAction('LIKE', () => sendStatusReaction(sock, event), event);
+                await runAction('LIKE', () => sendStatusReaction(sock, normalizedEvent), normalizedEvent);
             } else console.warn(`[STATUS] LIKE skipped: status author unresolved ${eventLogContext(event)}`);
         } else {
             console.log(`[STATUS] LIKE disabled ${eventLogContext(event)}`);
         }
-        await runAction('SAVE', () => autoSaveStatus(sock, event), event);
-        await runAction('COMMENT', () => autoCommentStatus(sock, event), event);
+        await runAction('SAVE', () => autoSaveStatus(sock, normalizedEvent), normalizedEvent);
+        await runAction('COMMENT', () => autoCommentStatus(sock, normalizedEvent), normalizedEvent);
     }, { from: 'all', includeGroupStatus: true });
 
     console.log('[STATUS] Subscribed through Baileys onStatusMessage()');

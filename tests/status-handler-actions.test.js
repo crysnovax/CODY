@@ -118,6 +118,26 @@ test('status handler subscribes through Baileys and delegates personal view/like
     assert.deepEqual(calls.statusLikes, [[message, '💜']]);
 });
 
+test('personal status keys are handled even when the callback kind is not status', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true };
+    const { calls } = makeSocket();
+    const message = statusMessage('personal-kind-1', { conversation: 'normal status' }, {
+        participant: '15550001113@s.whatsapp.net'
+    });
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message,
+        authorJid: '15550001113@s.whatsapp.net',
+        kind: 'personal',
+        type: 'notify'
+    });
+
+    assert.deepEqual(calls.views, [message]);
+    assert.deepEqual(calls.statusLikes, [[message, '💚']]);
+});
+
 test('status view, like, and green-heart comment default ON for a clean configuration', async () => {
     writeJson('autosavestatus.json', { enabled: false, mode: 'dm', target: null });
     fs.rmSync(path.join(tempRoot, 'database', 'autocommentstatus.json'), { force: true });
@@ -134,7 +154,11 @@ test('status view, like, and green-heart comment default ON for a clean configur
 
     assert.deepEqual(calls.views, [message]);
     assert.deepEqual(calls.statusLikes, [[message, '💚']]);
-    assert.deepEqual(calls.comments, [[message, '💚']]);
+    assert.deepEqual(calls.messages, [[
+        '15550001112@lid',
+        { text: '💚' },
+        { quoted: message }
+    ]]);
 });
 
 test('personal status with fromMe true and an external author uses likeStatus', async () => {
@@ -270,7 +294,7 @@ test('ASS defaults ON, saves media and text statuses from different authors to t
     assert.deepEqual(textSave[1], { text: 'Text story from author two' });
 });
 
-test('ACS sends configured text comments through commentStatus', async () => {
+test('ACS sends configured text comments as standard quoted status replies', async () => {
     writeJson('autosavestatus.json', { enabled: false });
     writeJson('autocommentstatus.json', { enabled: true, mode: 'text', text: 'Nice status!' });
     statusFlags = { AUTO_STATUS_VIEW: false, AUTO_STATUS_LIKE: false };
@@ -279,10 +303,14 @@ test('ACS sends configured text comments through commentStatus', async () => {
 
     await calls.subscription.listener({ message, authorJid: '15550005555@s.whatsapp.net', kind: 'status' });
 
-    assert.deepEqual(calls.comments, [[message, 'Nice status!']]);
+    assert.deepEqual(calls.messages, [[
+        '15550005555@s.whatsapp.net',
+        { text: 'Nice status!' },
+        { quoted: message }
+    ]]);
 });
 
-test('ACS sends a saved sticker template through commentStatus and ignores group statuses', async () => {
+test('ACS sends a saved sticker template as a standard quoted status reply and ignores group statuses', async () => {
     writeJson('autosavestatus.json', { enabled: false });
     writeJson('autocommentstatus.json', { enabled: true, mode: 'sticker', text: '' });
     fs.writeFileSync(path.join(tempRoot, 'database', 'autocommentstatus-sticker.webp'), Buffer.from('sticker-template'));
@@ -296,8 +324,10 @@ test('ACS sends a saved sticker template through commentStatus and ignores group
     };
     await calls.subscription.listener({ message: group, authorJid: '15550005555@lid', kind: 'group' });
 
-    assert.equal(calls.comments.length, 1);
-    assert.deepEqual(calls.comments[0][1], { sticker: Buffer.from('sticker-template'), mimetype: 'image/webp' });
+    assert.equal(calls.messages.length, 1);
+    assert.equal(calls.messages[0][0], '15550005555@s.whatsapp.net');
+    assert.deepEqual(calls.messages[0][1], { sticker: Buffer.from('sticker-template'), mimetype: 'image/webp' });
+    assert.deepEqual(calls.messages[0][2], { quoted: personal });
 });
 
 test('group status automation delegates to group-specific Baileys methods', async () => {
