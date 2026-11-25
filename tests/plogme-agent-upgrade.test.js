@@ -61,6 +61,28 @@ test('PLOGME executes mission and health actions with structured replies', async
     assert.match(replies.join('\n'), /CODY health/);
 });
 
+test('PLOGME emits a separate progress message before a tool result', async () => {
+    const replies = [];
+    const result = await plogme.executeIntent({}, { chat: '12345@s.whatsapp.net' }, {
+        reply: async value => replies.push(String(value))
+    }, { action: 'status' });
+    assert.equal(result.handled, true);
+    assert.ok(replies.length >= 2);
+    assert.match(replies[0], /starting status/i);
+    assert.match(replies.at(-1), /status|runtime|uptime/i);
+});
+
+test('PLOGME narration keeps deterministic fallback text when disabled', async () => {
+    const replies = [];
+    const opts = plogme.withNaturalToolNarration({
+        naturalLanguage: false,
+        reply: async value => replies.push(String(value))
+    }, 'send the file');
+    assert.equal(opts.naturalLanguage, false);
+    await opts.reply('File sent: `database/example.txt`');
+    assert.deepEqual(replies, ['File sent: `database/example.txt`']);
+});
+
 test('PLOGME compacts oversized context and removes upstream error envelopes', () => {
     const huge = 'x'.repeat(50000);
     const compacted = plogme.buildPrompt('plogme-414-test', huge);

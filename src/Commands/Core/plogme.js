@@ -315,6 +315,52 @@ async function reportProgress(opts, message) {
     } catch {}
 }
 
+const MAX_NATURAL_TOOL_MESSAGES = 8;
+
+async function naturalizeToolMessage(message, options = {}) {
+    const fallback = String(message || '').trim();
+    if (!fallback || options.naturalLanguage !== true) return fallback;
+    if ((options.naturalMessageCount || 0) >= MAX_NATURAL_TOOL_MESSAGES) return fallback;
+    // Keep raw code, stack traces, and very large command output intact. The
+    // model should narrate tool results, not rewrite technical payloads.
+    if (fallback.length > 7000 || /```[\s\S]{2500,}/.test(fallback)) return fallback;
+    options.naturalMessageCount = (options.naturalMessageCount || 0) + 1;
+    try {
+        const request = String(options.userRequest || '').slice(0, 1600);
+        const prompt = [
+            'You are the natural-language interface of an autonomous WhatsApp agent.',
+            'Rewrite the internal tool update below as one concise, human, helpful message.',
+            'Use the same language as the user request; do not force English.',
+            'Do not mention prompts, models, JSON, internal tools, or hard-coded templates.',
+            'Preserve exact file paths, command names, URLs, IDs, numbers, and error facts.',
+            'Do not claim an operation succeeded unless the update says it succeeded.',
+            'Keep useful Markdown, but do not add a greeting or an unnecessary conclusion.',
+            `User request: ${request || '[not available]'}`,
+            `Internal update: ${fallback}`,
+            'Return only the message to send.'
+        ].join('\n\n');
+        const generated = await askAI(prompt);
+        const answer = String(generated || '').trim();
+        if (answer && answer.length <= 7000 && !/^(as an ai|i cannot|i can't)/i.test(answer)) return answer;
+    } catch {}
+    return fallback;
+}
+
+function withNaturalToolNarration(opts = {}, userRequest = '') {
+    if (opts.naturalLanguage !== true) return opts;
+    const baseReply = opts.reply;
+    const baseProgress = opts.progress;
+    if (typeof baseReply !== 'function' && typeof baseProgress !== 'function') return opts;
+    const narrated = { ...opts, userRequest, naturalMessageCount: 0 };
+    if (typeof baseReply === 'function') {
+        narrated.reply = async message => baseReply(await naturalizeToolMessage(message, narrated));
+    }
+    if (typeof baseProgress === 'function') {
+        narrated.progress = async message => baseProgress(await naturalizeToolMessage(message, narrated));
+    }
+    return narrated;
+}
+
 // Render markdown/text to a PDF buffer with pdfkit (already a dependency —
 // required lazily so a missing optional dep can never break bot startup).
 // (@crysnovax—FIX12-08-26)
@@ -1580,7 +1626,11 @@ async function executeIntent(sock, m, opts, intent) {
             opts.missionId = mission.id;
             missions.updateMission(mission.id, { status: 'running' });
         }
-        if (['create_file', 'edit_file', 'create_tool', 'send_file', 'search_file', 'search_code', 'search_web', 'make_pdf', 'zip', 'mission_create', 'mission_rollback', 'install_dependency', 'project_index', 'health', 'research_web', 'inspect_media'].includes(action)) {
+        // A progress event is intentionally a separate message. Long-running
+        // actions can then report their own later stages (research results,
+        // syntax repair, upload, verification) without replacing the update
+        // that came before it. `chat` remains a single conversational reply.
+        if (action && action !== 'chat') {
             await reportProgress(opts, `starting ${action.replace(/_/g, ' ')}…`);
         }
 
@@ -2248,6 +2298,10 @@ async function execute(sock, m, opts) {
         if (!text) return false;
         const messageContext = buildMessageContext(m);
         const messageId = String(m.key?.id || '').trim();
+        // Live requests get natural-language tool narration. Direct callers of
+        // executeIntent (including tests and internal adapters) keep their
+        // exact deterministic replies unless they opt in explicitly.
+        const agentOpts = withNaturalToolNarration({ ...opts, naturalLanguage: true }, text);
 
         // ── Spam control = the invisible-character (marker) logic ONLY ──
         // The owner and the bot are the SAME WhatsApp account, so every
@@ -2319,7 +2373,7 @@ async function execute(sock, m, opts) {
                         const isPlogmeInvocation = /^(plogme|plg|plog)(\s|$)/i.test(body);
             const missionButton = body.match(/^(mission_status|mission_pause|mission_resume|mission_rollback):([A-Z0-9-]+)$/i);
             if (missionButton) {
-                await executeIntent(sock, m, opts, { action: missionButton[1].toLowerCase(), id: missionButton[2] });
+                await executeIntent(sock, m, agentOpts, { action: missionButton[1].toLowerCase(), id: missionButton[2] });
                 return true;
             }
             // A prefixed ".plogme <sub>" (e.g. "/plogme off") is OWNED by the
@@ -2329,7 +2383,7 @@ async function execute(sock, m, opts) {
             // OFF"). Only bare, non-prefixed phrases ("plogme off", "run
             // ping") are handled here. (@crysnovax—FIX10-08-26)
             if (!isCommand) {
-                const handledControl = await handleControlIntent(sock, m, opts, isPlogmeInvocation ? body : text);
+                const handledControl = await handleControlIntent(sock, m, agentOpts, isPlogmeInvocation ? body : text);
                 if (handledControl) return true;
             }
 
@@ -2347,7 +2401,7 @@ async function execute(sock, m, opts) {
                 try {
                     const intent = await classifyIntent(isPlogmeInvocation ? body : text, messageContext);
                     if (intent) {
-                        const res = await executeIntent(sock, m, opts, intent);
+                        const res = await executeIntent(sock, m, agentOpts, intent);
                         if (res.handled) return true;
                     }
                 } catch {}
@@ -2480,6 +2534,8 @@ module.exports = {
     searchWorkspace,
     environmentSnapshot,
     reportProgress,
+    naturalizeToolMessage,
+    withNaturalToolNarration,
     extractAIText,
     logOp,
     getOps,
