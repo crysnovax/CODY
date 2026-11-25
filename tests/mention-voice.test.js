@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const mention = require('../src/Commands/Owner/mention');
+const saudio = require('../src/Commands/Media/sa');
 
 function makePcmWav(durationMs = 160) {
     const sampleRate = 8000;
@@ -56,5 +57,69 @@ test('mention voice playback sends the configured buffer as a quoted PTT audio n
     } finally {
         Object.assign(mention.mentionConfig, previous);
         fs.rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('saudio builds a sticker-audio payload and mention playback sends both parts', async () => {
+    const previous = { ...mention.mentionConfig };
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cody-mention-saudio-'));
+    const stickerPath = path.join(directory, 'sticker.webp');
+    const sticker = Buffer.from('RIFF-sticker-webp');
+    fs.writeFileSync(stickerPath, sticker);
+    const originalFetch = global.fetch;
+    try {
+        global.fetch = async () => ({ ok: true, arrayBuffer: async () => Buffer.from('OggS-audio') });
+        const payload = await saudio.createStickerAudioPayload({
+            mtype: 'stickerMessage',
+            message: { stickerMessage: {} },
+            download: async () => sticker
+        }, 'https://example.test/sound.ogg');
+        assert.ok(payload.stickerBuffer.equals(sticker));
+        assert.equal(payload.stickerAudio.url, 'https://example.test/sound.ogg');
+
+        mention.mentionConfig.saudioSticker = stickerPath;
+        mention.mentionConfig.saudioAudio = payload.stickerAudio.url;
+        let sent;
+        await mention.sendMentionSaudio({ sendMessage: async (...args) => { sent = args; } }, '123@g.us', { quoted: { key: 'source-message' } });
+        assert.ok(sent[1].sticker.equals(sticker));
+        assert.deepEqual(sent[1].stickerAudio, { url: 'https://example.test/sound.ogg' });
+        assert.equal(sent[2].quoted.key, 'source-message');
+    } finally {
+        global.fetch = originalFetch;
+        Object.assign(mention.mentionConfig, previous);
+        fs.rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+test('mention saudio configures a quoted sticker as the automatic response', async () => {
+    const configPath = path.join(__dirname, '..', 'database', 'mention_config.json');
+    const saudioStickerPath = path.join(__dirname, '..', 'database', 'mention-saudio.webp');
+    const originalConfigFile = fs.readFileSync(configPath);
+    const previous = { ...mention.mentionConfig };
+    const sticker = Buffer.from('RIFF-sticker-webp');
+    const originalFetch = global.fetch;
+    let response;
+    try {
+        global.fetch = async () => ({ ok: true, arrayBuffer: async () => Buffer.from('OggS-audio') });
+        await mention.execute(null, {
+            quoted: {
+                mtype: 'stickerMessage',
+                message: { stickerMessage: {} },
+                download: async () => sticker
+            }
+        }, {
+            args: ['saudio', 'https://example.test/sound.ogg'],
+            prefix: '.',
+            reply: async text => { response = text; }
+        });
+        assert.equal(mention.mentionConfig.action, 'saudio');
+        assert.equal(mention.mentionConfig.saudioAudio, 'https://example.test/sound.ogg');
+        assert.equal(fs.readFileSync(saudioStickerPath).toString(), sticker.toString());
+        assert.match(response, /STICKER AUDIO/);
+    } finally {
+        global.fetch = originalFetch;
+        Object.assign(mention.mentionConfig, previous);
+        fs.writeFileSync(configPath, originalConfigFile);
+        fs.rmSync(saudioStickerPath, { force: true });
     }
 });

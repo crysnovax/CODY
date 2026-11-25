@@ -860,6 +860,10 @@ try {
                         await mention.sendMentionVoice(sock, m.chat, { quoted: m }).catch(error => {
                             console.error('[MENTION VOICE]', error.message);
                         });
+                    } else if (mentionConfig.action === 'saudio' && mentionConfig.saudioSticker && mentionConfig.saudioAudio) {
+                        await mention.sendMentionSaudio(sock, m.chat, { quoted: m }).catch(error => {
+                            console.error('[MENTION SAUDIO]', error.message);
+                        });
                     }
                 }
             } catch (error) {

@@ -19,6 +19,7 @@ const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
 const MENTION_PROTOCOL_FILE = path.join(__dirname, '../../../database/mention-sticker-message.json');
 const MENTION_VOICE_FILE = path.join(__dirname, '../../../database/mention-voice.ogg');
+const MENTION_SAUDIO_STICKER_FILE = path.join(__dirname, '../../../database/mention-saudio.webp');
 const MAX_VOICE_BYTES = 16 * 1024 * 1024;
 
 // IMPORTANT: Never reassign this object — always mutate it with Object.assign
@@ -34,7 +35,9 @@ const mentionConfig = {
     stickerIsAnimated: false,
     voice: '',
     voiceMime: 'audio/ogg; codecs=opus',
-    voicePtt: true
+    voicePtt: true,
+    saudioSticker: '',
+    saudioAudio: ''
 };
 
 const loadMentionConfig = () => {
@@ -141,6 +144,17 @@ async function sendMentionVoice(sock, jid, options = {}) {
     }, options.quoted ? { quoted: options.quoted } : undefined);
 }
 
+async function sendMentionSaudio(sock, jid, options = {}) {
+    const stickerPath = mentionConfig.saudioSticker || MENTION_SAUDIO_STICKER_FILE;
+    if (!fs.existsSync(stickerPath)) throw new Error('Configured mention saudio sticker is missing');
+    const sticker = await fs.promises.readFile(stickerPath);
+    if (!sticker.length || !mentionConfig.saudioAudio) throw new Error('Configured mention saudio audio is missing');
+    return sock.sendMessage(jid, {
+        sticker,
+        stickerAudio: { url: mentionConfig.saudioAudio }
+    }, options.quoted ? { quoted: options.quoted } : undefined);
+}
+
 function convertToVoiceNote(inputBuffer) {
     if (!Buffer.isBuffer(inputBuffer) || !inputBuffer.length) {
         return Promise.reject(new Error('Audio input is empty'));
@@ -218,6 +232,7 @@ module.exports = {
                 `│ ❏ Text   : ${mentionConfig.text   || '-'}\n` +
                 `│ 🧩 Sticker: ${mentionConfig.sticker ? 'Configured' : '-'}\n` +
                 `│ 🎙️ Voice : ${mentionConfig.voice ? 'Configured' : '-'}\n` +
+                `│ 🔊 Saudio : ${mentionConfig.saudioSticker && mentionConfig.saudioAudio ? 'Configured' : '-'}\n` +
                 `╰──────────────────`
             );
         }
@@ -304,6 +319,38 @@ module.exports = {
             return reply(`╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : STICKER\n╰──────────────────`);
         }
 
+        // SAUDIO: reply to a sticker with an audio URL and save the resulting
+        // sticker-audio payload for automatic mention responses.
+        if (option === 'saudio' || option === '-saudio') {
+            if (!value || !/^https?:\/\//i.test(value)) {
+                return reply(`╭─❍ *MENTION*\n│ ✘ Provide an audio URL\n│ ⚉ Reply to a sticker\n│ ⚉ Example: ${prefix}mention saudio <audio url>\n╰──────────────────`);
+            }
+            const saudio = require('../Media/sa.js');
+            const quoted = m.quoted;
+            const qmsg = quoted?.message || {};
+            const inner = qmsg.viewOnceMessage?.message || qmsg.viewOnceMessageV2?.message || qmsg.ephemeralMessage?.message || qmsg || {};
+            const isSticker = !!inner.stickerMessage || (quoted?.mtype || '').includes('sticker');
+            if (!quoted || !isSticker) {
+                return reply(`╭─❍ *MENTION*\n│ ✘ Reply to a sticker first\n│ ⚉ Example: ${prefix}mention saudio <audio url>\n╰──────────────────`);
+            }
+            try {
+                const payload = await saudio.createStickerAudioPayload(quoted, value);
+                fs.mkdirSync(path.dirname(MENTION_SAUDIO_STICKER_FILE), { recursive: true });
+                fs.writeFileSync(MENTION_SAUDIO_STICKER_FILE, payload.stickerBuffer);
+                mentionConfig.saudioSticker = MENTION_SAUDIO_STICKER_FILE;
+                mentionConfig.saudioAudio = payload.stickerAudio?.url || '';
+                mentionConfig.active = true;
+                mentionConfig.action = 'saudio';
+                mentionConfig.emoji = '';
+                mentionConfig.text = '';
+                saveMentionConfig();
+                return reply('╭─❍ *MENTION*\n│ ✦ Status : ON\n│ 𓄄 Action : STICKER AUDIO\n│ 🔊 Sticker-audio response saved\n╰──────────────────');
+            } catch (error) {
+                console.error('[MENTION SAUDIO]', error?.message || error);
+                return reply(`Could not create sticker-audio response: ${error?.message || 'unknown error'}`);
+            }
+        }
+
         // VOICE: reply to an audio message to save it as the mention response.
         if (option === 'voice' || option === '-voice') {
             const quotedAudio = m.quoted?.audioMessage || m.quoted?.message?.audioMessage ||
@@ -367,6 +414,8 @@ module.exports = {
             `│   Reply to a sticker or provide a sticker URL\n│\n` +
             `│ ➫ ${prefix}mention -voice\n` +
             `│   Reply to a voice note/audio message to save the response\n│\n` +
+            `│ ➫ ${prefix}mention saudio <audio url>\n` +
+            `│   Reply to a sticker to save a sticker-audio response\n│\n` +
             `│ ➫ ${prefix}mention -text <message>\n` +
             `│   Auto-reply when mentioned\n` +
             `│   Example: ${prefix}mention -text Busy, back later\n│\n` +
@@ -381,5 +430,6 @@ module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
 module.exports.sendMentionSticker = sendMentionSticker;
 module.exports.sendMentionVoice = sendMentionVoice;
+module.exports.sendMentionSaudio = sendMentionSaudio;
 module.exports.convertToVoiceNote = convertToVoiceNote;
 module.exports.norm = norm;
