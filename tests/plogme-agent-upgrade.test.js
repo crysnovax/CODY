@@ -8,6 +8,7 @@ const dependencies = require('../src/Commands/Core/plogme-dependencies.js');
 const { runHealthChecks } = require('../src/Commands/Core/plogme-health.js');
 const { buildProjectIndex } = require('../src/Commands/Core/plogme-project-index.js');
 const plogme = require('../src/Commands/Core/plogme.js');
+const agentRuntime = require('../src/Commands/Core/plogme-agent-runtime.js');
 
 const transient = [missions.STORE_FILE, path.join(process.cwd(), 'database', 'plogme_project_index.json')];
 
@@ -81,6 +82,30 @@ test('PLOGME narration keeps deterministic fallback text when disabled', async (
     assert.equal(opts.naturalLanguage, false);
     await opts.reply('File sent: `database/example.txt`');
     assert.deepEqual(replies, ['File sent: `database/example.txt`']);
+});
+
+test('PLOGME runtime exposes risk metadata and bounded isolated execution', () => {
+    assert.equal(agentRuntime.toolInfo('delete_file').risk, 'high');
+    assert.equal(agentRuntime.requiresApproval({ action: 'install_dependency' }), true);
+    const result = agentRuntime.runIsolatedCommand(process.execPath, ['-e', 'process.stdout.write("isolated-ok")']);
+    assert.equal(result.ok, true);
+    assert.equal(result.stdout, 'isolated-ok');
+});
+
+test('PLOGME dry-run never mutates a protected operation', async () => {
+    const target = path.join('database', 'plogme-dry-run.txt');
+    const absolute = path.join(process.cwd(), target);
+    fs.writeFileSync(absolute, 'keep me');
+    const replies = [];
+    try {
+        const result = await plogme.executeIntent({}, { chat: '12345@s.whatsapp.net' }, {
+            enforceApproval: true,
+            reply: async value => replies.push(String(value))
+        }, { action: 'delete_file', path: target, dryRun: true });
+        assert.equal(result.dryRun, true);
+        assert.equal(fs.readFileSync(absolute, 'utf8'), 'keep me');
+        assert.match(replies.at(-1), /Dry run.*nothing was changed/i);
+    } finally { try { fs.unlinkSync(absolute); } catch {} }
 });
 
 test('PLOGME compacts oversized context and removes upstream error envelopes', () => {

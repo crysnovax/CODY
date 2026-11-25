@@ -100,6 +100,14 @@ function recordError(id, error) {
     return updateMission(id, { errors, status: 'blocked' });
 }
 
+function recoverMission(id) {
+    const mission = getMission(id);
+    if (!mission) return null;
+    updateMission(id, { status: 'running', recoveryCount: Number(mission.recoveryCount || 0) + 1 });
+    addEvent(id, 'recovery', `Mission resumed from ${mission.status}`);
+    return getMission(id);
+}
+
 function snapshotFiles(id, files = []) {
     const mission = getMission(id);
     if (!mission) return null;
@@ -123,6 +131,14 @@ function snapshotFiles(id, files = []) {
     return { id: snapshotId, dir, files: entries };
 }
 
+function recordMoveSnapshot(id, from, to) {
+    const mission = getMission(id);
+    if (!mission) return null;
+    const moves = [...(mission.moves || []), { from: String(from), to: String(to), at: now() }].slice(-20);
+    updateMission(id, { moves });
+    return moves.at(-1);
+}
+
 function rollbackMission(id, snapshotId) {
     const mission = getMission(id);
     if (!mission) return { ok: false, error: 'Mission not found' };
@@ -134,6 +150,14 @@ function rollbackMission(id, snapshotId) {
         if (fs.existsSync(source)) {
             fs.mkdirSync(path.dirname(target), { recursive: true });
             fs.copyFileSync(source, target);
+        }
+    }
+    for (const move of [...(mission.moves || [])].reverse()) {
+        const from = path.resolve(ROOT, move.from);
+        const to = path.resolve(ROOT, move.to);
+        if (fs.existsSync(to) && !fs.existsSync(from)) {
+            fs.mkdirSync(path.dirname(from), { recursive: true });
+            fs.renameSync(to, from);
         }
     }
     addEvent(id, 'rollback', `Restored snapshot ${snapshot.id}`);
@@ -151,6 +175,8 @@ module.exports = {
     setStep,
     recordTest,
     recordError,
+    recoverMission,
     snapshotFiles,
+    recordMoveSnapshot,
     rollbackMission
 };

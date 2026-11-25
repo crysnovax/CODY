@@ -56,6 +56,7 @@ const axios = {
 const { execSync } = require('child_process');
 const { getVar, resolvePrefix } = require('../../Plugin/configManager');
 const missions = require('./plogme-missions');
+const agentRuntime = require('./plogme-agent-runtime');
 const dependencies = require('./plogme-dependencies');
 const { runHealthChecks } = require('./plogme-health');
 const { buildProjectIndex } = require('./plogme-project-index');
@@ -784,12 +785,17 @@ async function askAI(prompt) {
 
 function buildPrompt(chat, userText, messageContext = {}) {
     const facts = getFacts().map(sanitizeMemoryContent).slice(-20);
+    const profile = agentRuntime.getProfile(chat);
     const memoryMeta = getMemoryMeta(chat);
     const memory = getMemory(chat).slice(-30).map(item => ({ ...item, content: sanitizeMemoryContent(item.content) }));
     const ops = getOps();
     let prompt = sanitizeMemoryContent(getPersonality());
     if (getTraining()) prompt += '\n\nAdditional instructions: ' + sanitizeMemoryContent(getTraining());
     if (facts.length) prompt += '\n\nPersistent facts I remember:\n- ' + facts.join('\n- ');
+    if (facts.length) prompt += '\n\nPersistent facts I remember:\n- ' + facts.join('\n- ');
+    if (profile.preferences?.length) prompt += '\n\nUser/chat preferences:\n- ' + profile.preferences.map(sanitizeMemoryContent).slice(-12).join('\n- ');
+    if (profile.safety?.length) prompt += '\n\nSafety constraints/preferences:\n- ' + profile.safety.map(sanitizeMemoryContent).slice(-12).join('\n- ');
+    if (profile.project && Object.keys(profile.project).length) prompt += '\n\nProject facts:\n- ' + Object.entries(profile.project).slice(-12).map(([k, v]) => `${k}: ${sanitizeMemoryContent(v)}`).join('\n- ');
     if (memoryMeta.summary) prompt += '\n\nLong-term conversation continuity (older context):\n' + sanitizeMemoryContent(memoryMeta.summary);
     if (memory.length) {
         prompt += '\n\nRecent conversation history:\n' +
@@ -1079,6 +1085,18 @@ async function runTest(sock, m, opts, subject) {
 
 async function handleControlIntent(sock, m, opts, text) {
     const lower = text.trim().toLowerCase();
+
+    const approvalMatch = text.trim().match(/^(?:confirm|approve|yes)\s+([A-Z0-9-]{12,})$/i);
+    if (approvalMatch) {
+        const pending = agentRuntime.consumeApproval(approvalMatch[1], m.chat, m.sender || m.key?.participant || '');
+        if (!pending) {
+            await opts.reply('_✘ That approval is missing, expired, or belongs to another chat/sender._');
+            return true;
+        }
+        pending.approved = true;
+        const result = await executeIntent(sock, m, { ...opts, enforceApproval: true }, pending);
+        return result?.handled !== false;
+    }
 
     // ── PLOGME's own chatbot-style on/off toggle ──
     // ".plogme on/off", "plogme on/off", "toggle plogme on/off",
@@ -1417,6 +1435,7 @@ const KNOWN_ACTIONS = new Set([
     'send_file', 'make_pdf', 'zip', 'search_file', 'search_code', 'search_web', 'environment', 'create_tool',
     'mission_create', 'mission_list', 'mission_status', 'mission_pause', 'mission_resume', 'mission_rollback',
     'dependency_status', 'suggest_dependency', 'install_dependency', 'project_index', 'health', 'research_web', 'inspect_media', 'list_files', 'rename_file',
+    'plan', 'isolated_command', 'tool_catalog',
 ]);
 
 // Strip markdown fences / extra text and pull out the first JSON object.
@@ -1494,11 +1513,15 @@ function buildClassifierPrompt(userText, messageContext = {}) {
         `- "rename X to Y" -> {"action":"rename_file","from":"<source>","to":"<destination>"}\n` +
         `- "make/generate/create a PDF from X" / "convert X to pdf" / "write a pdf about/on X" -> {"action":"make_pdf","path":"<path or topic>"} (or "content":"<text>" for pasted text)\n` +
         `- "zip/compress these files" -> {"action":"zip","files":["<path1>","<path2>"]}\n` +
+        `- "plan these steps / do this in stages" -> {"action":"plan","goal":"<goal>","steps":[{"action":"<known action>","...":"..."}]}\n` +
+        `- "preview/dry-run this" -> use the selected action with "dryRun":true; never mutate during a dry run\n` +
+        `- "run an isolated executable" -> {"action":"isolated_command","command":"node","args":["--version"]}\n` +
+        `- "what tools/capabilities do you have" -> {"action":"tool_catalog"}\n` +
         `(for user actions the target comes from the @mention or the quoted message, so "mentioned" is the right value)\n\n` +
         `Possible actions: run_command, create_file, edit_file, delete_file, toggle_command, ` +
         `list_commands, reload, restart, status, memory, clear_memory, remember, forget, ` +
         `test, fix_code, train, personality, dev, set_pp, group_name, group_pp, kick, promote, ` +
-        `demote, mute_user, unmute_user, mutesch, antis, plogme_mode, send_file, make_pdf, zip, search_file, search_code, search_web, environment, create_tool, mission_create, mission_list, mission_status, mission_pause, mission_resume, mission_rollback, dependency_status, suggest_dependency, install_dependency, project_index, health, research_web, inspect_media, list_files, rename_file, chat.\n\n` +
+        `demote, mute_user, unmute_user, mutesch, antis, plogme_mode, send_file, make_pdf, zip, search_file, search_code, search_web, environment, create_tool, mission_create, mission_list, mission_status, mission_pause, mission_resume, mission_rollback, dependency_status, suggest_dependency, install_dependency, project_index, health, research_web, inspect_media, list_files, rename_file, plan, isolated_command, tool_catalog, chat.\n\n` +
         `JSON shapes:\n` +
         `- {"action":"run_command","command":"<name>","args":"<optional>"}\n` +
         `- {"action":"create_file","path":"src/Commands/User/name.js","content":"<FULL file content>"}\n` +
@@ -1524,6 +1547,8 @@ function buildClassifierPrompt(userText, messageContext = {}) {
         `- {"action":"dependency_status|suggest_dependency|install_dependency","package":"<name>"}\n` +
         `- {"action":"project_index"} {"action":"health"} {"action":"research_web","query":"<topic>"} {"action":"inspect_media"}\n` +
         `- {"action":"list_files","path":"<relative folder>"} {"action":"rename_file","from":"<source>","to":"<destination>"}\n` +
+        `- {"action":"plan","goal":"<goal>","steps":[{"action":"<action>","dependsOn":[]}],"dryRun":true|false}\n` +
+        `- {"action":"isolated_command","command":"<executable>","args":["<arg>"],"timeout":20000}\n` +
         `- {"action":"chat","reply":"<your short reply>"}\n\n` +
         `Available commands (ONLY use these exact names for run_command):\n` +
         (realCommands.length ? realCommands.slice(0, 160).join(', ') : '(command list unavailable)') +
@@ -1619,8 +1644,24 @@ async function sendFileCommandAction(sock, m, opts, intent) {
 async function executeIntent(sock, m, opts, intent) {
     try {
         opts = { ...opts, sendMessage: opts?.sendMessage || (typeof sock?.sendMessage === 'function' ? sock.sendMessage.bind(sock) : null) };
-        const action = intent.action;
-        const missionActions = new Set(['create_file', 'edit_file', 'create_tool', 'send_file', 'make_pdf', 'zip', 'install_dependency', 'project_index', 'health', 'research_web', 'inspect_media']);
+        intent = intent && typeof intent === 'object' ? intent : {};
+        const action = String(intent.action || '').toLowerCase();
+        const plan = action === 'plan' ? agentRuntime.makePlan(intent) : null;
+        const planNeedsApproval = plan?.steps?.some(step => agentRuntime.requiresApproval(step));
+        const protectedOperation = planNeedsApproval || agentRuntime.requiresApproval(intent);
+        if (opts.enforceApproval && agentRuntime.isDryRun(intent, opts)) {
+            const preview = plan || agentRuntime.makePlan(intent);
+            const lines = preview.steps.map((step, index) => `${index + 1}. ${step.action.replace(/_/g, ' ')}${step.path ? ` — ${step.path}` : ''}${step.command ? ` — ${step.command}` : ''}`);
+            await opts.reply(`_*Dry run — nothing was changed.*_\n*Goal:* ${preview.goal || action}\n${lines.join('\n')}`);
+            return { handled: true, dryRun: true, verified: true };
+        }
+        if (opts.enforceApproval && protectedOperation && intent.approved !== true) {
+            const pending = agentRuntime.createApproval({ chat: m.chat, sender: m.sender || m.key?.participant || '', intent });
+            const summary = plan ? `${plan.goal || 'multi-step operation'} (${plan.steps.length} steps)` : `${action.replace(/_/g, ' ')}${intent.path ? ` on ${intent.path}` : ''}`;
+            await opts.reply(`_*Approval required before I continue.*_\n${summary}\n\nReply "confirm ${pending.token}" within 10 minutes to proceed, or ignore it to cancel.`);
+            return { handled: true, awaitingApproval: true, approvalToken: pending.token };
+        }
+        const missionActions = new Set(['create_file', 'edit_file', 'delete_file', 'rename_file', 'create_tool', 'send_file', 'make_pdf', 'zip', 'install_dependency', 'project_index', 'health', 'research_web', 'inspect_media']);
         if (missionActions.has(action) && !opts.missionId) {
             const mission = missions.createMission({ chat: m.chat, owner: m.sender || '', objective: String(intent.objective || intent.query || intent.path || action).slice(0, 1000), plan: ['inspect workspace and dependencies', `execute ${action}`, 'verify result and report'] });
             opts.missionId = mission.id;
@@ -1635,6 +1676,34 @@ async function executeIntent(sock, m, opts, intent) {
         }
 
         switch (action) {
+            case 'plan': {
+                if (!plan?.steps?.length) { await opts.reply('_✘ I need at least one valid step to build a plan._'); return { handled: true }; }
+                await reportProgress(opts, `plan ready: ${plan.steps.length} step${plan.steps.length === 1 ? '' : 's'}; executing with dependency and safety checks…`);
+                const readonly = plan.steps.every(step => agentRuntime.toolInfo(step.action).readonly === true);
+                const runStep = step => executeIntent(sock, m, { ...opts, enforceApproval: false }, { ...step, approved: true });
+                const results = intent.parallel === true && readonly
+                    ? await agentRuntime.runParallel(plan.steps.map(runStep))
+                    : await plan.steps.reduce(async (chain, step) => { const prior = await chain; if (prior.some(item => item?.handled === false || item?.verified === false)) return prior; prior.push(await runStep(step)); return prior; }, Promise.resolve([]));
+                const failed = results.filter(result => result?.handled === false || result?.verified === false);
+                await opts.reply(failed.length ? `_*Plan stopped after ${results.length - failed.length}/${plan.steps.length} verified step(s).*_` : `_*Plan completed: ${plan.steps.length}/${plan.steps.length} step(s) handled and verified where supported.*_`);
+                return { handled: true, verified: failed.length === 0, results };
+            }
+
+            case 'tool_catalog': {
+                const catalog = agentRuntime.toolCatalog();
+                await opts.reply(`_*Available Plogme tools*_\n\n${catalog.map(tool => `• *${tool.name}* — ${tool.description} [${tool.risk} risk]`).join('\n')}`);
+                return { handled: true, verified: true };
+            }
+
+            case 'isolated_command': {
+                const command = String(intent.command || '').trim();
+                const result = agentRuntime.runIsolatedCommand(command, intent.args, { timeout: intent.timeout });
+                await opts.reply(result.ok
+                    ? `_*Isolated command completed (exit ${result.code ?? 0}).*_\n${result.stdout || '_No stdout._'}`
+                    : `_✘ Isolated command failed:_ ${result.error || result.stderr || `exit ${result.code}`}`);
+                return { handled: true, verified: result.ok };
+            }
+
             case 'run_command': {
                 const target = String(intent.command || '').trim() + (intent.args ? ' ' + String(intent.args).trim() : '');
                 const result = await runCommandAction(sock, m, opts, target);
@@ -1654,6 +1723,8 @@ async function executeIntent(sock, m, opts, intent) {
                 if (!content.trim()) { await opts.reply('_✘ No file content provided_'); return { handled: true }; }
                 if (name) content = ensureCommandModule(name, content);
                 const res = await writeFileWithAgentFix(abs, content, opts);
+                const verification = agentRuntime.verifyTool(action, { ok: res.ok, checks: [agentRuntime.verifyPath(display)] });
+                agentRuntime.recordMutation({ action, path: display, ok: res.ok, verified: verification.ok, missionId: opts.missionId || null });
                 if (opts.missionId) { missions.addEvent(opts.missionId, res.ok ? 'verified' : 'failed', res.ok ? `Created and syntax-checked ${display}` : `Syntax failure in ${display}`); missions.updateMission(opts.missionId, { status: res.ok ? 'completed' : 'blocked', files: [display] }); }
                 logOp('create', `${display}${name ? ` (command .${name})` : ''}`);
                 if (res.ok) {
@@ -1677,7 +1748,7 @@ async function executeIntent(sock, m, opts, intent) {
                 } else {
                     await opts.reply(`_*✘ Saved but syntax error in \`${display}\`:*_\n\`\`\`\n${res.error.slice(0, 1200)}\n\`\`\``);
                 }
-                return { handled: true };
+                return { handled: true, verified: verification.ok };
             }
 
             case 'edit_file': {
@@ -1697,6 +1768,8 @@ async function executeIntent(sock, m, opts, intent) {
                 if (!next.trim()) { await opts.reply('_✘ No replacement content provided_'); return { handled: true }; }
                 if (opts.missionId) missions.snapshotFiles(opts.missionId, [display]);
                 const res = await writeFileWithAgentFix(abs, next, opts);
+                const verification = agentRuntime.verifyTool(action, { ok: res.ok, checks: [agentRuntime.verifyPath(display)] });
+                agentRuntime.recordMutation({ action, path: display, ok: res.ok, verified: verification.ok, missionId: opts.missionId || null });
                 if (opts.missionId) { missions.addEvent(opts.missionId, res.ok ? 'verified' : 'failed', res.ok ? `Edited and syntax-checked ${display}` : `Syntax failure in ${display}`); missions.updateMission(opts.missionId, { status: res.ok ? 'completed' : 'blocked', files: [display] }); }
                 logOp('edit', display);
                 if (res.ok) {
@@ -1705,7 +1778,7 @@ async function executeIntent(sock, m, opts, intent) {
                 } else {
                     await opts.reply(`_*✘ Saved but syntax error in \`${display}\`:*_\n\`\`\`\n${res.error.slice(0, 1200)}\n\`\`\``);
                 }
-                return { handled: true };
+                return { handled: true, verified: verification.ok };
             }
 
             case 'delete_file': {
@@ -1717,11 +1790,15 @@ async function executeIntent(sock, m, opts, intent) {
                     await opts.reply(`_🛡️ \`${display}\` is protected and cannot be deleted_`);
                     return { handled: true };
                 }
+                if (opts.missionId) missions.snapshotFiles(opts.missionId, [display]);
                 try {
                     fs.unlinkSync(abs);
+                    const verification = agentRuntime.verifyTool(action, { checks: [agentRuntime.verifyPath(display, { exists: false })] });
+                    agentRuntime.recordMutation({ action, path: display, ok: verification.ok, verified: verification.ok, missionId: opts.missionId || null });
                     logOp('delete', display);
                     if (display.includes('Commands')) { try { require('../../Plugin/crysLoadCmd').loadCommands(); } catch {} }
                     await opts.reply(`_*🗑️ \`${display}\` deleted ✓*_`);
+                    return { handled: true, verified: verification.ok };
                 } catch (e) { await opts.reply('_✘ Delete failed:_ ' + e.message); }
                 return { handled: true };
             }
@@ -1811,7 +1888,10 @@ async function executeIntent(sock, m, opts, intent) {
 
             case 'remember': {
                 if (!String(intent.fact || '').trim()) { await opts.reply('_*ⓘ What should I remember?*_'); return { handled: true }; }
-                addFact(String(intent.fact).trim());
+                const fact = String(intent.fact).trim();
+                const category = String(intent.category || 'facts').toLowerCase();
+                addFact(fact);
+                agentRuntime.rememberProfile(m.chat, category, fact, { key: intent.key || 'note' });
                 logOp('remember', String(intent.fact).slice(0, 80));
                 await opts.reply('_*📎 Remembered ✓*_');
                 return { handled: true };
@@ -2059,8 +2139,11 @@ async function executeIntent(sock, m, opts, intent) {
                 const item = missions.getMission(intent.id || intent.mission || intent.missionId);
                 if (!item) { await opts.reply('_✘ Mission not found_'); return { handled: true }; }
                 const nextStatus = action === 'mission_pause' ? 'paused' : 'running';
-                missions.updateMission(item.id, { status: nextStatus });
-                missions.addEvent(item.id, nextStatus, `Mission ${nextStatus}`);
+                if (action === 'mission_resume') missions.recoverMission(item.id);
+                else {
+                    missions.updateMission(item.id, { status: nextStatus });
+                    missions.addEvent(item.id, nextStatus, `Mission ${nextStatus}`);
+                }
                 await opts.reply(`_*${nextStatus === 'paused' ? '⏸️' : '▶️'} ${item.id}: ${nextStatus.toUpperCase()}*_`);
                 return { handled: true };
             }
@@ -2142,10 +2225,17 @@ async function executeIntent(sock, m, opts, intent) {
                 if (!source) { await opts.reply('_✘ Source file was not found inside the live runtime workspace_'); return { handled: true }; }
                 if (!destination || !destinationRaw) { await opts.reply('_✘ Destination path is invalid or outside the live runtime workspace_'); return { handled: true }; }
                 if (fs.existsSync(destination.abs)) { await opts.reply(`_✘ Destination already exists:_ \`${destination.display}\``); return { handled: true }; }
-                if (opts.missionId) missions.snapshotFiles(opts.missionId, [source.display]);
+                if (opts.missionId) missions.recordMoveSnapshot(opts.missionId, source.display, destination.display);
                 try {
                     fs.mkdirSync(path.dirname(destination.abs), { recursive: true });
                     fs.renameSync(source.abs, destination.abs);
+                    const verification = agentRuntime.verifyTool(action, {
+                        checks: [
+                            agentRuntime.verifyPath(source.display, { exists: false }),
+                            agentRuntime.verifyPath(destination.display)
+                        ]
+                    });
+                    agentRuntime.recordMutation({ action, from: source.display, to: destination.display, ok: verification.ok, verified: verification.ok, missionId: opts.missionId || null });
                     let loaded = null;
                     let reloadWarning = '';
                     try {
@@ -2301,7 +2391,7 @@ async function execute(sock, m, opts) {
         // Live requests get natural-language tool narration. Direct callers of
         // executeIntent (including tests and internal adapters) keep their
         // exact deterministic replies unless they opt in explicitly.
-        const agentOpts = withNaturalToolNarration({ ...opts, naturalLanguage: true }, text);
+        const agentOpts = withNaturalToolNarration({ ...opts, naturalLanguage: true, enforceApproval: true, userRequest: text }, text);
 
         // ── Spam control = the invisible-character (marker) logic ONLY ──
         // The owner and the bot are the SAME WhatsApp account, so every
