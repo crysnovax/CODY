@@ -243,7 +243,7 @@ module.exports.handleAntiSpam = async function(sock, m) {
                     .filter(p => p.admin)
                     .flatMap(participant => participantJids(participant).map(norm));
                 const senderNorm = norm(sender);
-                if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) {
+                if (!adminwatchEnabled && admins.includes(senderNorm)) {
                     // Admin exempt - reset count
                     userData.count = 0;
                     return;

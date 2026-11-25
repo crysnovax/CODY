@@ -246,7 +246,7 @@ module.exports.handleAntiTag = async function(sock, m) {
             const identities = [participant.id, participant.jid, participant.lid, participant.phoneNumber].filter(Boolean);
             return identities.some(identity => senderCandidates.some(sender => sameIdentity(identity, sender)));
         });
-        if (!adminwatchEnabled && !m.__editModeration && senderRecord?.admin) return;
+        if (!adminwatchEnabled && senderRecord?.admin) return;
 
         const botCandidates = [sock.user?.id, sock.user?.lid].filter(Boolean);
         if (!m.__editModeration && senderCandidates.some(sender => botCandidates.some(bot => sameIdentity(sender, bot)))) return;
