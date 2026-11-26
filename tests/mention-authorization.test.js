@@ -31,6 +31,29 @@ test('ordinary sender tagging another user is not a privileged target', async ()
     );
 });
 
+test('configured mention behavior only recognizes an explicit bot target', async () => {
+    assert.equal(
+        await mention.isBotExplicitlyMentioned(sock, message('member@s.whatsapp.net', ['other@s.whatsapp.net'])),
+        false
+    );
+    assert.equal(
+        await mention.isBotExplicitlyMentioned(sock, message('member@s.whatsapp.net', ['99999@s.whatsapp.net'])),
+        true
+    );
+});
+
+test('quoted message mentions do not become explicit bot tags', async () => {
+    const quotedOnly = {
+        sender: 'member@s.whatsapp.net',
+        key: { fromMe: false, participant: 'member@s.whatsapp.net' },
+        quoted: {
+            sender: 'other@s.whatsapp.net',
+            message: { extendedTextMessage: { contextInfo: { mentionedJid: ['99999@s.whatsapp.net'] } } }
+        }
+    };
+    assert.equal(await mention.isBotExplicitlyMentioned(sock, quotedOnly), false);
+});
+
 test('only a privileged sender tagging the bot is marked for downstream suppression', async () => {
     const previousSudo = process.env.SUDO_NUMBERS;
     process.env.SUDO_NUMBERS = '77777';

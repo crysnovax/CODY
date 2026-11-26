@@ -845,7 +845,7 @@ try {
             try {
                 const mention = require('./src/Commands/Owner/mention.js');
                 const { mentionConfig } = mention;
-                if (mentionConfig.active && mention.isExplicitlyMentioned(m)) {
+                if (mentionConfig.active && await mention.isBotExplicitlyMentioned(sock, m)) {
                     // PLOGME owns the effective lifetime of the filter. With
                     // no explicit per-chat override, enabling PLOGME enables
                     // it automatically; disabling PLOGME always disables it.
