@@ -118,6 +118,30 @@ test('status handler subscribes through Baileys and delegates personal view/like
     assert.deepEqual(calls.statusLikes, [[message, '💜']]);
 });
 
+test('personal status with status remoteJidAlt resolves its author from remoteJid', async () => {
+    writeJson('autosavestatus.json', { enabled: false });
+    writeJson('autocommentstatus.json', { enabled: false });
+    statusFlags = { AUTO_STATUS_VIEW: true, AUTO_STATUS_LIKE: true, STATUS_EMOJI: '💛' };
+    const { calls } = makeSocket();
+    const message = {
+        key: {
+            remoteJid: '15550001112@s.whatsapp.net',
+            remoteJidAlt: 'status@broadcast',
+            id: 'personal-remote-author-1'
+        },
+        message: { imageMessage: { caption: 'personal status' } }
+    };
+
+    await dispatchWithoutReactionDelay(calls.subscription.listener, {
+        message,
+        kind: 'status',
+        type: 'notify'
+    });
+
+    assert.deepEqual(calls.views, [message]);
+    assert.deepEqual(calls.statusLikes, [[message, '💛']]);
+});
+
 test('personal status keys are handled even when the callback kind is not status', async () => {
     writeJson('autosavestatus.json', { enabled: false });
     writeJson('autocommentstatus.json', { enabled: false });

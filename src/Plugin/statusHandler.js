@@ -54,9 +54,15 @@ function isStatusInteraction(message) {
 }
 
 function hasResolvedStatusAuthor(event) {
+    return Boolean(getStatusAuthorJid(event));
+}
+
+function getStatusAuthorJid(event) {
     const key = event?.message?.key || event?.message?.fakeObj?.key || {};
-    return [event?.authorJid, key.participant, key.participantAlt, key.remoteJidAlt, event?.message?.sender, event?.message?.from]
-        .some(jid => ['pn', 'lid'].includes(jidKind(jid)));
+    const candidates = key.remoteJid === 'status@broadcast'
+        ? [event?.authorJid, key.participant, key.participantAlt, key.remoteJidAlt, key.remoteJid, event?.message?.sender, event?.message?.from]
+        : [event?.authorJid, key.participant, key.remoteJid, key.participantAlt, key.remoteJidAlt, event?.message?.sender, event?.message?.from];
+    return candidates.find(jid => ['pn', 'lid'].includes(jidKind(jid)));
 }
 
 function hasGroupStatus(message) {
@@ -235,8 +241,7 @@ async function autoCommentStatus(sock, event) {
         comment = String(config.text || '').trim();
         if (!comment) return false;
     }
-    const key = event?.message?.key || event?.message?.fakeObj?.key || {};
-    const authorJid = event.authorJid || key.participant || key.participantAlt || key.remoteJidAlt;
+    const authorJid = getStatusAuthorJid(event);
     if (!authorJid) return false;
     const content = typeof comment === 'string' ? { text: comment } : comment;
     if (typeof sock.sendMessage !== 'function') {
@@ -323,7 +328,7 @@ const setupStatusHandler = (sock) => {
             return;
         }
 
-        const author = event.authorJid || key.participant || key.participantAlt || key.remoteJidAlt || 'unknown';
+        const author = getStatusAuthorJid(event) || 'unknown';
         const normalizedEvent = { ...event, kind };
         const seenKey = `${kind}:${author}:${key.id}`;
         if (seen.has(seenKey)) {
