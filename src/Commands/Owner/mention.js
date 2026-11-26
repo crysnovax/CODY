@@ -130,6 +130,19 @@ async function isPrivilegedSender(sock, m) {
     return false;
 }
 
+async function isPrivilegedBotMention(sock, m) {
+    if (!isExplicitlyMentioned(m) || !(await isPrivilegedSender(sock, m))) return false;
+    const botIdentities = new Set();
+    for (const jid of [sock.user?.id, sock.user?.lid].filter(Boolean)) {
+        for (const variant of await identityVariants(sock, jid)) botIdentities.add(norm(variant));
+    }
+    for (const jid of getExplicitMentionedJids(m)) {
+        const variants = await identityVariants(sock, jid);
+        if ([...variants].some(variant => botIdentities.has(norm(variant)))) return true;
+    }
+    return false;
+}
+
 async function isPrivilegedMentioned(sock, m, mek) {
     if (m.key?.fromMe) return false;
     const context = getContextInfo(m);
@@ -509,6 +522,7 @@ module.exports.mentionConfig = mentionConfig;
 module.exports.loadMentionConfig = loadMentionConfig;
 module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
 module.exports.isPrivilegedSender = isPrivilegedSender;
+module.exports.isPrivilegedBotMention = isPrivilegedBotMention;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
 module.exports.getExplicitMentionedJids = getExplicitMentionedJids;
 module.exports.isExplicitlyMentioned = isExplicitlyMentioned;

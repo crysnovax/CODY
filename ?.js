@@ -793,6 +793,9 @@ try {
             }
             // ── DND — delete + reply when the bot is tagged (@crysnovax—FIX06-08-26) ──
             try {
+                const mention = require('./src/Commands/Owner/mention.js');
+                m.__privilegedMentionSuppressed = await mention.isPrivilegedBotMention(sock, m)
+                    && mention.isMentionFilterEnabled(m.chat, plogmeCmd.isEnabled(m.chat));
                 const dnd = require('./src/Commands/Group/dnd.js');
                 if (dnd?.handleDndTag) await dnd.handleDndTag(sock, m);
             } catch {}
@@ -935,6 +938,8 @@ try {
             if (isCommandCandidate) console.log('[MSG PIPE] command router start');
             await handleMessage(sock, m, customStore);
             if (isCommandCandidate) console.log('[MSG PIPE] command router complete');
+
+            if (m.__privilegedMentionSuppressed) return;
 
             // --- plogme hook (dedupe + short-circuit) — runs BEFORE the old
             //     chatbot brain so plogme takes priority when it handles ---

@@ -42,6 +42,7 @@ module.exports = {
 module.exports.handleDndTag = async (sock, m) => {
     try {
         if (!m.isGroup || m.key?.fromMe) return;
+        if (m.__privilegedMentionSuppressed) return;
 
         const dnd = getVar('DND', false);
         if (!dnd) return;

@@ -31,6 +31,24 @@ test('ordinary sender tagging another user is not a privileged target', async ()
     );
 });
 
+test('only a privileged sender tagging the bot is marked for downstream suppression', async () => {
+    const previousSudo = process.env.SUDO_NUMBERS;
+    process.env.SUDO_NUMBERS = '77777';
+    try {
+        assert.equal(
+            await mention.isPrivilegedBotMention(sock, message('member@s.whatsapp.net', ['99999@s.whatsapp.net'])),
+            false
+        );
+        assert.equal(
+            await mention.isPrivilegedBotMention(sock, message('77777@s.whatsapp.net', ['99999@lid'])),
+            true
+        );
+    } finally {
+        if (previousSudo === undefined) delete process.env.SUDO_NUMBERS;
+        else process.env.SUDO_NUMBERS = previousSudo;
+    }
+});
+
 test('bot phone and LID identities are not owner/sudo/dual filter identities', async () => {
     const privileged = await mention.getPrivilegedIdentities(sock);
     assert.equal(privileged.has('99999@s.whatsapp.net'), false);
