@@ -24,14 +24,14 @@ test('ordinary sender tagging the bot is an explicit mention but not a privilege
     assert.equal(await mention.isPrivilegedMentioned(sock, tagged), false);
 });
 
-test('ordinary sender tagging another user is not a privileged target', async () => {
+test('ordinary sender tagging an unrelated user is not a privileged target', async () => {
     assert.equal(
         await mention.isPrivilegedMentioned(sock, message('member@s.whatsapp.net', ['other@s.whatsapp.net'])),
         false
     );
 });
 
-test('configured mention behavior only recognizes an explicit bot target', async () => {
+test('configured mention behavior recognizes the bot but excludes unrelated targets', async () => {
     assert.equal(
         await mention.isBotExplicitlyMentioned(sock, message('member@s.whatsapp.net', ['other@s.whatsapp.net'])),
         false
@@ -40,6 +40,20 @@ test('configured mention behavior only recognizes an explicit bot target', async
         await mention.isBotExplicitlyMentioned(sock, message('member@s.whatsapp.net', ['99999@s.whatsapp.net'])),
         true
     );
+});
+
+test('ordinary users tagging an owner, sudo, or dual target remain eligible', async () => {
+    const previousSudo = process.env.SUDO_NUMBERS;
+    process.env.SUDO_NUMBERS = '77777';
+    try {
+        assert.equal(
+            await mention.isPrivilegedMentioned(sock, message('member@s.whatsapp.net', ['77777@s.whatsapp.net'])),
+            true
+        );
+    } finally {
+        if (previousSudo === undefined) delete process.env.SUDO_NUMBERS;
+        else process.env.SUDO_NUMBERS = previousSudo;
+    }
 });
 
 test('quoted message mentions do not become explicit bot tags', async () => {
