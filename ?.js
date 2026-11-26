@@ -842,25 +842,33 @@ try {
             try {
                 const mention = require('./src/Commands/Owner/mention.js');
                 const { mentionConfig } = mention;
-                if (mentionConfig.active && await mention.isPrivilegedMentioned(sock, m, mek)) {
-                    if (mentionConfig.action === 'react' && mentionConfig.emoji) {
+                if (mentionConfig.active && mention.isExplicitlyMentioned(m)) {
+                    // PLOGME owns the effective lifetime of the filter. With
+                    // no explicit per-chat override, enabling PLOGME enables
+                    // it automatically; disabling PLOGME always disables it.
+                    const privilegedMention = await mention.isPrivilegedMentioned(sock, m, mek);
+                    const suppressed = privilegedMention && mention.isMentionFilterEnabled(
+                        m.chat,
+                        plogmeCmd.isEnabled(m.chat)
+                    );
+                    if (!suppressed && mentionConfig.action === 'react' && mentionConfig.emoji) {
                         await sock.sendMessage(m.chat, { react: { text: mentionConfig.emoji, key: m.key } }).catch(() => {});
-                    } else if (mentionConfig.action === 'text' && mentionConfig.text) {
+                    } else if (!suppressed && mentionConfig.action === 'text' && mentionConfig.text) {
                         await sock.sendMessage(m.chat, { text: mentionConfig.text }, { quoted: m }).catch(() => {});
-                    } else if (mentionConfig.action === 'sreact') {
+                    } else if (!suppressed && mentionConfig.action === 'sreact') {
                         const sreact = require('./src/Commands/Owner/sreact.js');
                         await sreact.sendStickerReaction(sock, m.chat, m.key, mentionConfig.sreactCount || 1).catch(error => {
                             console.error('[MENTION SREACT]', error.message);
                         });
-                    } else if (mentionConfig.action === 'sticker' && mentionConfig.sticker) {
+                    } else if (!suppressed && mentionConfig.action === 'sticker' && mentionConfig.sticker) {
                         await mention.sendMentionSticker(sock, m.chat, { quoted: m }).catch(error => {
                             console.error('[MENTION STICKER]', error.message);
                         });
-                    } else if (mentionConfig.action === 'voice' && mentionConfig.voice) {
+                    } else if (!suppressed && mentionConfig.action === 'voice' && mentionConfig.voice) {
                         await mention.sendMentionVoice(sock, m.chat, { quoted: m }).catch(error => {
                             console.error('[MENTION VOICE]', error.message);
                         });
-                    } else if (mentionConfig.action === 'saudio' && mentionConfig.saudioSticker && mentionConfig.saudioAudio) {
+                    } else if (!suppressed && mentionConfig.action === 'saudio' && mentionConfig.saudioSticker && mentionConfig.saudioAudio) {
                         await mention.sendMentionSaudio(sock, m.chat, { quoted: m }).catch(error => {
                             console.error('[MENTION SAUDIO]', error.message);
                         });

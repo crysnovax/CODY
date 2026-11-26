@@ -16,6 +16,7 @@ const {
 } = require('./sreact');
 
 const MENTION_FILE = path.join(__dirname, '../../../database/mention_config.json');
+const MENTION_FILTER_FILE = path.join(__dirname, '../../../database/mention_filter.json');
 const MENTION_STICKER_FILE = path.join(__dirname, '../../../database/mention-sticker.webp');
 const MENTION_PROTOCOL_FILE = path.join(__dirname, '../../../database/mention-sticker-message.json');
 const MENTION_VOICE_FILE = path.join(__dirname, '../../../database/mention-voice.ogg');
@@ -61,6 +62,40 @@ const saveMentionConfig = () => {
 
 loadMentionConfig();
 
+function loadMentionFilter() {
+    try {
+        if (fs.existsSync(MENTION_FILTER_FILE)) {
+            const value = JSON.parse(fs.readFileSync(MENTION_FILTER_FILE, 'utf8'));
+            return value && typeof value === 'object' ? value : {};
+        }
+    } catch (e) {
+        console.error('[MENTION FILTER] Load error:', e.message);
+    }
+    return {};
+}
+function saveMentionFilter(state) {
+    try {
+        fs.mkdirSync(path.dirname(MENTION_FILTER_FILE), { recursive: true });
+        fs.writeFileSync(MENTION_FILTER_FILE, JSON.stringify(state, null, 2));
+    } catch (e) {
+        console.error('[MENTION FILTER] Save error:', e.message);
+    }
+}
+function getMentionFilterSetting(chat) {
+    const state = loadMentionFilter();
+    return Object.prototype.hasOwnProperty.call(state, chat) ? state[chat] === true : null;
+}
+function setMentionFilterSetting(chat, enabled) {
+    const state = loadMentionFilter();
+    state[chat] = Boolean(enabled);
+    saveMentionFilter(state);
+}
+function isMentionFilterEnabled(chat, plogmeEnabled) {
+    if (!plogmeEnabled) return false;
+    const setting = getMentionFilterSetting(chat);
+    return setting === null ? true : setting;
+}
+
 // Helper: normalize JID for comparison
 const norm = (j) => normalizeJid(j).toLowerCase().trim();
 
@@ -100,6 +135,18 @@ async function isPrivilegedMentioned(sock, m, mek) {
         if ([...variants].some(variant => privileged.has(norm(variant)))) return true;
     }
     return false;
+}
+
+function getExplicitMentionedJids(m) {
+    const context = getContextInfo(m);
+    return [...new Set([
+        ...(context.mentionedJid || []),
+        ...(m.mentionedJid || []),
+        ...(m.msg?.contextInfo?.mentionedJid || []),
+    ].filter(Boolean))];
+}
+function isExplicitlyMentioned(m) {
+    return !m?.key?.fromMe && getExplicitMentionedJids(m).length > 0;
 }
 
 async function sendMentionSticker(sock, jid, options = {}) {
@@ -213,6 +260,26 @@ module.exports = {
     execute: async (sock, m, { args, reply, prefix }) => {
         const option = args[0]?.toLowerCase();
         const value  = args.slice(1).join(' ');
+
+        // The filter follows PLOGME automatically when no explicit setting
+        // exists for this chat. An explicit off remains inactive if PLOGME is
+        // disabled and takes effect again if PLOGME is later enabled.
+        if (option === 'filter') {
+            const requested = args[1]?.toLowerCase();
+            if (!['on', 'off', 'status'].includes(requested)) {
+                return reply(`Usage: ${prefix}mention filter on|off|status`);
+            }
+            const plogme = require('../Core/plogme');
+            const plogmeEnabled = plogme.isEnabled(m.chat);
+            if (requested === 'status') {
+                const setting = getMentionFilterSetting(m.chat);
+                const effective = isMentionFilterEnabled(m.chat, plogmeEnabled);
+                return reply(`╭─❍ *MENTION FILTER*\n│\n│ ✦ Effective : ${effective ? '✓ ON' : '✗ OFF'}\n│ 🤖 Plogme   : ${plogmeEnabled ? '✓ ON' : '✗ OFF'}\n│ ⚙️ Setting  : ${setting === null ? 'AUTO' : (setting ? 'ON' : 'OFF')}\n╰──────────────────`);
+            }
+            const enabled = requested === 'on';
+            setMentionFilterSetting(m.chat, enabled);
+            return reply(`╭─❍ *MENTION FILTER*\n│\n│ ✦ Setting  : ${enabled ? '✓ ON' : '✗ OFF'}\n│ 🤖 Plogme   : ${plogmeEnabled ? '✓ ON' : '✗ OFF'}\n│ ⚡ Effective: ${isMentionFilterEnabled(m.chat, plogmeEnabled) ? '✓ ON' : '✗ OFF'}\n╰──────────────────`);
+        }
 
         // OFF
         if (option === 'off') {
@@ -405,6 +472,8 @@ module.exports = {
             `│   Disable mention responses\n│\n` +
             `│ ➫ ${prefix}mention -status\n` +
             `│   Show current configuration\n│\n` +
+            `│ ➫ ${prefix}mention filter on/off\n` +
+            `│   Suppress privileged responses while Plogme is ON\n│\n` +
             `│ ➫ ${prefix}mention -react <emoji>\n` +
             `│   Auto-react when mentioned\n` +
             `│   Example: ${prefix}mention -react ❤️‍🔥\n│\n` +
@@ -428,6 +497,11 @@ module.exports.mentionConfig = mentionConfig;
 module.exports.loadMentionConfig = loadMentionConfig;
 module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
+module.exports.getExplicitMentionedJids = getExplicitMentionedJids;
+module.exports.isExplicitlyMentioned = isExplicitlyMentioned;
+module.exports.getMentionFilterSetting = getMentionFilterSetting;
+module.exports.setMentionFilterSetting = setMentionFilterSetting;
+module.exports.isMentionFilterEnabled = isMentionFilterEnabled;
 module.exports.sendMentionSticker = sendMentionSticker;
 module.exports.sendMentionVoice = sendMentionVoice;
 module.exports.sendMentionSaudio = sendMentionSaudio;
