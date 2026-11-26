@@ -109,7 +109,6 @@ async function getPrivilegedIdentities(sock) {
     const ownerNumber = (process.env.OWNER_NUMBER || config.owner || '').replace(/\D/g, '');
     const phoneJids = [
         ownerNumber && `${ownerNumber}@s.whatsapp.net`,
-        normalizeJid(sock.user?.id || ''),
         ...getList('SUDO_NUMBERS').map(number => `${number}@s.whatsapp.net`),
         ...getList('DUAL_NUMBERS').map(number => `${number}@s.whatsapp.net`),
     ].filter(Boolean);
@@ -118,7 +117,6 @@ async function getPrivilegedIdentities(sock) {
     for (const jid of phoneJids) {
         for (const variant of await identityVariants(sock, jid)) identities.add(norm(variant));
     }
-    if (sock.user?.lid) identities.add(norm(sock.user.lid));
     return identities;
 }
 

@@ -68,7 +68,7 @@ test('.mention filter on/off persists one global override for every chat', async
     }
 });
 
-test('ordinary explicit mentions remain eligible while privileged mentions are suppressible', async () => {
+test('ordinary explicit mentions remain eligible while configured privileged targets are suppressible', async () => {
     const sock = {
         user: { id: '111111@s.whatsapp.net', lid: '111111@lid' },
         signalRepository: { lidMapping: {
@@ -78,7 +78,7 @@ test('ordinary explicit mentions remain eligible while privileged mentions are s
     };
     assert.equal(mention.isExplicitlyMentioned(tagged('222222@s.whatsapp.net')), true);
     assert.equal(await mention.isPrivilegedMentioned(sock, tagged('222222@s.whatsapp.net')), false);
-    assert.equal(await mention.isPrivilegedMentioned(sock, tagged('111111@lid')), true);
+    assert.equal(await mention.isPrivilegedMentioned(sock, tagged('111111@lid')), false);
 });
 
 test('filter status reports Plogme-off as effectively off even after a manual on', async () => {

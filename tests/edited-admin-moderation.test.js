@@ -22,8 +22,8 @@ function makeMessage(group, sender, id, overrides = {}) {
     };
 }
 
-function makeSocket(sent) {
-    const participants = [
+function makeSocket(sent, options = {}) {
+    const participants = options.participants || [
         { id: 'admin@s.whatsapp.net', admin: 'admin' },
         { id: 'member@s.whatsapp.net', admin: null },
         { id: 'bot@s.whatsapp.net', admin: 'admin' },
@@ -31,6 +31,7 @@ function makeSocket(sent) {
     return {
         user: { id: 'bot@s.whatsapp.net' },
         groupMetadata: async () => ({ participants }),
+        signalRepository: options.signalRepository,
         sendMessage: async (_chat, content) => {
             sent.push(content);
             return {};
@@ -102,6 +103,26 @@ test('edited admins remain exempt while edited members remain moderated', async 
         });
         await antilink.handleAntiLink(sock, adminLink, { key: adminLink.key, message: adminLink.message });
         assert.equal(sent.length, 0, 'edited admin links remain exempt');
+
+        const lidAdminSock = makeSocket(sent, {
+            participants: [
+                { id: '12345@lid', phoneNumber: 'admin@s.whatsapp.net', admin: 'admin' },
+                { id: 'bot@s.whatsapp.net', admin: 'admin' },
+            ],
+            signalRepository: {
+                lidMapping: {
+                    getPNForLID: async jid => jid === '12345@lid' ? 'admin@s.whatsapp.net' : null,
+                    getLIDForPN: async jid => jid === 'admin@s.whatsapp.net' ? '12345@lid' : null,
+                },
+            },
+        });
+        const lidAdminLink = makeMessage(group, '12345@lid', 'lid-admin-link', {
+            key: { remoteJid: group, participant: '12345@lid', participantAlt: '12345@lid', id: 'lid-admin-link' },
+            message: { conversation: 'https://example.invalid/lid-edited-link' },
+            text: 'https://example.invalid/lid-edited-link',
+        });
+        await antilink.handleAntiLink(lidAdminSock, lidAdminLink, { key: lidAdminLink.key, message: lidAdminLink.message });
+        assert.equal(sent.length, 0, 'edited LID admin links remain exempt');
 
         const memberLink = makeMessage(group, 'member@s.whatsapp.net', 'member-link', {
             message: { conversation: 'https://example.invalid/edited-link' },
