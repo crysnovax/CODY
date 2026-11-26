@@ -4,6 +4,7 @@ const { stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
+const { messageParticipantCandidates, findMatchingParticipant } = require('../../Plugin/identityUtils');
 
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antigm.json');
@@ -164,14 +165,12 @@ module.exports.handleAntiGM = async function(sock, m, mek) {
         const meta = await sock.groupMetadata(group).catch(() => null);
         if (!meta) return;
 
-        const admins = meta.participants
-            .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
-            .map(p => p.id.replace(/:\d+@/, '@'));
-        const senderNorm = (m.sender || '').replace(/:\d+@/, '@');
-        if (await isAntiPermitted(sock, group, [m.sender, m.key?.participant, m.key?.participantAlt])) return;
-        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
+        const senderCandidates = messageParticipantCandidates(m, mek);
+        if (await isAntiPermitted(sock, group, senderCandidates)) return;
+        const senderRecord = findMatchingParticipant(meta, senderCandidates);
+        if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return;
 
-        const sender = m.sender;
+        const sender = senderCandidates[0] || m.sender;
 
         // Delete the message FIRST for all actions
         await sock.sendMessage(group, { delete: m.key }).catch(() => {});

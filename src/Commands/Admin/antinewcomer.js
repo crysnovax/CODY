@@ -118,7 +118,7 @@ const plugin = {
             const senderRecord = metadata?.participants?.find(participant =>
                 participantIds(participant).some(jid => candidates.map(normalizeJid).includes(jid))
             );
-            if (!adminwatchEnabled && !m.__editModeration && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
+            if (!adminwatchEnabled && (senderRecord?.admin === 'admin' || senderRecord?.admin === 'superadmin')) return false;
             const botIds = [sock.user?.id, sock.user?.lid].filter(Boolean).map(normalizeJid);
             const botRecord = metadata?.participants?.find(participant => participantIds(participant).some(jid => botIds.includes(jid)));
             if (!botRecord || !['admin', 'superadmin'].includes(botRecord.admin)) {

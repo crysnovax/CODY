@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { normalizeJid } = require('../../Plugin/identityUtils');
+const { messageParticipantCandidates, findMatchingParticipant, normalizeJid } = require('../../Plugin/identityUtils');
 const DB_PATH = path.join(process.cwd(), 'database', 'slowmode.json');
 const lastMessageAt = new Map();
 const lastNoticeAt = new Map();
@@ -19,12 +19,6 @@ function parseDuration(input) {
     const amount = Number(match[1]);
     const ms = amount * ({ s: 1000, m: 60_000, h: 3_600_000 }[match[2].toLowerCase()]);
     return amount >= 1 && ms <= 86_400_000 ? ms : null;
-}
-function groupParticipant(metadata, candidates) {
-    const ids = new Set(candidates.filter(Boolean).map(normalizeJid));
-    return (metadata?.participants || []).find(person =>
-        [person.id, person.jid, person.lid, person.phoneNumber].filter(Boolean).map(normalizeJid).some(id => ids.has(id))
-    );
 }
 const plugin = {
     name: 'slowmode',
@@ -58,15 +52,16 @@ const plugin = {
     },
     handleSlowmode: async function handleSlowmode(sock, m, mek) {
         try {
-            if (!m?.isGroup || (m.key?.fromMe && !m.__editModeration) || !m.sender) return false;
+            if (!m?.isGroup || (m.key?.fromMe && !m.__editModeration)) return false;
             const cfg = readDB()[m.chat];
             if (!cfg?.enabled || !Number.isFinite(cfg.intervalMs) || cfg.intervalMs < 1000) return false;
             const now = Date.now();
             const metadata = await sock.groupMetadata(m.chat).catch(() => null);
-            const senderIds = [m.sender, m.key?.participant, m.key?.participantAlt];
-            const sender = groupParticipant(metadata, senderIds);
-            if (!m.__editModeration && (sender?.admin === 'admin' || sender?.admin === 'superadmin')) return false;
-            const bot = groupParticipant(metadata, [sock.user?.id, sock.user?.lid]);
+            const senderIds = messageParticipantCandidates(m, mek);
+            const sender = findMatchingParticipant(metadata, senderIds);
+            if (!senderIds.length) return false;
+            if (sender?.admin === 'admin' || sender?.admin === 'superadmin') return false;
+            const bot = findMatchingParticipant(metadata, [sock.user?.id, sock.user?.lid]);
             if (!bot || !['admin', 'superadmin'].includes(bot.admin)) {
                 const key = `bot-admin:${m.chat}`;
                 if (now - (lastNoticeAt.get(key) || 0) > 300_000) {
@@ -75,7 +70,7 @@ const plugin = {
                 }
                 return false;
             }
-            const senderId = normalizeJid(m.sender);
+            const senderId = normalizeJid(senderIds[0]);
             const key = `${m.chat}:${senderId}`;
             const previous = lastMessageAt.get(key);
             lastMessageAt.set(key, now);

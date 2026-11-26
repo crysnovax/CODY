@@ -7,7 +7,7 @@ const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antispam_warns.json')
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
-const { participantJids } = require('../../Plugin/identityUtils');
+const { messageParticipantCandidates, participantJids } = require('../../Plugin/identityUtils');
 
 // Spam tracking cache (in-memory, cleared on restart)
 const messageCache = new Map(); // group: { userId: { count, firstTime, lastTime } }
@@ -175,7 +175,7 @@ module.exports = {
 };
 
 // ── Message Handler ────────────────────────────────────────────
-module.exports.handleAntiSpam = async function(sock, m) {
+module.exports.handleAntiSpam = async function(sock, m, mek) {
     try {
         if (!m.isGroup || (m.key?.fromMe && !m.__editModeration) || !isModerationEnabled(m.chat)) return;
 
@@ -185,8 +185,10 @@ module.exports.handleAntiSpam = async function(sock, m) {
         const adminwatchEnabled = isAdminwatchEnabled(group, 'antispam');
         if (!await shouldApplyAdminwatch(sock, m, 'antispam')) return;
 
-        const sender = m.sender;
-        if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
+        const senderCandidates = messageParticipantCandidates(m, mek);
+        const sender = senderCandidates[0] || m.sender;
+        if (!sender) return;
+        if (await isAntiPermitted(sock, group, senderCandidates)) return;
         const now = Date.now();
 
         // Check if user is muted
@@ -242,8 +244,8 @@ module.exports.handleAntiSpam = async function(sock, m) {
                 const admins = meta.participants
                     .filter(p => p.admin)
                     .flatMap(participant => participantJids(participant).map(norm));
-                const senderNorm = norm(sender);
-                if (!adminwatchEnabled && admins.includes(senderNorm)) {
+                const senderIsAdmin = senderCandidates.some(candidate => admins.includes(norm(candidate)));
+                if (!adminwatchEnabled && senderIsAdmin) {
                     // Admin exempt - reset count
                     userData.count = 0;
                     return;

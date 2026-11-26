@@ -4,6 +4,7 @@ const { stripBotMarker, stripQuotedDeep } = require('../../Plugin/antiText');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
+const { messageParticipantCandidates, isAdminParticipant } = require('../../Plugin/identityUtils');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antiword.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antiword_warns.json');
@@ -211,13 +212,11 @@ module.exports.handleAntiWord = async function(sock, m, mek) {
         const meta = await sock.groupMetadata(group).catch(() => null);
         if (!meta) return;
 
-        const sender = m.sender;
-        if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
-        const admins = meta.participants
-            .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
-            .map(p => p.id.replace(/:\d+@/, '@'));
-        const senderNorm = (sender || '').replace(/:\d+@/, '@');
-        if (!adminwatchEnabled && !m.__editModeration && admins.includes(senderNorm)) return;
+        const senderCandidates = messageParticipantCandidates(m, mek);
+        const sender = senderCandidates[0] || m.sender;
+        if (!sender) return;
+        if (await isAntiPermitted(sock, group, senderCandidates)) return;
+        if (!adminwatchEnabled && isAdminParticipant(meta, senderCandidates)) return;
 
         const action = cfg.action || 'delete';
 

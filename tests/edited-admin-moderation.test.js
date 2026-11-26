@@ -70,10 +70,14 @@ test('edited admins remain exempt while edited members remain moderated', async 
         fs.writeFileSync(path.join(dir, 'database', 'antibot.json'), JSON.stringify({
             [group]: { enabled: true, action: 'delete' },
         }));
+        fs.writeFileSync(path.join(dir, 'database', 'slowmode.json'), JSON.stringify({
+            [group]: { enabled: true, intervalMs: 1000 },
+        }));
 
         const antilink = require('../src/Commands/Admin/antilink');
         const antitag = require('../src/Commands/Admin/antitag');
         const antispam = require('../src/Commands/Admin/antispam');
+        const slowmode = require('../src/Commands/Admin/slowmode');
         const { createAntiMessageModeration } = require('../src/Plugin/antiMessageModeration');
         const sharedAnti = createAntiMessageModeration({
             command: 'antibot',
@@ -85,7 +89,14 @@ test('edited admins remain exempt while edited members remain moderated', async 
             violationLabel: 'test violation',
         });
 
-        const adminLink = makeMessage(group, 'admin@s.whatsapp.net', 'admin-link', {
+        const editedAdminKey = {
+            remoteJid: group,
+            participant: 'stale@s.whatsapp.net',
+            participantAlt: 'admin@s.whatsapp.net',
+            id: 'edited-admin',
+        };
+        const adminLink = makeMessage(group, 'stale@s.whatsapp.net', 'admin-link', {
+            key: editedAdminKey,
             message: { conversation: 'https://example.invalid/edited-link' },
             text: 'https://example.invalid/edited-link',
         });
@@ -100,7 +111,8 @@ test('edited admins remain exempt while edited members remain moderated', async 
         assert.ok(sent.some(content => content?.delete), 'edited member links remain moderated');
 
         sent.length = 0;
-        const adminTag = makeMessage(group, 'admin@s.whatsapp.net', 'admin-tag', {
+        const adminTag = makeMessage(group, 'stale@s.whatsapp.net', 'admin-tag', {
+            key: { ...editedAdminKey, id: 'admin-tag' },
             mentionedJid: ['one@s.whatsapp.net', 'two@s.whatsapp.net'],
             message: { conversation: '@one @two' },
             text: '@one @two',
@@ -117,9 +129,13 @@ test('edited admins remain exempt while edited members remain moderated', async 
         assert.ok(sent.some(content => content?.delete), 'edited member mass-tags remain moderated');
 
         sent.length = 0;
-        const adminSpam = makeMessage(group, 'admin@s.whatsapp.net', 'admin-spam');
+        const adminSpam = makeMessage(group, 'stale@s.whatsapp.net', 'admin-spam', {
+            key: { ...editedAdminKey, id: 'admin-spam' },
+        });
         await antispam.handleAntiSpam(sock, adminSpam);
         assert.equal(sent.length, 0, 'edited admin spam remains exempt');
+        const slowmodeResult = await slowmode.handleSlowmode(sock, adminSpam, { key: adminSpam.key, message: adminSpam.message });
+        assert.equal(slowmodeResult, false, 'edited admin slowmode remains exempt through participantAlt');
 
         const memberSpam = makeMessage(group, 'member@s.whatsapp.net', 'member-spam');
         await antispam.handleAntiSpam(sock, memberSpam);

@@ -27,6 +27,35 @@ function participantJids(participant) {
     return [...new Set(ids.filter(Boolean))];
 }
 
+function messageParticipantCandidates(message = {}, rawMessage = {}) {
+    const contextInfo = message?.msg?.contextInfo
+        || message?.message?.extendedTextMessage?.contextInfo
+        || message?.message?.imageMessage?.contextInfo
+        || message?.message?.videoMessage?.contextInfo
+        || {};
+    return [...new Set([
+        message?.key?.participantAlt,
+        rawMessage?.key?.participantAlt,
+        contextInfo.participantAlt,
+        message?.sender,
+        message?.key?.participant,
+        rawMessage?.key?.participant,
+        contextInfo.participant,
+    ].filter(Boolean).map(normalizeJid))];
+}
+
+function findMatchingParticipant(metadata, candidates = []) {
+    const wanted = new Set(candidates.filter(Boolean).map(normalizeJid));
+    return (metadata?.participants || []).find(participant =>
+        participantJids(participant).some(jid => wanted.has(jid))
+    ) || null;
+}
+
+function isAdminParticipant(metadata, candidates = []) {
+    const participant = findMatchingParticipant(metadata, candidates);
+    return participant?.admin === 'admin' || participant?.admin === 'superadmin';
+}
+
 async function resolvePhoneJid(sock, candidates = []) {
     const values = [...new Set(candidates.filter(Boolean).map(candidateJid))];
     const direct = values.find(isPhoneJid);
@@ -139,6 +168,9 @@ module.exports = {
     identitiesOverlap,
     identityVariants,
     isPhoneJid,
+    findMatchingParticipant,
+    isAdminParticipant,
+    messageParticipantCandidates,
     normalizeJid,
     participantJids,
     resolveCommandTarget,

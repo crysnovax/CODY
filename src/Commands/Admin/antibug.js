@@ -210,7 +210,7 @@ const plugin = {
       }
       const sender = await resolveSender(sock, m, mek, metadata);
       if (await isAntiPermitted(sock, m.chat, [sender.jid, ...sender.candidates, m.sender])) return false;
-      if (!adminwatchEnabled && !m.__editModeration && sender.record && isAdminRecord(sender.record)) return false;
+      if (!adminwatchEnabled && sender.record && isAdminRecord(sender.record)) return false;
       const botRecord = metadata?.participants?.find(participant =>
         [participant.id, participant.jid, participant.lid].filter(Boolean).map(normalize)
           .some(id => [sock.user?.id, sock.user?.lid].filter(Boolean).map(normalize).includes(id))

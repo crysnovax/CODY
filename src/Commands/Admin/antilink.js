@@ -5,6 +5,7 @@ const { isViewOnce, unwrap: unwrapViewOnce } = require('../../Plugin/viewOnce');
 const { isModerationEnabled } = require('../../Plugin/moderationControl');
 const { isAntiPermitted } = require('../../Plugin/antiPermit');
 const { isAdminwatchEnabled, shouldApplyAdminwatch } = require('../../Plugin/adminwatch');
+const { messageParticipantCandidates, isAdminParticipant } = require('../../Plugin/identityUtils');
 
 const DB_PATH = path.join(process.cwd(), 'database', 'antilink.json');
 const WARN_DB_PATH = path.join(process.cwd(), 'database', 'antilink_warns.json');
@@ -560,15 +561,12 @@ module.exports.handleAntiLink = async function(sock, m, mek) {
         const meta = await sock.groupMetadata(group).catch(() => null);
         if (!meta) return;
 
-        const sender = m.sender;
+        const senderCandidates = messageParticipantCandidates(m, mek);
+        const sender = senderCandidates[0] || m.sender;
         if (!sender) return;
 
-        if (await isAntiPermitted(sock, group, [sender, m.key?.participant, m.key?.participantAlt])) return;
-        const senderNorm = sender.replace(/:\d+@/, '@');
-        const admins = meta.participants
-            .filter(p => p.admin === 'admin' || p.admin === 'superadmin')
-            .map(p => p.id.replace(/:\d+@/, '@'));
-        if (!adminwatchEnabled && admins.includes(senderNorm)) return;
+        if (await isAntiPermitted(sock, group, senderCandidates)) return;
+        if (!adminwatchEnabled && isAdminParticipant(meta, senderCandidates)) return;
 
         const action = cfg.action || 'delete';
         let auditAction = action;
