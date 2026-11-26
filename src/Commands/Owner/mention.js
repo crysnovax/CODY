@@ -96,9 +96,10 @@ function setMentionFilterSetting(enabled) {
     saveMentionFilter({ enabled: Boolean(enabled) });
 }
 function isMentionFilterEnabled(chat, plogmeEnabled) {
-    if (!plogmeEnabled) return false;
-    const setting = getMentionFilterSetting();
-    return setting === null ? true : setting;
+    // The filter is intentionally coupled to Plogme. A stale or manually
+    // persisted override must never reopen the privileged mention -> Plogme
+    // response clash while Plogme is enabled.
+    return Boolean(plogmeEnabled);
 }
 
 // Helper: normalize JID for comparison

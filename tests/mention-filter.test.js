@@ -44,7 +44,7 @@ test('global mention filter follows each chat\'s Plogme gate by default', () => 
     }
 });
 
-test('.mention filter on/off persists one global override for every chat', async () => {
+test('.mention filter stays on while Plogme is enabled despite a manual off override', async () => {
     const restoreFilter = preserve(filterFile);
     const restoreToggle = preserve(toggleFile);
     const chat = 'filter-command-test@g.us';
@@ -58,7 +58,7 @@ test('.mention filter on/off persists one global override for every chat', async
         await run(['filter', 'off']);
         assert.equal(mention.getMentionFilterSetting(), false);
         assert.match(response, /Setting\s+: ✗ OFF/);
-        assert.equal(mention.isMentionFilterEnabled(chat, true), false);
+        assert.equal(mention.isMentionFilterEnabled(chat, true), true);
         await run(['filter', 'on']);
         assert.equal(mention.getMentionFilterSetting(), true);
         assert.equal(mention.isMentionFilterEnabled(chat, true), true);
@@ -66,6 +66,20 @@ test('.mention filter on/off persists one global override for every chat', async
     } finally {
         restoreFilter();
         restoreToggle();
+    }
+});
+
+test('a stale persisted filter override cannot override Plogme state', () => {
+    const restoreFilter = preserve(filterFile);
+    try {
+        fs.writeFileSync(filterFile, JSON.stringify({ enabled: false }));
+        assert.equal(mention.isMentionFilterEnabled('stale-off@g.us', true), true);
+        assert.equal(mention.isMentionFilterEnabled('stale-off@g.us', false), false);
+        fs.writeFileSync(filterFile, JSON.stringify({ enabled: true }));
+        assert.equal(mention.isMentionFilterEnabled('stale-on@g.us', true), true);
+        assert.equal(mention.isMentionFilterEnabled('stale-on@g.us', false), false);
+    } finally {
+        restoreFilter();
     }
 });
 
