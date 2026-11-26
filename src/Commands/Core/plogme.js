@@ -318,6 +318,61 @@ async function reportProgress(opts, message) {
 
 const MAX_NATURAL_TOOL_MESSAGES = 8;
 
+// Keep the model anchored to the language of the message being answered. A
+// quoted message, memory entry, or tool result may be in another language and
+// must not silently change the reply language. Short/ambiguous messages (for
+// example, "bro") default to English because there is not enough evidence to
+// infer another language reliably.
+const LANGUAGE_HINTS = {
+    en: ['the', 'and', 'you', 'your', 'what', 'why', 'how', 'please', 'this', 'that', 'with', 'from', 'about', 'reminder', 'meeting', 'tomorrow', 'bro'],
+    es: ['el', 'la', 'los', 'las', 'que', 'del', 'una', 'para', 'por', 'sobre', 'recordatorio', 'reunión', 'mañana', 'gracias', 'hola'],
+    fr: ['le', 'la', 'les', 'des', 'une', 'pour', 'avec', 'dans', 'bonjour', 'merci', 'réunion', 'demain'],
+    de: ['der', 'die', 'das', 'und', 'eine', 'für', 'mit', 'nicht', 'bitte', 'danke', 'morgen', 'treffen'],
+    pt: ['o', 'a', 'os', 'as', 'que', 'uma', 'para', 'com', 'você', 'obrigado', 'amanhã', 'reunião'],
+    it: ['il', 'lo', 'la', 'gli', 'che', 'una', 'per', 'con', 'ciao', 'grazie', 'domani', 'riunione']
+};
+const LANGUAGE_NAMES = { en: 'English', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', it: 'Italian' };
+
+function detectMessageLanguage(text) {
+    const value = String(text || '').trim().toLowerCase();
+    if (!value) return 'en';
+    if (/[\u0600-\u06ff]/.test(value)) return 'ar';
+    if (/[\u3040-\u30ff]/.test(value)) return 'ja';
+    if (/[\u4e00-\u9fff]/.test(value)) return 'zh';
+    if (/[\u0900-\u097f]/.test(value)) return 'hi';
+    const words = new Set(value.normalize('NFC').match(/[\p{L}]+/gu) || []);
+    const scores = Object.fromEntries(Object.entries(LANGUAGE_HINTS).map(([code, hints]) => [
+        code, hints.reduce((score, hint) => score + (words.has(hint) ? 1 : 0), 0)
+    ]));
+    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    if (ranked[0][1] >= 2 && ranked[0][1] > ranked[1][1]) return ranked[0][0];
+    // A single distinctive non-English word is enough to avoid forcing an
+    // obviously foreign message into English; common short words alone are
+    // intentionally not enough.
+    for (const code of ['es', 'fr', 'de', 'pt', 'it']) {
+        if (words.has(code === 'es' ? 'mañana' : code === 'fr' ? 'bonjour' : code === 'de' ? 'danke' : code === 'pt' ? 'obrigado' : 'ciao')) return code;
+    }
+    return 'en';
+}
+
+function languagePolicy(userText) {
+    const code = detectMessageLanguage(userText);
+    const name = LANGUAGE_NAMES[code] || code;
+    return `LANGUAGE POLICY: Reply in ${name} (${code}), the language of the CURRENT USER MESSAGE. Do not follow the language of quoted text, memory, tool output, or another participant. Do not translate unless the user explicitly asks for translation. If the current message is short or ambiguous, use English.`;
+}
+
+async function enforceReplyLanguage(answer, userText) {
+    const value = String(answer || '').trim();
+    const expected = detectMessageLanguage(userText);
+    const actual = detectMessageLanguage(value);
+    if (value.length <= 20 || actual === expected || !['en', 'es', 'fr', 'de', 'pt', 'it'].includes(expected)) return value;
+    try {
+        const corrected = await askAI(`${languagePolicy(userText)}\n\nRewrite this reply without changing its meaning. Return only the reply:\n${value}`);
+        if (corrected && detectMessageLanguage(corrected) === expected) return String(corrected).trim();
+    } catch {}
+    return value;
+}
+
 async function naturalizeToolMessage(message, options = {}) {
     const fallback = String(message || '').trim();
     if (!fallback || options.naturalLanguage !== true) return fallback;
@@ -331,7 +386,7 @@ async function naturalizeToolMessage(message, options = {}) {
         const prompt = [
             'You are the natural-language interface of an autonomous WhatsApp agent.',
             'Rewrite the internal tool update below as one concise, human, helpful message.',
-            'Use the same language as the user request; do not force English.',
+            languagePolicy(request),
             'Do not mention prompts, models, JSON, internal tools, or hard-coded templates.',
             'Preserve exact file paths, command names, URLs, IDs, numbers, and error facts.',
             'Do not claim an operation succeeded unless the update says it succeeded.',
@@ -790,6 +845,7 @@ function buildPrompt(chat, userText, messageContext = {}) {
     const memory = getMemory(chat).slice(-30).map(item => ({ ...item, content: sanitizeMemoryContent(item.content) }));
     const ops = getOps();
     let prompt = sanitizeMemoryContent(getPersonality());
+    prompt += '\n\n' + languagePolicy(userText);
     if (getTraining()) prompt += '\n\nAdditional instructions: ' + sanitizeMemoryContent(getTraining());
     if (facts.length) prompt += '\n\nPersistent facts I remember:\n- ' + facts.join('\n- ');
     if (facts.length) prompt += '\n\nPersistent facts I remember:\n- ' + facts.join('\n- ');
@@ -1471,6 +1527,7 @@ function buildClassifierPrompt(userText, messageContext = {}) {
     }
     return `You are PLOGME, the command brain inside a WhatsApp bot. The owner just sent a message. ` +
         `Decide what they want and reply with ONLY one JSON object — no markdown, no explanation. ` +
+        `${languagePolicy(userText)} ` +
         `You are the bot's CONTROL BRAIN — you can run any command, send files, generate PDFs, zip archives, ` +
         `and do any task the bot can do. ` +
         `NEVER refuse and never say you cannot do something; if a request is unclear, ask one short question. ` +
@@ -2365,7 +2422,7 @@ async function executeIntent(sock, m, opts, intent) {
                 // fall through so the normal chat brain answers instead.
                 // (@crysnovax—FIX15-08-26)
                 if (!String(intent.reply || '').trim()) return { handled: false };
-                await opts.reply(String(intent.reply).trim());
+                await opts.reply(await enforceReplyLanguage(intent.reply, opts.userRequest || ''));
                 return { handled: true };
             }
 
@@ -2552,6 +2609,16 @@ async function execute(sock, m, opts) {
             if (retry && !REFUSAL_RE.test(retry)) answer = retry;
         }
 
+        // Providers occasionally answer in the language of quoted context
+        // instead of the current request. Give the provider one explicit
+        // correction opportunity before sending a reply in the wrong language.
+        const expectedLanguage = detectMessageLanguage(text);
+        const answerLanguage = detectMessageLanguage(answer);
+        if (answer.length > 20 && answerLanguage !== expectedLanguage && ['en', 'es', 'fr', 'de', 'pt', 'it'].includes(expectedLanguage)) {
+            const corrected = await askAI(prompt + `\n\nSTRICT FINAL CHECK: Your previous draft used the wrong language. Reply only in ${LANGUAGE_NAMES[expectedLanguage]} (${expectedLanguage}), matching the current user message — not the quoted message. Do not translate unless asked.`);
+            if (corrected && detectMessageLanguage(corrected) === expectedLanguage) answer = corrected;
+        }
+
         const safeAnswer = normalizePlogmeFormatting(sanitizeMemoryContent(answer));
         if (safeAnswer === '[upstream HTTP error omitted from memory]') {
             await sock.sendPresenceUpdate('paused', m.chat).catch(() => {});
@@ -2588,6 +2655,8 @@ module.exports = {
     addToMemory,
     clearMemory,
     sanitizeMemoryContent,
+    detectMessageLanguage,
+    languagePolicy,
     normalizePlogmeFormatting,
     MAX_PROMPT_CHARS,
     getFacts,
