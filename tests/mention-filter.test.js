@@ -18,10 +18,11 @@ function preserve(file) {
     };
 }
 
-function tagged(jid) {
+function tagged(jid, sender = 'ordinary@s.whatsapp.net') {
     return {
         chat: 'filter-test@g.us',
-        key: { fromMe: false },
+        sender,
+        key: { fromMe: false, participant: sender },
         message: { extendedTextMessage: { contextInfo: { mentionedJid: [jid] } } }
     };
 }
@@ -68,7 +69,7 @@ test('.mention filter on/off persists one global override for every chat', async
     }
 });
 
-test('ordinary explicit mentions remain eligible while configured privileged targets are suppressible', async () => {
+test('ordinary senders remain eligible while owner/sudo/dual senders are suppressible', async () => {
     const sock = {
         user: { id: '111111@s.whatsapp.net', lid: '111111@lid' },
         signalRepository: { lidMapping: {
@@ -76,9 +77,17 @@ test('ordinary explicit mentions remain eligible while configured privileged tar
             getPNForLID: async jid => jid === '111111@lid' ? '111111@s.whatsapp.net' : null
         } }
     };
-    assert.equal(mention.isExplicitlyMentioned(tagged('222222@s.whatsapp.net')), true);
-    assert.equal(await mention.isPrivilegedMentioned(sock, tagged('222222@s.whatsapp.net')), false);
-    assert.equal(await mention.isPrivilegedMentioned(sock, tagged('111111@lid')), false);
+    const previousSudo = process.env.SUDO_NUMBERS;
+    process.env.SUDO_NUMBERS = '222222';
+    try {
+        assert.equal(mention.isExplicitlyMentioned(tagged('111111@s.whatsapp.net')), true);
+        assert.equal(await mention.isPrivilegedSender(sock, tagged('111111@s.whatsapp.net')), false);
+        assert.equal(await mention.isPrivilegedSender(sock, tagged('111111@s.whatsapp.net', '222222@s.whatsapp.net')), true);
+        assert.equal(await mention.isPrivilegedMentioned(sock, tagged('111111@lid')), false);
+    } finally {
+        if (previousSudo === undefined) delete process.env.SUDO_NUMBERS;
+        else process.env.SUDO_NUMBERS = previousSudo;
+    }
 });
 
 test('filter status reports Plogme-off as effectively off even after a manual on', async () => {

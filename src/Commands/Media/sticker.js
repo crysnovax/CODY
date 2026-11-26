@@ -7,6 +7,12 @@ const { exec } = require('child_process');
 const { addExif } = require('../../../library/exif');
 const { getStickerBranding } = require('../../Plugin/packname');
 
+function isStickerMessage(message = {}) {
+    return message.mtype === 'stickerMessage'
+        || Boolean(message.stickerMessage)
+        || Boolean(message.message?.stickerMessage);
+}
+
 module.exports = {
     name: 'sticker',
     alias: ['s', 'stick'],
@@ -14,14 +20,22 @@ module.exports = {
 
     execute: async (sock, m, { reply }) => {
         const quoted = m.quoted || m;
+        const stickerInput = isStickerMessage(quoted);
         const mime = quoted.mimetype || '';
 
-        if (!/image|video/.test(mime)) {
-            return reply('⚉ Reply to an image or video');
+        if (!stickerInput && !/image|video/.test(mime)) {
+            return reply('⚉ Reply to an image, video, or sticker');
         }
 
         try {
             const media = await quoted.download();
+
+            const { pack: packName, author: packAuthor } = getStickerBranding();
+            if (stickerInput) {
+                const buffer = await addExif(media, packName, packAuthor, ['🔥']);
+                await sock.sendMessage(m.chat, { sticker: buffer }, { quoted: m });
+                return;
+            }
 
             const tempDir = path.join(__dirname, '../../temp');
             if (!fs.existsSync(tempDir)) {
@@ -91,7 +105,6 @@ module.exports = {
 
             // Add sticker metadata (pack/author) — pack is ⚉ • <PACK_NAME>, author follows
             // STICKER_AUTHOR → PACK_NAME → default (no hardcoded CODY AI) (@crysnovax—FIX08-07-26)
-            const { pack: packName, author: packAuthor } = getStickerBranding();
             buffer = await addExif(buffer, packName, packAuthor, ['🔥']);
 
             // Send the sticker
@@ -107,3 +120,5 @@ module.exports = {
         }
     }
 };
+
+module.exports.isStickerMessage = isStickerMessage;

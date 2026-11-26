@@ -120,6 +120,16 @@ async function getPrivilegedIdentities(sock) {
     return identities;
 }
 
+async function isPrivilegedSender(sock, m) {
+    const privileged = await getPrivilegedIdentities(sock);
+    const candidates = [m?.sender, m?.key?.participant, m?.key?.participantAlt].filter(Boolean);
+    for (const candidate of candidates) {
+        const variants = await identityVariants(sock, candidate);
+        if ([...variants].some(variant => privileged.has(norm(variant)))) return true;
+    }
+    return false;
+}
+
 async function isPrivilegedMentioned(sock, m, mek) {
     if (m.key?.fromMe) return false;
     const context = getContextInfo(m);
@@ -498,6 +508,7 @@ module.exports = {
 module.exports.mentionConfig = mentionConfig;
 module.exports.loadMentionConfig = loadMentionConfig;
 module.exports.getPrivilegedIdentities = getPrivilegedIdentities;
+module.exports.isPrivilegedSender = isPrivilegedSender;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
 module.exports.getExplicitMentionedJids = getExplicitMentionedJids;
 module.exports.isExplicitlyMentioned = isExplicitlyMentioned;

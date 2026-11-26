@@ -846,7 +846,7 @@ try {
                     // PLOGME owns the effective lifetime of the filter. With
                     // no explicit per-chat override, enabling PLOGME enables
                     // it automatically; disabling PLOGME always disables it.
-                    const privilegedMention = await mention.isPrivilegedMentioned(sock, m, mek);
+                    const privilegedMention = await mention.isPrivilegedSender(sock, m);
                     const suppressed = privilegedMention && mention.isMentionFilterEnabled(
                         m.chat,
                         plogmeCmd.isEnabled(m.chat)
