@@ -26,14 +26,14 @@ function tagged(jid) {
     };
 }
 
-test('mention filter follows Plogme by default and is inactive when Plogme is off', () => {
+test('global mention filter follows each chat\'s Plogme gate by default', () => {
     const restoreFilter = preserve(filterFile);
     const restoreToggle = preserve(toggleFile);
     const chat = 'filter-default-test@g.us';
     try {
         fs.writeFileSync(filterFile, '{}');
         plogme.setEnabled(chat, true);
-        assert.equal(mention.getMentionFilterSetting(chat), null);
+        assert.equal(mention.getMentionFilterSetting(), null);
         assert.equal(mention.isMentionFilterEnabled(chat, plogme.isEnabled(chat)), true);
         plogme.setEnabled(chat, false);
         assert.equal(mention.isMentionFilterEnabled(chat, plogme.isEnabled(chat)), false);
@@ -43,7 +43,7 @@ test('mention filter follows Plogme by default and is inactive when Plogme is of
     }
 });
 
-test('.mention filter on/off persists a per-chat override', async () => {
+test('.mention filter on/off persists one global override for every chat', async () => {
     const restoreFilter = preserve(filterFile);
     const restoreToggle = preserve(toggleFile);
     const chat = 'filter-command-test@g.us';
@@ -55,12 +55,13 @@ test('.mention filter on/off persists a per-chat override', async () => {
             args, prefix: '.', reply: async text => { response = text; }
         });
         await run(['filter', 'off']);
-        assert.equal(mention.getMentionFilterSetting(chat), false);
+        assert.equal(mention.getMentionFilterSetting(), false);
         assert.match(response, /Setting\s+: ✗ OFF/);
         assert.equal(mention.isMentionFilterEnabled(chat, true), false);
         await run(['filter', 'on']);
-        assert.equal(mention.getMentionFilterSetting(chat), true);
+        assert.equal(mention.getMentionFilterSetting(), true);
         assert.equal(mention.isMentionFilterEnabled(chat, true), true);
+        assert.equal(mention.isMentionFilterEnabled('another-chat@g.us', true), true);
     } finally {
         restoreFilter();
         restoreToggle();

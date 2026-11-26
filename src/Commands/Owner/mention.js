@@ -66,7 +66,14 @@ function loadMentionFilter() {
     try {
         if (fs.existsSync(MENTION_FILTER_FILE)) {
             const value = JSON.parse(fs.readFileSync(MENTION_FILTER_FILE, 'utf8'));
-            return value && typeof value === 'object' ? value : {};
+            if (value === true || value === false) return { enabled: value };
+            // Older releases stored chat keys. Do not let those stale local
+            // overrides make the new global command behave differently by chat.
+            if (value && typeof value === 'object' &&
+                Object.prototype.hasOwnProperty.call(value, 'enabled')) {
+                return { enabled: value.enabled === true };
+            }
+            return {};
         }
     } catch (e) {
         console.error('[MENTION FILTER] Load error:', e.message);
@@ -81,18 +88,16 @@ function saveMentionFilter(state) {
         console.error('[MENTION FILTER] Save error:', e.message);
     }
 }
-function getMentionFilterSetting(chat) {
+function getMentionFilterSetting() {
     const state = loadMentionFilter();
-    return Object.prototype.hasOwnProperty.call(state, chat) ? state[chat] === true : null;
+    return Object.prototype.hasOwnProperty.call(state, 'enabled') ? state.enabled === true : null;
 }
-function setMentionFilterSetting(chat, enabled) {
-    const state = loadMentionFilter();
-    state[chat] = Boolean(enabled);
-    saveMentionFilter(state);
+function setMentionFilterSetting(enabled) {
+    saveMentionFilter({ enabled: Boolean(enabled) });
 }
 function isMentionFilterEnabled(chat, plogmeEnabled) {
     if (!plogmeEnabled) return false;
-    const setting = getMentionFilterSetting(chat);
+    const setting = getMentionFilterSetting();
     return setting === null ? true : setting;
 }
 
@@ -261,9 +266,8 @@ module.exports = {
         const option = args[0]?.toLowerCase();
         const value  = args.slice(1).join(' ');
 
-        // The filter follows PLOGME automatically when no explicit setting
-        // exists for this chat. An explicit off remains inactive if PLOGME is
-        // disabled and takes effect again if PLOGME is later enabled.
+        // The filter setting is global. Its effective behavior still follows
+        // the current chat's PLOGME state: PLOGME off always disables it.
         if (option === 'filter') {
             const requested = args[1]?.toLowerCase();
             if (!['on', 'off', 'status'].includes(requested)) {
@@ -272,12 +276,12 @@ module.exports = {
             const plogme = require('../Core/plogme');
             const plogmeEnabled = plogme.isEnabled(m.chat);
             if (requested === 'status') {
-                const setting = getMentionFilterSetting(m.chat);
+                const setting = getMentionFilterSetting();
                 const effective = isMentionFilterEnabled(m.chat, plogmeEnabled);
                 return reply(`╭─❍ *MENTION FILTER*\n│\n│ ✦ Effective : ${effective ? '✓ ON' : '✗ OFF'}\n│ 🤖 Plogme   : ${plogmeEnabled ? '✓ ON' : '✗ OFF'}\n│ ⚙️ Setting  : ${setting === null ? 'AUTO' : (setting ? 'ON' : 'OFF')}\n╰──────────────────`);
             }
             const enabled = requested === 'on';
-            setMentionFilterSetting(m.chat, enabled);
+            setMentionFilterSetting(enabled);
             return reply(`╭─❍ *MENTION FILTER*\n│\n│ ✦ Setting  : ${enabled ? '✓ ON' : '✗ OFF'}\n│ 🤖 Plogme   : ${plogmeEnabled ? '✓ ON' : '✗ OFF'}\n│ ⚡ Effective: ${isMentionFilterEnabled(m.chat, plogmeEnabled) ? '✓ ON' : '✗ OFF'}\n╰──────────────────`);
         }
 
