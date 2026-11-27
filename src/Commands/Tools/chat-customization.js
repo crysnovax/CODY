@@ -25,7 +25,7 @@ const BUBBLE_PRESETS = Object.freeze({
     light: { colorLight: '#FFFFFFFF', colorDark: '#FF101010', doodleColorLight: '#FFCCE8FF', doodleColorDark: 0xFF202020, isDoodleEnabled: true },
     dark: { colorLight: '#FF162E24', colorDark: '#FF04120D', doodleColorLight: '#FF24493A', doodleColorDark: '#FF234E3A', isDoodleEnabled: true },
     blue: { colorLight: '#FFE3F2FD', colorDark: '#FF0D47A1', doodleColorLight: '#FFBBDEFB', doodleColorDark: 0xFF1565C0, isDoodleEnabled: true },
-    emerald: { colorLight: '#FFE8F5E9', colorDark: '#FF0B3D2E', doodleColorLight: '#FFC8E6C9', doodleColorDark: 0xFF1B5E20, isDoodleEnabled: true },
+    emerald: { colorLight: '#FFE8F5E9', colorDark: '#FF04120D', doodleColorLight: '#FFC8E6C9', doodleColorDark: '#FF234E3A', isDoodleEnabled: true },
     pink: { colorLight: '#FFFCE4EC', colorDark: '#FF4A102A', doodleColorLight: '#FFF8BBD0', doodleColorDark: 0xFF880E4F, isDoodleEnabled: true },
     purple: { colorLight: '#FFF3E5F5', colorDark: '#FF311B42', doodleColorLight: '#FFE1BEE7', doodleColorDark: 0xFF4A148C, isDoodleEnabled: true },
     red: { colorLight: '#FFFFEBEE', colorDark: '#FF4A1010', doodleColorLight: '#FFFFCDD2', doodleColorDark: 0xFFB71C1C, isDoodleEnabled: true },
@@ -39,14 +39,6 @@ const BUBBLE_PRESETS = Object.freeze({
     gray: { colorLight: '#FFF5F5F5', colorDark: '#FF212121', doodleColorLight: '#FFEEEEEE', doodleColorDark: 0xFF424242, isDoodleEnabled: true },
     black: { colorLight: '#FF303030', colorDark: '#FF000000', doodleColorLight: '#FF616161', doodleColorDark: 0xFF101010, isDoodleEnabled: true },
     white: { colorLight: '#FFFFFFFF', colorDark: '#FF424242', doodleColorLight: '#FFFFFFFF', doodleColorDark: 0xFF616161, isDoodleEnabled: true }
-});
-
-const DEEP_DARK_SOLID_COLOR = Object.freeze({
-    colorLight: '#FF162E24',
-    colorDark: '#FF04120D',
-    doodleColorLight: '#FF24493A',
-    doodleColorDark: '#FF234E3A',
-    isDoodleEnabled: true
 });
 
 function normalizeChoice(value) {
@@ -86,9 +78,9 @@ function parseBubbleCustomization(args = []) {
         }
     }
     const mode = tokens.find(token => /^--(?:dark|light)$/i.test(token));
-    if (mode && mode.toLowerCase() === '--dark') {
-        Object.assign(result, DEEP_DARK_SOLID_COLOR);
-    }
+    // --dark and --light select the preset's existing color pair. Do not
+    // replace another color family (for example, White with Emerald green).
+    void mode;
     return result;
 }
 
