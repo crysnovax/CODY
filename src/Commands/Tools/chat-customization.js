@@ -78,9 +78,15 @@ function parseBubbleCustomization(args = []) {
         }
     }
     const mode = tokens.find(token => /^--(?:dark|light)$/i.test(token));
-    // --dark and --light select the preset's existing color pair. Do not
-    // replace another color family (for example, White with Emerald green).
-    void mode;
+    // Select the preset's own variant in both fields so WhatsApp visibly
+    // applies the requested mode. Never borrow another color family.
+    if (mode && mode.toLowerCase() === '--dark') {
+        result.colorLight = result.colorDark;
+        result.doodleColorLight = result.doodleColorDark;
+    } else if (mode && mode.toLowerCase() === '--light') {
+        result.colorDark = result.colorLight;
+        result.doodleColorDark = result.doodleColorLight;
+    }
     return result;
 }
 

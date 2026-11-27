@@ -54,9 +54,9 @@ test('.chattheme --dark applies the dark side of a preset and keeps doodles enab
   const h = harness();
   await chatTheme.execute(h.sock, message, { args: ['emerald', '--dark'], reply: h.reply });
   const solidColor = h.sent[0][1].chatTheme.solidColor;
-  assert.equal(solidColor.colorLight, '#FFE8F5E9');
+  assert.equal(solidColor.colorLight, '#FF04120D');
   assert.equal(solidColor.colorDark, '#FF04120D');
-  assert.equal(solidColor.doodleColorLight, '#FFC8E6C9');
+  assert.equal(solidColor.doodleColorLight, '#FF234E3A');
   assert.equal(solidColor.doodleColorDark, '#FF234E3A');
   assert.equal(solidColor.isDoodleEnabled, true);
 });
@@ -75,16 +75,16 @@ test('--light preserves the selected theme light/dark pair', async () => {
   await chatTheme.execute(h.sock, message, { args: ['emerald', '--light'], reply: h.reply });
   const solidColor = h.sent[0][1].chatTheme.solidColor;
   assert.equal(solidColor.colorLight, '#FFE8F5E9');
-  assert.equal(solidColor.colorDark, '#FF04120D');
+  assert.equal(solidColor.colorDark, '#FFE8F5E9');
   assert.equal(solidColor.doodleColorLight, '#FFC8E6C9');
-  assert.equal(solidColor.doodleColorDark, '#FF234E3A');
+  assert.equal(solidColor.doodleColorDark, '#FFC8E6C9');
 });
 
 test('white --dark keeps a neutral white/gray family instead of using Emerald green', async () => {
   const h = harness();
   await chatTheme.execute(h.sock, message, { args: ['white', '--dark'], reply: h.reply });
   const solidColor = h.sent[0][1].chatTheme.solidColor;
-  assert.equal(solidColor.colorLight, '#FFFFFFFF');
+  assert.equal(solidColor.colorLight, '#FF424242');
   assert.equal(solidColor.colorDark, '#FF424242');
   assert.notEqual(solidColor.colorDark, '#FF04120D');
 });
