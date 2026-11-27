@@ -59,7 +59,7 @@ function resolveBubble(value) {
 
 function parseBubbleCustomization(args = []) {
     const tokens = args.map(String);
-    const presetToken = tokens.find(token => !token.includes('='));
+    const presetToken = tokens.find(token => !token.includes('=') && !/^--(?:dark|light)$/i.test(token));
     const result = resolveBubble(presetToken || 'default');
     if (!result) return null;
     const keys = {
@@ -77,7 +77,47 @@ function parseBubbleCustomization(args = []) {
             result[keys[key]] = /^0x[0-9a-f]+$/i.test(value) ? Number(value) : value;
         }
     }
+    const mode = tokens.find(token => /^--(?:dark|light)$/i.test(token));
+    if (mode && mode.toLowerCase() === '--dark') {
+        result.colorLight = result.colorDark;
+        result.doodleColorLight = result.doodleColorDark;
+    } else if (mode && mode.toLowerCase() === '--light') {
+        result.colorDark = result.colorLight;
+        result.doodleColorDark = result.doodleColorLight;
+    }
     return result;
+}
+
+function isTargetToken(value) {
+    const token = String(value || '').trim();
+    return /^https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/i.test(token)
+        || /^\d{5,24}@(g\.us|s\.whatsapp\.net|lid)$/i.test(token)
+        || /^\d{5,24}$/.test(token);
+}
+
+async function resolveChatTarget(sock, m, args = []) {
+    const index = args.findIndex(isTargetToken);
+    if (index < 0) return { target: m.chat, args: [...args] };
+    const raw = String(args[index]).trim();
+    let target = raw;
+    const link = raw.match(/chat\.whatsapp\.com\/([A-Za-z0-9]+)/i);
+    if (link) {
+        if (typeof sock.groupGetInviteInfo !== 'function') throw new Error('This WhatsApp connection cannot resolve group links.');
+        const info = await sock.groupGetInviteInfo(link[1]);
+        target = info?.id || info?.gid || info?.jid;
+    } else if (/^\d{5,24}$/.test(raw)) {
+        target = `${raw}@s.whatsapp.net`;
+    }
+    if (!target || !/@/.test(target)) throw new Error('Invalid target JID, LID, or group link.');
+    return { target, args: args.filter((_, i) => i !== index) };
+}
+
+function listThemes() {
+    return [...new Set(Object.values(THEME_IDS))];
+}
+
+function listBubblePresets() {
+    return Object.keys(BUBBLE_PRESETS);
 }
 
 function isImageMessage(message) {
@@ -121,10 +161,14 @@ module.exports = {
     THEME_IDS,
     bubblePayload,
     getWallpaperUrl,
+    isTargetToken,
+    listBubblePresets,
+    listThemes,
     normalizeChoice,
     parseBubbleCustomization,
     resolveBubble,
     resolveTheme,
+    resolveChatTarget,
     themePayload,
     uploadImage
 };

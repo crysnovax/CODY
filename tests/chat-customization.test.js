@@ -32,12 +32,30 @@ test('theme resolves easy names to the supplied minimal color scheme IDs', async
   assert.equal(h.sent[0][1].chatTheme.colorSchemeId, 'Emerald@Minimal');
 });
 
+test('all customization commands provide list output', async () => {
+  for (const command of [theme, chatTheme, bubble, background]) {
+    const h = harness();
+    await command.execute(h.sock, message, { args: ['list'], reply: h.reply });
+    assert.match(h.replies[0], /Available|supports direct/);
+    assert.equal(h.sent.length, 0);
+  }
+});
+
 test('.chattheme sends solid colors while always enabling doodles', async () => {
   const h = harness();
   await chatTheme.execute(h.sock, message, { args: ['dark', 'light=#FF162E24', 'dark=#FF04120D', 'doodle=off'], reply: h.reply });
   const solidColor = h.sent[0][1].chatTheme.solidColor;
   assert.equal(solidColor.colorLight, '#FF162E24');
   assert.equal(solidColor.colorDark, '#FF04120D');
+  assert.equal(solidColor.isDoodleEnabled, true);
+});
+
+test('.chattheme --dark applies the dark side of a preset and keeps doodles enabled', async () => {
+  const h = harness();
+  await chatTheme.execute(h.sock, message, { args: ['emerald', '--dark'], reply: h.reply });
+  const solidColor = h.sent[0][1].chatTheme.solidColor;
+  assert.equal(solidColor.colorLight, solidColor.colorDark);
+  assert.equal(solidColor.doodleColorLight, solidColor.doodleColorDark);
   assert.equal(solidColor.isDoodleEnabled, true);
 });
 
@@ -78,6 +96,19 @@ test('background sends a direct URL through setGroupWallpaper with dim level', a
 
 test('wallpaper command is named chatbackground to avoid a background collision', () => {
   assert.equal(background.name, 'chatbackground');
+});
+
+test('commands can target a phone JID and resolve a WhatsApp group link', async () => {
+  const h = harness();
+  const targets = [];
+  const sock = {
+    sendMessage: async (target, payload) => { targets.push([target, payload]); },
+    groupGetInviteInfo: async (code) => ({ id: '987@g.us', code })
+  };
+  await theme.execute(sock, message, { args: ['5551234567@s.whatsapp.net', 'emerald'], reply: h.reply });
+  await chatTheme.execute(sock, message, { args: ['https://chat.whatsapp.com/ABC123', 'blue', '--dark'], reply: h.reply });
+  assert.equal(targets[0][0], '5551234567@s.whatsapp.net');
+  assert.equal(targets[1][0], '987@g.us');
 });
 
 test('background uploads and uses an image reply when no URL is supplied', async () => {
