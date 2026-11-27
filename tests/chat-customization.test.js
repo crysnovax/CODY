@@ -45,6 +45,15 @@ test('chatbubble accepts inline color and doodle overrides', async () => {
   assert.equal(h.sent[0][1].chatTheme.solidColor.isDoodleEnabled, false);
 });
 
+test('chatbubble supports additional named colors', async () => {
+  for (const color of ['orange', 'yellow', 'lime', 'teal', 'cyan', 'indigo', 'brown', 'gray', 'black', 'white']) {
+    const h = harness();
+    await bubble.execute(h.sock, message, { args: [color], reply: h.reply });
+    assert.match(h.sent[0][1].chatTheme.solidColor.colorLight, /^#[0-9A-F]{8}$/);
+    assert.match(h.sent[0][1].chatTheme.solidColor.colorDark, /^#[0-9A-F]{8}$/);
+  }
+});
+
 test('background sends a direct URL through setGroupWallpaper with dim level', async () => {
   const h = harness();
   const calls = [];

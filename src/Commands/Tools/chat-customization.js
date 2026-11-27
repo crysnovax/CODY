@@ -28,7 +28,17 @@ const BUBBLE_PRESETS = Object.freeze({
     emerald: { colorLight: '#FFE8F5E9', colorDark: '#FF0B3D2E', doodleColorLight: '#FFC8E6C9', doodleColorDark: 0xFF1B5E20, isDoodleEnabled: true },
     pink: { colorLight: '#FFFCE4EC', colorDark: '#FF4A102A', doodleColorLight: '#FFF8BBD0', doodleColorDark: 0xFF880E4F, isDoodleEnabled: true },
     purple: { colorLight: '#FFF3E5F5', colorDark: '#FF311B42', doodleColorLight: '#FFE1BEE7', doodleColorDark: 0xFF4A148C, isDoodleEnabled: true },
-    red: { colorLight: '#FFFFEBEE', colorDark: '#FF4A1010', doodleColorLight: '#FFFFCDD2', doodleColorDark: 0xFFB71C1C, isDoodleEnabled: true }
+    red: { colorLight: '#FFFFEBEE', colorDark: '#FF4A1010', doodleColorLight: '#FFFFCDD2', doodleColorDark: 0xFFB71C1C, isDoodleEnabled: true },
+    orange: { colorLight: '#FFFFF3E0', colorDark: '#FFE65100', doodleColorLight: '#FFFFCC80', doodleColorDark: 0xFFEF6C00, isDoodleEnabled: true },
+    yellow: { colorLight: '#FFFFFDE7', colorDark: '#FFF57F17', doodleColorLight: '#FFFFF59D', doodleColorDark: 0xFFF9A825, isDoodleEnabled: true },
+    lime: { colorLight: '#FFF1F8E9', colorDark: '#FF33691E', doodleColorLight: '#FFDCEDC8', doodleColorDark: 0xFF558B2F, isDoodleEnabled: true },
+    teal: { colorLight: '#FFE0F2F1', colorDark: '#FF004D40', doodleColorLight: '#FFB2DFDB', doodleColorDark: 0xFF00695C, isDoodleEnabled: true },
+    cyan: { colorLight: '#FFE0F7FA', colorDark: '#FF006064', doodleColorLight: '#FFB2EBF2', doodleColorDark: 0xFF00838F, isDoodleEnabled: true },
+    indigo: { colorLight: '#FFE8EAF6', colorDark: '#FF1A237E', doodleColorLight: '#FFC5CAE9', doodleColorDark: 0xFF303F9F, isDoodleEnabled: true },
+    brown: { colorLight: '#FFEFEBE9', colorDark: '#FF3E2723', doodleColorLight: '#FFD7CCC8', doodleColorDark: 0xFF5D4037, isDoodleEnabled: true },
+    gray: { colorLight: '#FFF5F5F5', colorDark: '#FF212121', doodleColorLight: '#FFEEEEEE', doodleColorDark: 0xFF424242, isDoodleEnabled: true },
+    black: { colorLight: '#FF303030', colorDark: '#FF000000', doodleColorLight: '#FF616161', doodleColorDark: 0xFF101010, isDoodleEnabled: true },
+    white: { colorLight: '#FFFFFFFF', colorDark: '#FF424242', doodleColorLight: '#FFFFFFFF', doodleColorDark: 0xFF616161, isDoodleEnabled: true }
 });
 
 function normalizeChoice(value) {
