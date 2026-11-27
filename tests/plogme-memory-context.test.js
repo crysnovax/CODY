@@ -89,6 +89,37 @@ test('passive context keeps recent group messages and bounded reply chains', () 
     plogme.clearRecentMessages(contextChat);
 });
 
+test('Cody and Cody AI are conversational triggers while bare Plogme is not', () => {
+    assert.equal(plogme.isCodyAiInvocation('Cody, what did I say?'), true);
+    assert.equal(plogme.isCodyAiInvocation('Cody AI what did I say?'), true);
+    assert.equal(plogme.isCodyAiInvocation('Plogme what did I say?'), false);
+    assert.equal(plogme.stripCodyAiInvocation('Cody AI, what did I say?'), 'what did I say?');
+});
+
+test('engagement judge receives recent context and accepts only explicit engage JSON', async () => {
+    const contextChat = `plogme-engagement-${process.pid}@g.us`;
+    plogme.clearRecentMessages(contextChat);
+    plogme.recordRecentMessage({
+        chat: contextChat,
+        key: { id: 'engagement-1', participant: '111@s.whatsapp.net' },
+        sender: '111@s.whatsapp.net',
+        pushName: 'Ada',
+        text: 'The deployment failed after the config change.'
+    });
+    let prompt = '';
+    const engaged = await plogme.shouldEngage(
+        contextChat,
+        'What did I change?',
+        { chatType: 'group' },
+        async value => { prompt = value; return '{"engage":true}'; }
+    );
+    assert.equal(engaged, true);
+    assert.match(prompt, /The deployment failed after the config change/);
+    assert.equal(plogme.parseEngagementDecision('{"engage":false}'), false);
+    assert.equal(plogme.parseEngagementDecision('not json'), false);
+    plogme.clearRecentMessages(contextChat);
+});
+
 test('unauthorized addressed messages stay silent while still being observed', async () => {
     const contextChat = `plogme-unauthorized-${process.pid}@g.us`;
     plogme.clearRecentMessages(contextChat);
