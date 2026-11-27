@@ -123,6 +123,7 @@ module.exports = {
                 `│ Options: --can-add-option | --no-add-option\n` +
                 `│ Selection: --select 0 (unlimited) or --select 2\n` +
                 `│ 2–12 options; option labels up to 100 characters\n` +
+                `│ Example: ${prefix}poll Which will you go for? | Meta AI :: https://h.uguu.se/ycdDYGBfDLSs.jpg | Cody AI :: https://d.uguu.se/GraVtTqlgxHO.jpg --end 8h --show-voter --can-add-option --select 1\n` +
                 `╰──────────────────`
             );
         }
