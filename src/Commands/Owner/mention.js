@@ -170,6 +170,21 @@ async function isPrivilegedMentioned(sock, m, mek) {
     return false;
 }
 
+// Mention reactions are for outside users addressing the protected triangle.
+// If both the sender and an explicitly tagged target are owner/sudo/dual,
+// leave the existing configured mention action untouched but suppress it.
+async function isPrivilegedTriangleInteraction(sock, m) {
+    if (m?.key?.fromMe || !(await isPrivilegedSender(sock, m))) return false;
+    const mentions = getExplicitMentionedJids(m);
+    if (!mentions.length) return false;
+    const privileged = await getPrivilegedIdentities(sock);
+    for (const jid of mentions) {
+        const variants = await identityVariants(sock, jid);
+        if ([...variants].some(variant => privileged.has(norm(variant)))) return true;
+    }
+    return false;
+}
+
 function getExplicitMentionedJids(m) {
     const context = getContextInfo(m);
     return [...new Set([
@@ -532,6 +547,7 @@ module.exports.isPrivilegedSender = isPrivilegedSender;
 module.exports.isPrivilegedBotMention = isPrivilegedBotMention;
 module.exports.isBotExplicitlyMentioned = isBotExplicitlyMentioned;
 module.exports.isPrivilegedMentioned = isPrivilegedMentioned;
+module.exports.isPrivilegedTriangleInteraction = isPrivilegedTriangleInteraction;
 module.exports.getExplicitMentionedJids = getExplicitMentionedJids;
 module.exports.isExplicitlyMentioned = isExplicitlyMentioned;
 module.exports.getMentionFilterSetting = getMentionFilterSetting;

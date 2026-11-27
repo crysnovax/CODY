@@ -852,10 +852,11 @@ try {
                     // no explicit per-chat override, enabling PLOGME enables
                     // it automatically; disabling PLOGME always disables it.
                     const privilegedMention = await mention.isPrivilegedSender(sock, m);
-                    const suppressed = privilegedMention && mention.isMentionFilterEnabled(
+                    const triangleInteraction = await mention.isPrivilegedTriangleInteraction?.(sock, m);
+                    const suppressed = triangleInteraction || (privilegedMention && mention.isMentionFilterEnabled(
                         m.chat,
                         plogmeCmd.isEnabled(m.chat)
-                    );
+                    ));
                     if (!suppressed && mentionConfig.action === 'react' && mentionConfig.emoji) {
                         await sock.sendMessage(m.chat, { react: { text: mentionConfig.emoji, key: m.key } }).catch(() => {});
                     } else if (!suppressed && mentionConfig.action === 'text' && mentionConfig.text) {

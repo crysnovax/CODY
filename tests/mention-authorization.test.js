@@ -91,3 +91,27 @@ test('bot phone and LID identities are not owner/sudo/dual filter identities', a
     assert.equal(privileged.has('99999@s.whatsapp.net'), false);
     assert.equal(privileged.has('99999@lid'), false);
 });
+
+test('privileged triangle mentions are suppressed without suppressing outside mentions', async () => {
+    const previousSudo = process.env.SUDO_NUMBERS;
+    process.env.SUDO_NUMBERS = '77777,88888';
+    try {
+        assert.equal(
+            await mention.isPrivilegedTriangleInteraction(
+                sock,
+                message('77777@s.whatsapp.net', ['88888@s.whatsapp.net'])
+            ),
+            true
+        );
+        assert.equal(
+            await mention.isPrivilegedTriangleInteraction(
+                sock,
+                message('member@s.whatsapp.net', ['77777@s.whatsapp.net'])
+            ),
+            false
+        );
+    } finally {
+        if (previousSudo === undefined) delete process.env.SUDO_NUMBERS;
+        else process.env.SUDO_NUMBERS = previousSudo;
+    }
+});
