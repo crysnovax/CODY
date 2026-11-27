@@ -1,7 +1,7 @@
 'use strict';
 
 // Deterministic runtime guardrails for PLOGME's model-selected tools. The model
-// may propose structured work, but this module owns risk, approval, execution
+// may propose structured work, but this module owns risk metadata, execution
 // limits, verification metadata, and durable recovery state.
 const fs = require('fs');
 const path = require('path');
@@ -10,18 +10,16 @@ const { spawnSync } = require('child_process');
 
 const ROOT = process.cwd();
 const DATA_DIR = path.join(ROOT, 'database');
-const APPROVAL_FILE = path.join(DATA_DIR, 'plogme_approvals.json');
 const PROFILE_FILE = path.join(DATA_DIR, 'plogme_profiles.json');
 const JOURNAL_FILE = path.join(DATA_DIR, 'plogme_mutations.json');
 const MAX_PARALLEL = 3;
-const APPROVAL_TTL = 10 * 60 * 1000;
 
 const TOOL_REGISTRY = Object.freeze({
     run_command: { risk: 'high', mutating: true, isolated: true, description: 'Run a registered bot command with bounded execution.' },
     isolated_command: { risk: 'high', mutating: true, isolated: true, description: 'Run an allowlisted executable without a shell, bounded by timeout and output limits.' },
     create_file: { risk: 'medium', mutating: true, verifiable: true, description: 'Create a workspace file and verify its contents.' },
     edit_file: { risk: 'medium', mutating: true, verifiable: true, description: 'Edit a workspace file and verify syntax where applicable.' },
-    delete_file: { risk: 'high', mutating: true, reversible: true, verifiable: true, description: 'Delete a workspace file after approval with rollback support.' },
+    delete_file: { risk: 'high', mutating: true, reversible: true, verifiable: true, description: 'Delete a workspace file with rollback support.' },
     rename_file: { risk: 'medium', mutating: true, reversible: true, verifiable: true, description: 'Rename a workspace file and verify both paths.' },
     restart: { risk: 'high', mutating: true, description: 'Restart the bot process.' },
     install_dependency: { risk: 'high', mutating: true, description: 'Install a validated npm dependency.' },
@@ -55,10 +53,6 @@ function id(prefix) { return `${prefix}-${Date.now().toString(36).toUpperCase()}
 
 function toolInfo(action) { return TOOL_REGISTRY[String(action || '').toLowerCase()] || { risk: 'medium', mutating: false, description: 'Unclassified tool' }; }
 function toolCatalog() { return Object.entries(TOOL_REGISTRY).map(([name, info]) => ({ name, ...info })); }
-function requiresApproval(intent = {}) {
-    const info = toolInfo(intent.action);
-    return info.risk === 'high' || (info.risk === 'medium' && info.mutating === true);
-}
 function isDryRun(intent = {}, opts = {}) {
     return intent.dryRun === true || opts.dryRun === true || /^(dry[ -]?run|preview|what would you change)\b/i.test(String(opts.userRequest || ''));
 }
@@ -73,31 +67,6 @@ function makePlan(intent = {}) {
     const steps = normalizePlan(intent);
     if (steps.length) return { goal: String(intent.goal || intent.objective || ''), steps };
     return { goal: String(intent.goal || intent.objective || intent.action || ''), steps: [{ ...intent, action: String(intent.action || '').toLowerCase(), dependsOn: [] }] };
-}
-
-function createApproval({ chat, sender, intent }) {
-    const store = readJson(APPROVAL_FILE, { pending: {} });
-    const token = id('APPROVE');
-    const entry = {
-        token,
-        chat: String(chat || ''),
-        sender: String(sender || ''),
-        intent: JSON.parse(JSON.stringify(intent || {})),
-        createdAt: Date.now(),
-        expiresAt: Date.now() + APPROVAL_TTL
-    };
-    store.pending[token] = entry;
-    for (const [key, value] of Object.entries(store.pending)) if (!value || value.expiresAt < Date.now()) delete store.pending[key];
-    writeJson(APPROVAL_FILE, store);
-    return entry;
-}
-function consumeApproval(token, chat, sender) {
-    const store = readJson(APPROVAL_FILE, { pending: {} });
-    const entry = store.pending?.[String(token || '').toUpperCase()];
-    if (!entry || entry.expiresAt < Date.now() || String(entry.chat) !== String(chat || '') || (entry.sender && String(entry.sender) !== String(sender || ''))) return null;
-    delete store.pending[entry.token];
-    writeJson(APPROVAL_FILE, store);
-    return entry.intent;
 }
 
 function verifyPath(filePath, expected = {}) {
@@ -172,8 +141,8 @@ function recordMutation(input = {}) {
 function listMutations(limit = 20) { return readJson(JOURNAL_FILE, { entries: [] }).entries.slice(-limit); }
 
 module.exports = {
-    ROOT, MAX_PARALLEL, TOOL_REGISTRY, toolInfo, toolCatalog, requiresApproval,
-    isDryRun, normalizePlan, makePlan, createApproval, consumeApproval,
+    ROOT, MAX_PARALLEL, TOOL_REGISTRY, toolInfo, toolCatalog,
+    isDryRun, normalizePlan, makePlan,
     verifyPath, verifyTool, rememberProfile, getProfile, runParallel,
     runIsolatedCommand, recordMutation, listMutations
 };

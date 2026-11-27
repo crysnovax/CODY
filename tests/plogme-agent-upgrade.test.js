@@ -84,9 +84,11 @@ test('PLOGME narration keeps deterministic fallback text when disabled', async (
     assert.deepEqual(replies, ['File sent: `database/example.txt`']);
 });
 
-test('PLOGME runtime exposes risk metadata and bounded isolated execution', () => {
+test('PLOGME runtime exposes risk metadata and bounded isolated execution without confirmation gates', () => {
     assert.equal(agentRuntime.toolInfo('delete_file').risk, 'high');
-    assert.equal(agentRuntime.requiresApproval({ action: 'install_dependency' }), true);
+    assert.equal('requiresApproval' in agentRuntime, false);
+    assert.equal('createApproval' in agentRuntime, false);
+    assert.equal('consumeApproval' in agentRuntime, false);
     const result = agentRuntime.runIsolatedCommand(process.execPath, ['-e', 'process.stdout.write("isolated-ok")']);
     assert.equal(result.ok, true);
     assert.equal(result.stdout, 'isolated-ok');
@@ -99,7 +101,6 @@ test('PLOGME dry-run never mutates a protected operation', async () => {
     const replies = [];
     try {
         const result = await plogme.executeIntent({}, { chat: '12345@s.whatsapp.net' }, {
-            enforceApproval: true,
             reply: async value => replies.push(String(value))
         }, { action: 'delete_file', path: target, dryRun: true });
         assert.equal(result.dryRun, true);

@@ -1142,18 +1142,6 @@ async function runTest(sock, m, opts, subject) {
 async function handleControlIntent(sock, m, opts, text) {
     const lower = text.trim().toLowerCase();
 
-    const approvalMatch = text.trim().match(/^(?:confirm|approve|yes)\s+([A-Z0-9-]{12,})$/i);
-    if (approvalMatch) {
-        const pending = agentRuntime.consumeApproval(approvalMatch[1], m.chat, m.sender || m.key?.participant || '');
-        if (!pending) {
-            await opts.reply('_✘ That approval is missing, expired, or belongs to another chat/sender._');
-            return true;
-        }
-        pending.approved = true;
-        const result = await executeIntent(sock, m, { ...opts, enforceApproval: true }, pending);
-        return result?.handled !== false;
-    }
-
     // ── PLOGME's own chatbot-style on/off toggle ──
     // ".plogme on/off", "plogme on/off", "toggle plogme on/off",
     // "enable/disable plogme". OFF = no auto-replies in this chat, exactly
@@ -1704,19 +1692,11 @@ async function executeIntent(sock, m, opts, intent) {
         intent = intent && typeof intent === 'object' ? intent : {};
         const action = String(intent.action || '').toLowerCase();
         const plan = action === 'plan' ? agentRuntime.makePlan(intent) : null;
-        const planNeedsApproval = plan?.steps?.some(step => agentRuntime.requiresApproval(step));
-        const protectedOperation = planNeedsApproval || agentRuntime.requiresApproval(intent);
-        if (opts.enforceApproval && agentRuntime.isDryRun(intent, opts)) {
+        if (agentRuntime.isDryRun(intent, opts)) {
             const preview = plan || agentRuntime.makePlan(intent);
             const lines = preview.steps.map((step, index) => `${index + 1}. ${step.action.replace(/_/g, ' ')}${step.path ? ` — ${step.path}` : ''}${step.command ? ` — ${step.command}` : ''}`);
             await opts.reply(`_*Dry run — nothing was changed.*_\n*Goal:* ${preview.goal || action}\n${lines.join('\n')}`);
             return { handled: true, dryRun: true, verified: true };
-        }
-        if (opts.enforceApproval && protectedOperation && intent.approved !== true) {
-            const pending = agentRuntime.createApproval({ chat: m.chat, sender: m.sender || m.key?.participant || '', intent });
-            const summary = plan ? `${plan.goal || 'multi-step operation'} (${plan.steps.length} steps)` : `${action.replace(/_/g, ' ')}${intent.path ? ` on ${intent.path}` : ''}`;
-            await opts.reply(`_*Approval required before I continue.*_\n${summary}\n\nReply "confirm ${pending.token}" within 10 minutes to proceed, or ignore it to cancel.`);
-            return { handled: true, awaitingApproval: true, approvalToken: pending.token };
         }
         const missionActions = new Set(['create_file', 'edit_file', 'delete_file', 'rename_file', 'create_tool', 'send_file', 'make_pdf', 'zip', 'install_dependency', 'project_index', 'health', 'research_web', 'inspect_media']);
         if (missionActions.has(action) && !opts.missionId) {
@@ -1737,7 +1717,7 @@ async function executeIntent(sock, m, opts, intent) {
                 if (!plan?.steps?.length) { await opts.reply('_✘ I need at least one valid step to build a plan._'); return { handled: true }; }
                 await reportProgress(opts, `plan ready: ${plan.steps.length} step${plan.steps.length === 1 ? '' : 's'}; executing with dependency and safety checks…`);
                 const readonly = plan.steps.every(step => agentRuntime.toolInfo(step.action).readonly === true);
-                const runStep = step => executeIntent(sock, m, { ...opts, enforceApproval: false }, { ...step, approved: true });
+                const runStep = step => executeIntent(sock, m, opts, step);
                 const results = intent.parallel === true && readonly
                     ? await agentRuntime.runParallel(plan.steps.map(runStep))
                     : await plan.steps.reduce(async (chain, step) => { const prior = await chain; if (prior.some(item => item?.handled === false || item?.verified === false)) return prior; prior.push(await runStep(step)); return prior; }, Promise.resolve([]));
@@ -2448,7 +2428,7 @@ async function execute(sock, m, opts) {
         // Live requests get natural-language tool narration. Direct callers of
         // executeIntent (including tests and internal adapters) keep their
         // exact deterministic replies unless they opt in explicitly.
-        const agentOpts = withNaturalToolNarration({ ...opts, naturalLanguage: true, enforceApproval: true, userRequest: text }, text);
+        const agentOpts = withNaturalToolNarration({ ...opts, naturalLanguage: true, userRequest: text }, text);
 
         // ── Spam control = the invisible-character (marker) logic ONLY ──
         // The owner and the bot are the SAME WhatsApp account, so every
