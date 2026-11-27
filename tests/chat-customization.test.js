@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const theme = require('../src/Commands/Tools/theme.js');
 const bubble = require('../src/Commands/Tools/chatbubble.js');
+const chatTheme = require('../src/Commands/Tools/chattheme.js');
 const background = require('../src/Commands/Tools/background.js');
 
 const message = { chat: '123@s.whatsapp.net', key: { id: 'test' } };
@@ -19,7 +20,7 @@ function harness() {
 }
 
 test('chat customization commands are public in DMs and groups', () => {
-  for (const command of [theme, bubble, background]) {
+  for (const command of [theme, bubble, chatTheme, background]) {
     assert.equal(command.adminOnly, false);
     assert.equal(command.groupOnly, false);
   }
@@ -29,6 +30,15 @@ test('theme resolves easy names to the supplied minimal color scheme IDs', async
   const h = harness();
   await theme.execute(h.sock, message, { args: ['emerald'], reply: h.reply });
   assert.equal(h.sent[0][1].chatTheme.colorSchemeId, 'Emerald@Minimal');
+});
+
+test('.chattheme sends solid colors while always enabling doodles', async () => {
+  const h = harness();
+  await chatTheme.execute(h.sock, message, { args: ['dark', 'light=#FF162E24', 'dark=#FF04120D', 'doodle=off'], reply: h.reply });
+  const solidColor = h.sent[0][1].chatTheme.solidColor;
+  assert.equal(solidColor.colorLight, '#FF162E24');
+  assert.equal(solidColor.colorDark, '#FF04120D');
+  assert.equal(solidColor.isDoodleEnabled, true);
 });
 
 test('chatbubble emits the solidColor payload for a named preset', async () => {
@@ -64,6 +74,10 @@ test('background sends a direct URL through setGroupWallpaper with dim level', a
   });
   assert.deepEqual(calls, [[h.sock, message.chat, 'https://example.com/wallpaper.jpg', { dimLevel: 0.35 }]]);
   assert.match(h.replies[0], /updated/);
+});
+
+test('wallpaper command is named chatbackground to avoid a background collision', () => {
+  assert.equal(background.name, 'chatbackground');
 });
 
 test('background uploads and uses an image reply when no URL is supplied', async () => {

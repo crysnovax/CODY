@@ -4,7 +4,7 @@ const { THEME_IDS, resolveTheme, themePayload } = require('./chat-customization'
 
 module.exports = {
     name: 'theme',
-    alias: ['chattheme'],
+    alias: [],
     category: 'Tools',
     desc: 'Change the chat theme in a DM or group',
     adminOnly: false,
