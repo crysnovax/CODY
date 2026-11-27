@@ -88,9 +88,6 @@ function parseBubbleCustomization(args = []) {
     const mode = tokens.find(token => /^--(?:dark|light)$/i.test(token));
     if (mode && mode.toLowerCase() === '--dark') {
         Object.assign(result, DEEP_DARK_SOLID_COLOR);
-    } else if (mode && mode.toLowerCase() === '--light') {
-        result.colorDark = result.colorLight;
-        result.doodleColorDark = result.doodleColorLight;
     }
     return result;
 }

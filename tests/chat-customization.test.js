@@ -73,6 +73,16 @@ test('dark preset uses the exact deep-dark WhatsApp palette', async () => {
   assert.equal(h.sent[0][1].chatTheme.solidColor.doodleColorDark, '#FF234E3A');
 });
 
+test('--light preserves the selected theme light/dark pair', async () => {
+  const h = harness();
+  await chatTheme.execute(h.sock, message, { args: ['emerald', '--light'], reply: h.reply });
+  const solidColor = h.sent[0][1].chatTheme.solidColor;
+  assert.equal(solidColor.colorLight, '#FFE8F5E9');
+  assert.equal(solidColor.colorDark, '#FF0B3D2E');
+  assert.equal(solidColor.doodleColorLight, '#FFC8E6C9');
+  assert.equal(solidColor.doodleColorDark, 0xFF1B5E20);
+});
+
 test('chatbubble emits the solidColor payload for a named preset', async () => {
   const h = harness();
   await bubble.execute(h.sock, message, { args: ['blue'], reply: h.reply });
