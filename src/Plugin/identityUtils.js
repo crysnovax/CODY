@@ -33,13 +33,16 @@ function messageParticipantCandidates(message = {}, rawMessage = {}) {
         || message?.message?.imageMessage?.contextInfo
         || message?.message?.videoMessage?.contextInfo
         || {};
+    // contextInfo.participant identifies the author of the quoted message on
+    // replies. Prefer the current message's sender fields so moderation does
+    // not attribute a reply (and its link) to the quoted participant.
     return [...new Set([
-        message?.key?.participantAlt,
-        rawMessage?.key?.participantAlt,
-        contextInfo.participantAlt,
         message?.sender,
         message?.key?.participant,
         rawMessage?.key?.participant,
+        message?.key?.participantAlt,
+        rawMessage?.key?.participantAlt,
+        contextInfo.participantAlt,
         contextInfo.participant,
     ].filter(Boolean).map(normalizeJid))];
 }

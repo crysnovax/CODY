@@ -65,3 +65,47 @@ for (const [label, messageType, caption] of [
         assert.ok(!sends.some(({ content }) => content?.text?.includes('mmg.whatsapp.net')));
     });
 }
+
+test('does not moderate an admin reply containing a link when the quoted author is a member', async () => {
+    const chat = '120363000000000000@g.us';
+    const admin = '15550001111@s.whatsapp.net';
+    const quotedMember = '15550002222@s.whatsapp.net';
+    const key = { remoteJid: chat, participant: admin, id: 'admin-reply-link', fromMe: false };
+    const message = {
+        extendedTextMessage: {
+            text: 'https://admin.example.org/reply',
+            contextInfo: {
+                participant: quotedMember,
+                quotedMessage: { conversation: 'https://member.example.org/original' }
+            }
+        }
+    };
+    const mek = { key, message };
+    const m = {
+        isGroup: true,
+        chat,
+        sender: admin,
+        key,
+        mtype: 'extendedTextMessage',
+        message,
+        text: 'https://admin.example.org/reply',
+        body: ''
+    };
+    const sends = [];
+    const sock = {
+        groupMetadata: async () => ({
+            participants: [
+                { id: admin, admin: 'admin' },
+                { id: quotedMember }
+            ]
+        }),
+        sendMessage: async (jid, content, options) => {
+            sends.push({ jid, content, options });
+            return { key: { id: `sent-${sends.length}` } };
+        }
+    };
+
+    await handleAntiLink(sock, m, mek);
+
+    assert.deepEqual(sends, [], 'an admin reply must not be moderated because of its quoted member');
+});
