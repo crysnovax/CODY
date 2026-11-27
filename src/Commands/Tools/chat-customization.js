@@ -23,7 +23,7 @@ const THEME_IDS = Object.freeze({
 const BUBBLE_PRESETS = Object.freeze({
     default: { colorLight: '#FFFFFFFF', colorDark: '#FF101010', doodleColorLight: '#FFCCE8FF', doodleColorDark: 0xFF202020, isDoodleEnabled: true },
     light: { colorLight: '#FFFFFFFF', colorDark: '#FF101010', doodleColorLight: '#FFCCE8FF', doodleColorDark: 0xFF202020, isDoodleEnabled: true },
-    dark: { colorLight: '#FF202124', colorDark: '#FF000000', doodleColorLight: '#FF3A4652', doodleColorDark: 0xFF111111, isDoodleEnabled: true },
+    dark: { colorLight: '#FF162E24', colorDark: '#FF04120D', doodleColorLight: '#FF24493A', doodleColorDark: '#FF234E3A', isDoodleEnabled: true },
     blue: { colorLight: '#FFE3F2FD', colorDark: '#FF0D47A1', doodleColorLight: '#FFBBDEFB', doodleColorDark: 0xFF1565C0, isDoodleEnabled: true },
     emerald: { colorLight: '#FFE8F5E9', colorDark: '#FF0B3D2E', doodleColorLight: '#FFC8E6C9', doodleColorDark: 0xFF1B5E20, isDoodleEnabled: true },
     pink: { colorLight: '#FFFCE4EC', colorDark: '#FF4A102A', doodleColorLight: '#FFF8BBD0', doodleColorDark: 0xFF880E4F, isDoodleEnabled: true },
@@ -39,6 +39,14 @@ const BUBBLE_PRESETS = Object.freeze({
     gray: { colorLight: '#FFF5F5F5', colorDark: '#FF212121', doodleColorLight: '#FFEEEEEE', doodleColorDark: 0xFF424242, isDoodleEnabled: true },
     black: { colorLight: '#FF303030', colorDark: '#FF000000', doodleColorLight: '#FF616161', doodleColorDark: 0xFF101010, isDoodleEnabled: true },
     white: { colorLight: '#FFFFFFFF', colorDark: '#FF424242', doodleColorLight: '#FFFFFFFF', doodleColorDark: 0xFF616161, isDoodleEnabled: true }
+});
+
+const DEEP_DARK_SOLID_COLOR = Object.freeze({
+    colorLight: '#FF162E24',
+    colorDark: '#FF04120D',
+    doodleColorLight: '#FF24493A',
+    doodleColorDark: '#FF234E3A',
+    isDoodleEnabled: true
 });
 
 function normalizeChoice(value) {
@@ -79,8 +87,7 @@ function parseBubbleCustomization(args = []) {
     }
     const mode = tokens.find(token => /^--(?:dark|light)$/i.test(token));
     if (mode && mode.toLowerCase() === '--dark') {
-        result.colorLight = result.colorDark;
-        result.doodleColorLight = result.doodleColorDark;
+        Object.assign(result, DEEP_DARK_SOLID_COLOR);
     } else if (mode && mode.toLowerCase() === '--light') {
         result.colorDark = result.colorLight;
         result.doodleColorDark = result.doodleColorLight;
