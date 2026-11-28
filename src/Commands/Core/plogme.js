@@ -1631,11 +1631,10 @@ function buildEngagementPrompt(chat, userText, messageContext = {}) {
     const recent = passiveContext.formatRecent(chat, 24);
     const thread = formatMessageContext(messageContext);
     return [
-        'You are the quiet engagement judge for Cody AI, an internal assistant in a WhatsApp group.',
-        'The current authorized owner/sudo/dual user did not explicitly tag Cody AI.',
-        'Decide whether the message is actually directed to Cody AI or requires its help.',
+        'You are the quiet social-observation judge for Cody AI, an internal assistant in a WhatsApp group.',
+        'Decide whether the current message is actually directed to Cody AI or is genuinely funny enough for Cody AI to react to.',
         'Engage when it is a question, request, meaningful continuation of Cody AI\'s recent reply, or clearly addresses Cody AI by context.',
-        'Ignore greetings, banter, messages clearly directed at another participant, and messages that do not need a response.',
+        'For engagement, ignore greetings, banter, messages clearly directed at another participant, and messages that do not need a response.',
         'Use the recent chat and reply chain to resolve pronouns and conversational context.',
         'If the current message is genuinely funny, you may also set funny=true and choose one reaction emoji from 😂, 🤣, 😭, 💀, 😹, 👏, 🔥.',
         'Return ONLY JSON: {"engage":true|false,"funny":true|false,"reaction":"😂"}.',
@@ -2547,6 +2546,26 @@ async function execute(sock, m, opts) {
         // commands remain router-owned and are always excluded.
         if (isCommandLike && (isCommand || mode !== 'all')) return false;
 
+        const autoReplyEnabled = isEnabled(m.chat) || (!m.isGroup && isGlobalPrivateEnabled());
+        let engagementResult = null;
+        // Social reactions are intentionally general: everyone in an enabled
+        // group may receive a funny-message reaction. This happens before the
+        // privileged control-brain gate, but only the funny reaction is used
+        // for ordinary users; they still cannot reach classification or reply.
+        if (autoReplyEnabled && m.isGroup && mode === 'all') {
+            engagementResult = await judgeEngagement(
+                m.chat,
+                text,
+                messageContext,
+                opts.engagementAskAI || askAI
+            );
+            if (engagementResult.funny && engagementResult.reaction) {
+                await sock.sendMessage(m.chat, {
+                    react: { text: engagementResult.reaction, key: m.key }
+                }).catch(() => {});
+            }
+        }
+
         const privileged = await isPrivileged(sock, m);
         // PLOGME is CODY's protected control brain, not a public chatbot.
         // Non-owner/dual/sudo messages may enrich passive context, but they
@@ -2574,23 +2593,13 @@ async function execute(sock, m, opts) {
         // deliberately after passive recording and authorization, so ordinary
         // users remain silent and the model receives bounded live context.
         let proactiveEngagement = false;
-        const autoReplyEnabled = isEnabled(m.chat) || (!m.isGroup && isGlobalPrivateEnabled());
-        let engagementResult = null;
         if (autoReplyEnabled && m.isGroup && (mode === 'all' || !engaged)) {
-            engagementResult = await judgeEngagement(
-                m.chat,
-                text,
-                messageContext,
-                agentOpts.engagementAskAI || askAI
+            if (!engagementResult) engagementResult = await judgeEngagement(
+                m.chat, text, messageContext, agentOpts.engagementAskAI || askAI
             );
             if (!engaged) {
                 proactiveEngagement = engagementResult.engage;
                 engaged = proactiveEngagement;
-            }
-            if (engagementResult.funny && engagementResult.reaction) {
-                await sock.sendMessage(m.chat, {
-                    react: { text: engagementResult.reaction, key: m.key }
-                }).catch(() => {});
             }
         }
         if (!engaged && !plogmeControlInvocation) return false;
