@@ -2,7 +2,7 @@ const util = require('util');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync, exec } = require('child_process');
+const { execSync, exec, execFileSync } = require('child_process');
 const executionToggle = require('../../Plugin/executionToggle');
 
 module.exports = {
@@ -16,8 +16,9 @@ module.exports = {
         const invocation = String(command || 'eval').toLowerCase();
         const isRawEval = invocation === 'raw-eval';
         const isRawShell = invocation === 'raw-shell';
+        const isRawPython = invocation === 'raw-python';
 
-        if (!isRawEval && !isRawShell) {
+        if (!isRawEval && !isRawShell && !isRawPython) {
             const state = String(text || '').trim().toLowerCase();
             if (args?.length !== 1 || !['on', 'off'].includes(state)) {
                 return reply(`_*Usage:* ${prefix || '.'}eval on|off\n_${prefix || '.'}eval controls the raw $ JavaScript trigger._`);
@@ -53,6 +54,25 @@ module.exports = {
                 const errOutput = err.stdout || err.stderr || err.message;
                 if (errOutput.length > MAX_INLINE) return await sendAsFile(errOutput, timeTaken);
                 return reply(`*✘ Shell Error* _(${timeTaken}ms)_\n\`\`\`\n${errOutput}\n\`\`\``);
+            }
+        }
+
+        if (isRawPython) {
+            try {
+                const result = execFileSync('python3', ['-c', text], {
+                    encoding: 'utf8',
+                    timeout: 30000,
+                    maxBuffer: 1024 * 1024 * 20
+                });
+                const timeTaken = Date.now() - startTime;
+                const output = result || 'No output';
+                if (output.length > MAX_INLINE) return await sendAsFile(output, timeTaken);
+                return reply(`*⚉ Python* _(${timeTaken}ms)_\n\`\`\`\n${output}\n\`\`\``);
+            } catch (err) {
+                const timeTaken = Date.now() - startTime;
+                const errOutput = err.stdout || err.stderr || err.message;
+                if (errOutput.length > MAX_INLINE) return await sendAsFile(errOutput, timeTaken);
+                return reply(`*✘ Python Error* _(${timeTaken}ms)_\n\`\`\`\n${errOutput}\n\`\`\``);
             }
         }
 

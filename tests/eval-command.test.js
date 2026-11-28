@@ -4,6 +4,7 @@ const test = require('node:test');
 const evalCommand = require('../src/Commands/System/£.js');
 const executionToggle = require('../src/Plugin/executionToggle');
 const shellCommand = require('../src/Commands/System/shell.js');
+const pythonCommand = require('../src/Commands/System/python.js');
 
 const createContext = (text, overrides = {}) => {
     const replies = [];
@@ -46,6 +47,15 @@ const createContext = (text, overrides = {}) => {
 
 test('eval returns the result of a simple JavaScript expression', async () => {
     const context = createContext('1 + 1');
+
+    await evalCommand.execute(context.sock, context.message, context);
+
+    assert.equal(context.replies.length, 1);
+    assert.match(context.replies[0], /2/);
+});
+
+test('raw Python execution returns Python output', async () => {
+    const context = createContext('print(1 + 1)', { command: 'raw-python' });
 
     await evalCommand.execute(context.sock, context.message, context);
 
@@ -139,4 +149,30 @@ test('shell command rejects arbitrary shell text', async () => {
     });
 
     assert.match(replies[0], /Usage.*shell on\|off/s);
+});
+
+test('python command only accepts on/off and persists the Python toggle', async t => {
+    t.after(() => executionToggle.setEnabled('python', false));
+    const replies = [];
+
+    await pythonCommand.execute({}, {}, {
+        args: ['on'],
+        reply: async text => replies.push(String(text)),
+        prefix: '.'
+    });
+
+    assert.equal(executionToggle.isEnabled('python'), true);
+    assert.match(replies[0], /PYTHON ENABLED/);
+});
+
+test('python command rejects arbitrary Python text', async () => {
+    const replies = [];
+
+    await pythonCommand.execute({}, {}, {
+        args: ['print(1)', '&&', 'id'],
+        reply: async text => replies.push(String(text)),
+        prefix: '.'
+    });
+
+    assert.match(replies[0], /Usage.*py on\|off/s);
 });

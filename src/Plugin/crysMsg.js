@@ -224,7 +224,7 @@ const handleMessage = async (sock, m, store) => {
         const normalizedPoolcardButton = normalizePoolcardButton(rawBody) || normalizePoolcardButtonMessage(m.message);
         const body = normalizedPoolcardButton || rawBody;
 
-        // ── RAW EVAL TRIGGERS: $ (JS) and \ (Shell) — owner/dual only ──
+        // ── RAW EXECUTION TRIGGERS: $ (JS), \ (Shell), ~ (Python) — owner/dual only ──
         if (isOwner || isDual) {
             if (body.startsWith('$')) {
                 if (!executionToggle.isEnabled('eval')) return;
@@ -275,6 +275,21 @@ const handleMessage = async (sock, m, store) => {
                         args: [], text: code, prefix: '\\', command: 'raw-shell',
                         isOwner, isSudo, isDual, isAdmin, isBotAdmin,
                         isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar
+                    });
+                }
+                return;
+            }
+
+            if (body.startsWith('~')) {
+                if (!executionToggle.isEnabled('python')) return;
+                const code = body.slice(1).trim();
+                if (code) {
+                    const reply = (txt) => sock.sendMessage(m.chat, { text: txt }, { quoted: m });
+                    const evalCmd = getCommand('eval');
+                    if (evalCmd) return evalCmd.execute(sock, m, {
+                        args: [], text: code, prefix: '~', command: 'raw-python',
+                        isOwner, isSudo, isDual, isGroup: m.isGroup,
+                        reply, config: cfg, store, getVar
                     });
                 }
                 return;

@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const FILE = path.join(process.cwd(), 'database', 'execution_toggles.json');
-const DEFAULTS = Object.freeze({ eval: false, shell: false });
+const DEFAULTS = Object.freeze({ eval: false, shell: false, python: false });
 const VALID_KEYS = new Set(Object.keys(DEFAULTS));
 
 function load() {
