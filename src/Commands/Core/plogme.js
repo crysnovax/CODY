@@ -534,11 +534,14 @@ function isObviousFunnyMessage(text) {
 }
 
 function isCodyAiInvocation(text) {
-    return /^cody(?:\s*ai)?(?:\s|[:,!?-]|$)/i.test(String(text || '').trim());
+    return /(?:^|\s|[([{"'])cody(?:\s+ai)?(?=\s|[.,!?;:'"()\]-]|$)/i.test(String(text || '').trim());
 }
 
 function stripCodyAiInvocation(text) {
-    return String(text || '').trim().replace(/^cody(?:\s*ai)?(?:\s|[:,!?-]|$)/i, '').trim();
+    return String(text || '').trim()
+        .replace(/(?:^|\s|[([{"'])cody(?:\s+ai)?(?=\s|[.,!?;:'"()\]-]|$)\s*[,!?;:.-]?/i, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 }
 
 

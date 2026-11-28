@@ -92,8 +92,12 @@ test('passive context keeps recent group messages and bounded reply chains', () 
 test('Cody and Cody AI are conversational triggers while bare Plogme is not', () => {
     assert.equal(plogme.isCodyAiInvocation('Cody, what did I say?'), true);
     assert.equal(plogme.isCodyAiInvocation('Cody AI what did I say?'), true);
+    assert.equal(plogme.isCodyAiInvocation('What does Cody think about this?'), true);
+    assert.equal(plogme.isCodyAiInvocation('Please ask Cody AI to clarify that.'), true);
+    assert.equal(plogme.isCodyAiInvocation('decoding this message'), false);
     assert.equal(plogme.isCodyAiInvocation('Plogme what did I say?'), false);
     assert.equal(plogme.stripCodyAiInvocation('Cody AI, what did I say?'), 'what did I say?');
+    assert.equal(plogme.stripCodyAiInvocation('Please ask Cody AI to clarify that.'), 'Please ask to clarify that.');
 });
 
 test('classifier prompt includes Cody history for short follow-up requests', () => {
