@@ -2595,7 +2595,11 @@ async function execute(sock, m, opts) {
         // or "Check npminfo plogme" must reach the classifier even when their
         // first word happens to match a registered command/alias. Prefixed
         // commands remain router-owned and are always excluded.
-        if (isCommandLike && (isCommand || mode !== 'all')) return false;
+        // `cody` is also a legacy command alias, but bare Cody/Cody AI must
+        // remain conversational triggers in every Plogme mode. Prefixed
+        // commands are still owned by the router.
+        if (isCommandLike && (isCommand || mode !== 'all') &&
+            !( !isCommand && isCodyAiInvocation(text))) return false;
 
         const autoReplyEnabled = isEnabled(m.chat) || (!m.isGroup && isGlobalPrivateEnabled());
         const socialMode = mode === 'all' || mode === 'contribute';
@@ -2763,7 +2767,8 @@ async function execute(sock, m, opts) {
                 const { getCommand } = require('../../Plugin/crysCmd');
                 const hit = getCommand(firstWord);
                 if (hit && (String(hit.name || '').toLowerCase() === firstWord
-                    || (hit.alias || []).map(a => String(a).toLowerCase()).includes(firstWord))) return false;
+                    || (hit.alias || []).map(a => String(a).toLowerCase()).includes(firstWord)) &&
+                    !isCodyAiInvocation(text)) return false;
             }
         } catch {}
 
