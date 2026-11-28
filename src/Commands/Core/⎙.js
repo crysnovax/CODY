@@ -11,7 +11,7 @@ const { formatBotDate } = require('../../Utils/timezone');
 
 module.exports = {
     name: 'repo',
-    alias: ['source', 'cody'],
+    alias: ['source'],
     desc: 'Show CODY/CRYSNOVA creator panel & repositories',
     category: 'Info',
     reactions: { start: '💠', success: '📑' },
