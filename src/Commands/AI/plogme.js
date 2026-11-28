@@ -3,6 +3,7 @@
 // the toggles (on/off/mode/train/personality/dev/status/memory/facts).
 // @crysnovax—FIX08-07-26
 const plogme = require('../Core/plogme.js');
+const socialPolicy = require('../Core/plogme-social.js');
 
 module.exports = {
     name: 'plogme',
@@ -119,6 +120,42 @@ module.exports = {
                 if (mode === 'tag') { plogme.setMode(m.chat, 'tag'); return reply('`⎔ Mode TAG`'); }
                 if (mode === 'contribute') { plogme.setMode(m.chat, 'contribute'); return reply('`✐ Mode CONTRIBUTE`'); }
                 return reply('_*ⓘ Usage: .plogme mode all | tag | contribute*_');
+            }
+            case 'contribute': {
+                const action = (args[1] || 'status').toLowerCase();
+                if (action === 'on' || action === 'off') {
+                    socialPolicy.setContributionEnabled(m.chat, action === 'on');
+                    return reply(`_*Contribution ${action.toUpperCase()}*_`);
+                }
+                if (action === 'cooldown') {
+                    const value = args[2];
+                    if (!value) return reply(`_*Contribution cooldown: ${socialPolicy.getStatus(m.chat).contributionCooldown}_`);
+                    const ms = socialPolicy.setContributionCooldown(m.chat, value);
+                    return reply(`_*Contribution cooldown set to ${socialPolicy.formatDuration(ms)}*_`);
+                }
+                if (action === 'status') {
+                    const status = socialPolicy.getStatus(m.chat);
+                    return reply(`╭─❍ *CONTRIBUTE STATUS*\n│ Enabled: ${status.contributionEnabled ? 'ON' : 'OFF'}\n│ Cooldown: ${status.contributionCooldown}\n│ Available: ${status.contributionAvailableIn}\n╰──────────────────`);
+                }
+                return reply('_*ⓘ Usage: .plogme contribute on|off|cooldown <duration>|status*_');
+            }
+            case 'reaction': {
+                const action = (args[1] || 'status').toLowerCase();
+                if (action === 'on' || action === 'off') {
+                    socialPolicy.setReactionEnabled(m.chat, action === 'on');
+                    return reply(`_*Funny reactions ${action.toUpperCase()}*_`);
+                }
+                if (action === 'cooldown') {
+                    const value = args[2];
+                    if (!value) return reply(`_*Reaction cooldown: ${socialPolicy.getStatus(m.chat).reactionCooldown}_`);
+                    const ms = socialPolicy.setReactionCooldown(m.chat, value);
+                    return reply(`_*Reaction cooldown set to ${socialPolicy.formatDuration(ms)}*_`);
+                }
+                if (action === 'status') {
+                    const status = socialPolicy.getStatus(m.chat);
+                    return reply(`╭─❍ *REACTION STATUS*\n│ Enabled: ${status.reactionEnabled ? 'ON' : 'OFF'}\n│ Cooldown: ${status.reactionCooldown}\n│ Available: ${status.reactionAvailableIn}\n╰──────────────────`);
+                }
+                return reply('_*ⓘ Usage: .plogme reaction on|off|cooldown <duration>|status*_');
             }
             case 'train': {
                 if (!rest) {

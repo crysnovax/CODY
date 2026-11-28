@@ -61,6 +61,7 @@ const dependencies = require('./plogme-dependencies');
 const { runHealthChecks } = require('./plogme-health');
 const { buildProjectIndex } = require('./plogme-project-index');
 const passiveContext = require('./plogme-context');
+const socialPolicy = require('./plogme-social');
 
 const DATA_DIR = path.join(process.cwd(), 'database');
 const USER_CMD_DIR = path.join(__dirname, '../Commands/User');
@@ -493,6 +494,16 @@ function isAddressed(sock, m, options = {}) {
         }
         return false;
     } catch { return false; }
+}
+
+function hasRecentCodyContext(chat, now = Date.now()) {
+    return getMemory(chat).slice(-12).some(item =>
+        item.role === 'assistant' && now - Number(item.ts || 0) <= 15 * 60 * 1000
+    );
+}
+
+function isCodyThreadSignal(sock, m, chat) {
+    return isAddressed(sock, m, { allowQuote: true }) || hasRecentCodyContext(chat);
 }
 
 function isCodyAiInvocation(text) {
@@ -1649,7 +1660,8 @@ function buildEngagementPrompt(chat, userText, messageContext = {}) {
 function buildContributionPrompt(chat, userText, messageContext = {}) {
     return `${buildPrompt(chat, userText, messageContext)}\n\n` +
         'CONTRIBUTION-ONLY MODE: The current participant is not owner, sudo, or dual. ' +
-        'Reply only with one brief, useful clarification directly related to Cody AI\'s recent message or the quoted Cody message. ' +
+        'Reply with at most one or two short sentences, only when they add important information or clarify Cody AI\'s recent message or the quoted Cody message. ' +
+        'Do not repeat what Cody already said, lecture, greet, or add filler. ' +
         'Never execute commands, call tools, change files, modify settings, or discuss bot control. ' +
         'If the message is not clearly related to Cody\'s statement, return exactly: [SILENT]. ' +
         'Return only the short group message, without a preamble.';
@@ -2559,22 +2571,29 @@ async function execute(sock, m, opts) {
         if (isCommandLike && (isCommand || mode !== 'all')) return false;
 
         const autoReplyEnabled = isEnabled(m.chat) || (!m.isGroup && isGlobalPrivateEnabled());
+        const socialMode = mode === 'all' || mode === 'contribute';
+        const codyThreadSignal = isCodyThreadSignal(sock, m, m.chat);
         let engagementResult = null;
         // Social reactions are intentionally general: everyone in an enabled
         // group may receive a funny-message reaction. This happens before the
         // privileged control-brain gate, but only the funny reaction is used
         // for ordinary users; they still cannot reach classification or reply.
-        if (autoReplyEnabled && m.isGroup && (mode === 'all' || mode === 'contribute')) {
+        const shouldJudgeSocially = autoReplyEnabled && m.isGroup && socialMode && (
+            socialPolicy.canReact(m.chat) ||
+            (mode === 'contribute' && codyThreadSignal && socialPolicy.canContribute(m.chat, text))
+        );
+        if (shouldJudgeSocially) {
             engagementResult = await judgeEngagement(
                 m.chat,
                 text,
                 messageContext,
                 opts.engagementAskAI || askAI
             );
-            if (engagementResult.funny && engagementResult.reaction) {
+            if (engagementResult.funny && engagementResult.reaction && socialPolicy.canReact(m.chat)) {
                 await sock.sendMessage(m.chat, {
                     react: { text: engagementResult.reaction, key: m.key }
                 }).catch(() => {});
+                socialPolicy.markReaction(m.chat);
             }
         }
 
@@ -2585,13 +2604,15 @@ async function execute(sock, m, opts) {
         // exception is a short, informational contribution tied to Cody's own
         // recent message or a quoted Cody message.
         if (!privileged) {
-            if (autoReplyEnabled && m.isGroup && mode === 'contribute' && engagementResult?.contribute) {
+            if (autoReplyEnabled && m.isGroup && mode === 'contribute' && codyThreadSignal &&
+                engagementResult?.contribute && socialPolicy.canContribute(m.chat, text)) {
                 const contribution = await (opts.contributionAskAI || askAI)(
                     buildContributionPrompt(m.chat, text, messageContext)
                 ).catch(() => null);
                 const answer = sanitizeMemoryContent(contribution || '').trim();
                 if (answer && !/^\[SILENT\]$/i.test(answer) && answer.length <= 1200) {
                     await opts.reply(answer);
+                    socialPolicy.markContribution(m.chat, text);
                     return true;
                 }
             }
@@ -2619,7 +2640,8 @@ async function execute(sock, m, opts) {
         // deliberately after passive recording and authorization, so ordinary
         // users remain silent and the model receives bounded live context.
         let proactiveEngagement = false;
-        if (autoReplyEnabled && m.isGroup && (mode === 'all' || !engaged)) {
+        const allowProactiveEngagement = mode !== 'contribute' || codyThreadSignal;
+        if (autoReplyEnabled && m.isGroup && allowProactiveEngagement && (mode === 'all' || !engaged)) {
             if (!engagementResult) engagementResult = await judgeEngagement(
                 m.chat, text, messageContext, agentOpts.engagementAskAI || askAI
             );
