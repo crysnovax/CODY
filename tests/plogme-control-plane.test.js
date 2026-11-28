@@ -28,6 +28,15 @@ test('group tag mode ignores unmentioned ordinary messages', async () => {
     assert.equal(handled, false);
 });
 
+test('contribute is a separate mode from all and tag', () => {
+    plogme.setMode(chat, 'contribute');
+    assert.equal(plogme.getMode(chat), 'contribute');
+    plogme.setMode(chat, 'all');
+    assert.equal(plogme.getMode(chat), 'all');
+    plogme.setMode(chat, 'tag');
+    assert.equal(plogme.getMode(chat), 'tag');
+});
+
 test('project index persists broken status and lastError fields', () => {
     const index = buildProjectIndex();
     assert.ok(index.commandCount > 0);

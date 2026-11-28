@@ -9,7 +9,7 @@ module.exports = {
     alias: ['plg', 'plog'],
     desc: 'PLOGME — internal processing AI: auto-reply chatbot + smart bot control (run/toggle commands, create/edit/delete .js files, fix/test code, reload, dev mode)',
     category: 'AI',
-    usage: '.plogme on | off | on all | off all | mode all|tag | train <text> | personality <text> | dev on|off | status | memory | clear | remember <fact> | forget <n> | add command <name>: <code> | delete command <name> | help',
+    usage: '.plogme on | off | on all | off all | mode all|tag|contribute | train <text> | personality <text> | dev on|off | status | memory | clear | remember <fact> | forget <n> | add command <name>: <code> | delete command <name> | help',
 
     execute: async (sock, m, { args, reply, prefix }) => {
         const sub = (args[0] || '').toLowerCase();
@@ -117,7 +117,8 @@ module.exports = {
                 const mode = (args[1] || '').toLowerCase();
                 if (mode === 'all') { plogme.setMode(m.chat, 'all'); return reply('`✐ Mode ALL`'); }
                 if (mode === 'tag') { plogme.setMode(m.chat, 'tag'); return reply('`⎔ Mode TAG`'); }
-                return reply('_*ⓘ Usage: .plogme mode all | tag*_');
+                if (mode === 'contribute') { plogme.setMode(m.chat, 'contribute'); return reply('`✐ Mode CONTRIBUTE`'); }
+                return reply('_*ⓘ Usage: .plogme mode all | tag | contribute*_');
             }
             case 'train': {
                 if (!rest) {

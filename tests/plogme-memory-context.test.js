@@ -104,6 +104,9 @@ test('classifier prompt includes Cody history for short follow-up requests', () 
     });
     const prompt = plogme.buildClassifierPrompt('what did I say?', { chatType: 'group' }, contextChat);
     assert.match(prompt, /You said the deployment failed after the config change/);
+    const contributionPrompt = plogme.buildContributionPrompt(contextChat, 'Can you clarify that?', { chatType: 'group' });
+    assert.match(contributionPrompt, /CONTRIBUTION-ONLY MODE/);
+    assert.match(contributionPrompt, /Never execute commands/);
     plogme.clearMemory(contextChat);
 });
 
@@ -129,8 +132,9 @@ test('engagement judge receives recent context and accepts only explicit engage 
     assert.equal(plogme.parseEngagementDecision('{"engage":false}'), false);
     assert.equal(plogme.parseEngagementDecision('not json'), false);
     assert.deepEqual(plogme.parseEngagementResult('{"engage":true,"funny":true,"reaction":"😂"}'), {
-        engage: true, funny: true, reaction: '😂'
+        engage: true, contribute: false, funny: true, reaction: '😂'
     });
+    assert.equal(plogme.parseEngagementResult('{"contribute":true}').contribute, true);
     assert.equal(plogme.parseEngagementResult('{"funny":true,"reaction":"💣"}').reaction, '');
     plogme.clearRecentMessages(contextChat);
 });
