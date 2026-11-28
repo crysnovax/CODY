@@ -3,18 +3,34 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execSync, exec } = require('child_process');
+const executionToggle = require('../../Plugin/executionToggle');
 
 module.exports = {
     name: 'eval',
     alias: ['>'],
-    desc: 'Execute JavaScript code or shell commands',
+    desc: 'Enable or disable the owner-only $ JavaScript trigger',
     category: 'Owner',
     ownerOnly: true,
 
-    execute: async (sock, m, { args, reply, text, prefix, command, isOwner, isDual }) => {
+    execute: async (sock, m, { args, reply, text, prefix, command }) => {
+        const invocation = String(command || 'eval').toLowerCase();
+        const isRawEval = invocation === 'raw-eval';
+        const isRawShell = invocation === 'raw-shell';
+
+        if (!isRawEval && !isRawShell) {
+            const state = String(text || '').trim().toLowerCase();
+            if (args?.length !== 1 || !['on', 'off'].includes(state)) {
+                return reply(`_*Usage:* ${prefix || '.'}eval on|off\n_${prefix || '.'}eval controls the raw $ JavaScript trigger._`);
+            }
+            const enabled = executionToggle.setEnabled('eval', state === 'on');
+            return reply(enabled
+                ? '`✓ EVAL ENABLED` — `$ code` will execute JavaScript.'
+                : '`✘ EVAL DISABLED` — `$ code` will be ignored.');
+        }
+
         if (!text) return;
         const startTime = Date.now();
-        const isShell = command === 'sh';
+        const isShell = isRawShell;
         const MAX_INLINE = 4000;
 
         const sendAsFile = async (content, timeTaken) => {

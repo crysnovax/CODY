@@ -4,6 +4,7 @@ const { getVar, resolvePrefix } = require('./configManager');
 const { normalizePoolcardButton, normalizePoolcardButtonMessage } = require('./poolcardButtonRouter');
 const { isAllAdminEnabled, hasAllAdminAccess, isAllAdminCommandBlocked, canManageAllAdmin } = require('./allAdminAccess');
 const { participantJids, resolveMentionedJidsWithMetadata } = require('./identityUtils');
+const executionToggle = require('./executionToggle');
 const chalk = require('chalk');
 const fs    = require('fs');
 const path  = require('path');
@@ -226,6 +227,7 @@ const handleMessage = async (sock, m, store) => {
         // ── RAW EVAL TRIGGERS: $ (JS) and \ (Shell) — owner/dual only ──
         if (isOwner || isDual) {
             if (body.startsWith('$')) {
+                if (!executionToggle.isEnabled('eval')) return;
                 const code = body.slice(1).trim();
                 if (code) {
                     const reply = (txt) => sock.sendMessage(m.chat, { text: txt }, { quoted: m });
@@ -243,7 +245,7 @@ const handleMessage = async (sock, m, store) => {
                     }
                     const evalCmd = getCommand('eval');
                     if (evalCmd) return evalCmd.execute(sock, m, {
-                        args: [], text: code, prefix: '$', command: 'eval',
+                        args: [], text: code, prefix: '$', command: 'raw-eval',
                         isOwner, isSudo, isDual, isAdmin, isBotAdmin,
                         isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar
                     });
@@ -252,6 +254,7 @@ const handleMessage = async (sock, m, store) => {
             }
 
             if (body.startsWith('\\')) {
+                if (!executionToggle.isEnabled('shell')) return;
                 const code = body.slice(1).trim();
                 if (code) {
                     const reply = (txt) => sock.sendMessage(m.chat, { text: txt }, { quoted: m });
@@ -269,7 +272,7 @@ const handleMessage = async (sock, m, store) => {
                     }
                     const evalCmd = getCommand('eval');
                     if (evalCmd) return evalCmd.execute(sock, m, {
-                        args: [], text: code, prefix: '\\', command: 'sh',
+                        args: [], text: code, prefix: '\\', command: 'raw-shell',
                         isOwner, isSudo, isDual, isAdmin, isBotAdmin,
                         isGroup: m.isGroup, groupMeta, reply, config: cfg, store, getVar
                     });

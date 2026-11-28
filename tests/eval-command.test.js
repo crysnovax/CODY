@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const evalCommand = require('../src/Commands/System/£.js');
+const executionToggle = require('../src/Plugin/executionToggle');
+const shellCommand = require('../src/Commands/System/shell.js');
 
 const createContext = (text, overrides = {}) => {
     const replies = [];
@@ -26,7 +28,7 @@ const createContext = (text, overrides = {}) => {
     };
 
     return {
-        command: 'eval',
+        command: 'raw-eval',
         text,
         args: [],
         prefix: '.',
@@ -49,6 +51,25 @@ test('eval returns the result of a simple JavaScript expression', async () => {
 
     assert.equal(context.replies.length, 1);
     assert.match(context.replies[0], /2/);
+});
+
+test('eval control only accepts on/off and enables the raw trigger', async t => {
+    t.after(() => executionToggle.setEnabled('eval', false));
+    const context = createContext('on', { command: 'eval', args: ['on'] });
+
+    await evalCommand.execute(context.sock, context.message, context);
+
+    assert.equal(executionToggle.isEnabled('eval'), true);
+    assert.match(context.replies[0], /EVAL ENABLED/);
+});
+
+test('eval rejects arbitrary JavaScript instead of executing it', async () => {
+    const context = createContext('process.exit()', { command: 'eval', args: ['process.exit()'] });
+
+    await evalCommand.execute(context.sock, context.message, context);
+
+    assert.equal(context.replies.length, 1);
+    assert.match(context.replies[0], /Usage.*eval on\|off/s);
 });
 
 test('eval captures console output and restores the console', async () => {
@@ -84,11 +105,38 @@ test('eval exposes the socket and media helper contract used by bot owners', asy
 
     await evalCommand.execute(context.sock, context.message, context);
 
-    assert.equal(context.sent.length, 1);
-    assert.equal(context.sent[0].chat, context.message.chat);
-    assert.deepEqual(context.sent[0].content, {
+    const imageMessage = context.sent.find(item => item.content.image);
+    assert.ok(imageMessage);
+    assert.equal(imageMessage.chat, context.message.chat);
+    assert.deepEqual(imageMessage.content, {
         image: Buffer.from('image-data'),
         caption: 'caption'
     });
-    assert.deepEqual(context.sent[0].options, { quoted: context.message });
+    assert.deepEqual(imageMessage.options, { quoted: context.message });
+});
+
+test('shell command only accepts on/off and persists the shell toggle', async t => {
+    t.after(() => executionToggle.setEnabled('shell', false));
+    const replies = [];
+
+    await shellCommand.execute({}, {}, {
+        args: ['on'],
+        reply: async text => replies.push(String(text)),
+        prefix: '.'
+    });
+
+    assert.equal(executionToggle.isEnabled('shell'), true);
+    assert.match(replies[0], /SHELL ENABLED/);
+});
+
+test('shell command rejects arbitrary shell text', async () => {
+    const replies = [];
+
+    await shellCommand.execute({}, {}, {
+        args: ['rm', '-rf', '/'],
+        reply: async text => replies.push(String(text)),
+        prefix: '.'
+    });
+
+    assert.match(replies[0], /Usage.*shell on\|off/s);
 });

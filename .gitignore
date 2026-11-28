@@ -8,3 +8,6 @@ vendor/yt-dlp.tmp
 
 # working directory for local yt-dlp downloads (files are deleted after sending)
 downloads/ytdlp/
+
+# Owner-only raw execution controls are runtime state
+database/execution_toggles.json
