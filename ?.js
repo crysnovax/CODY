@@ -20,6 +20,7 @@ const { normalizePoolcardButtonMessage } = require('./src/Plugin/poolcardButtonR
 const { extractEditedMessage, mergeEditAuthorKey, normalizeEditUpdate, normalizeEditUpdates: normalizePlogmeEditUpdates } = require('./src/Plugin/editEvent');
 const { decryptSecretEdit, findSecretEncrypted } = require('./src/Plugin/editDecrypt');
 const { storeBestMessage } = require('./src/Plugin/messageCache');
+const { prepareReplyPresence, clearReplyPresence } = require('./library/reply-presence');
 
 // Polyfill: sock.sendRichText was added as an alias for sock.sendMessage
 // to support chatbot responses that call sock.sendRichText(jid, { text }).
@@ -206,6 +207,10 @@ const originalSend = sock.sendMessage.bind(sock);
 const traceOutboundSends = process.env.CODY_TRACE_WA_SENDS === '1';
 attachOutboundAckTrace(sock, { enabled: traceOutboundSends });
 const submitOutbound = async (jid, content, options) => {
+    const shouldShowPresence = jid !== 'status@broadcast';
+    if (shouldShowPresence) {
+        await prepareReplyPresence(sock, jid, content);
+    }
     try {
         const result = await originalSend(jid, content, options);
         if (traceOutboundSends) {
@@ -215,6 +220,10 @@ const submitOutbound = async (jid, content, options) => {
     } catch (error) {
         console.error(`[SEND PIPE ERROR] ${JSON.stringify(summarizeOutboundSend({ jid, content, error }))}`);
         throw error;
+    } finally {
+        if (shouldShowPresence) {
+            await clearReplyPresence(sock, jid, content);
+        }
     }
 };
 sock.sendMessage = async (jid, content, options = {}) => {
