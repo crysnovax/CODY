@@ -502,8 +502,35 @@ function hasRecentCodyContext(chat, now = Date.now()) {
     );
 }
 
+function hasDirectCodyMention(sock, m) {
+    const normalize = value => String(value || '').replace(/:\d+@/, '@').toLowerCase();
+    const bot = normalize(sock?.user?.id);
+    const lid = normalize(sock?.user?.lid);
+    return (m?.mentionedJid || []).some(jid => {
+        const value = normalize(jid);
+        return value && (value === bot || (lid && value === lid));
+    });
+}
+
+function isQuotedRecentCodyReply(m, chat) {
+    const quoted = String(
+        m?.quoted?.text ||
+        m?.quoted?.message?.extendedTextMessage?.text ||
+        m?.quoted?.message?.conversation || ''
+    ).replace(/\u200e/g, '').trim();
+    if (!quoted) return false;
+    return getMemory(chat).slice(-20).some(item =>
+        item.role === 'assistant' && String(item.content || '').includes(quoted.slice(0, 240))
+    );
+}
+
 function isCodyThreadSignal(sock, m, chat) {
-    return isAddressed(sock, m, { allowQuote: true }) || hasRecentCodyContext(chat);
+    return hasDirectCodyMention(sock, m) || isQuotedRecentCodyReply(m, chat) || hasRecentCodyContext(chat);
+}
+
+function isObviousFunnyMessage(text) {
+    const value = String(text || '').toLowerCase();
+    return /(?:\b(?:haha+|lol+|lmao|rofl|funny)\b|😂|🤣|😹|💀)/u.test(value);
 }
 
 function isCodyAiInvocation(text) {
@@ -2589,6 +2616,10 @@ async function execute(sock, m, opts) {
                 messageContext,
                 opts.engagementAskAI || askAI
             );
+            if (!engagementResult.funny && isObviousFunnyMessage(text)) {
+                engagementResult.funny = true;
+                engagementResult.reaction = '😂';
+            }
             if (engagementResult.funny && engagementResult.reaction && socialPolicy.canReact(m.chat)) {
                 await sock.sendMessage(m.chat, {
                     react: { text: engagementResult.reaction, key: m.key }
