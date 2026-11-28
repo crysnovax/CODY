@@ -548,7 +548,7 @@ function stripCodyAiInvocation(text) {
 const FILES = {
     toggle:     path.join(DATA_DIR, 'plogme_toggle.json'),
     mode:       path.join(DATA_DIR, 'plogme_mode.json'),
-    globalPriv: path.join(DATA_DIR, 'plogme_global_priv.json'),
+    globalPriv: path.join(DATA_DIR, 'plogme_global_priv.json'), // legacy alias; enable state is now global
     train:      path.join(DATA_DIR, 'plogme_train.json'),
     personality:path.join(DATA_DIR, 'plogme_personality.json'),
     memory:     path.join(DATA_DIR, 'plogme_memory.json'),
@@ -616,12 +616,17 @@ function saveJson(file, data) {
 }
 
 /* ───────────────────────── state helpers ───────────────────────── */
-const isEnabled = (chat) => loadJson(FILES.toggle)[chat] === true;
-const hasExplicitToggle = (chat) => Object.prototype.hasOwnProperty.call(loadJson(FILES.toggle), chat);
-const setEnabled = (chat, v) => { const d = loadJson(FILES.toggle); d[chat] = !!v; saveJson(FILES.toggle, d); };
+// PLOGME on/off is one bot-wide switch. Older releases stored chat IDs in this
+// file; those legacy entries are intentionally ignored so a stale per-chat ON
+// cannot silently re-enable PLOGME after the global switch is turned OFF.
+const isEnabled = () => loadJson(FILES.toggle, { enabled: false }).enabled === true;
+const hasExplicitToggle = () => Object.prototype.hasOwnProperty.call(loadJson(FILES.toggle), 'enabled');
+const setEnabled = (_chat, v) => saveJson(FILES.toggle, { enabled: !!v });
 
-const isGlobalPrivateEnabled = () => loadJson(FILES.globalPriv, { enabled: false }).enabled === true;
-const setGlobalPrivateEnabled = (v) => saveJson(FILES.globalPriv, { enabled: !!v });
+// Retain these names for callers from older integrations, but make them true
+// aliases of the same global switch rather than a separate DM-only setting.
+const isGlobalPrivateEnabled = () => isEnabled();
+const setGlobalPrivateEnabled = (v) => setEnabled(null, v);
 
 const getMode = (chat) => loadJson(FILES.mode)[chat] || 'tag';
 const setMode = (chat, mode) => { if (!['all', 'tag', 'contribute'].includes(mode)) return; const d = loadJson(FILES.mode); d[chat] = mode; saveJson(FILES.mode, d); };
@@ -1037,7 +1042,7 @@ async function runCommandAction(sock, m, opts, target) {
         return '_⛔ .exit is disabled for PLOGME. I will stay in this group._';
     }
     if (SELF_NAMES.has(cmdName.toLowerCase())) {
-        return '_PLOGME auto-replies are off by default._\n_Enable this chat with: "plogme on" (or "plogme on all" for DMs)._';
+        return '_PLOGME auto-replies are off by default._\n_Enable Plogme everywhere with: "plogme on"._';
     }
     let cmd = getCommand(cmdName);
     // AI-triggered send_file must use the same registered command callback as
@@ -1200,9 +1205,8 @@ async function handleControlIntent(sock, m, opts, text) {
 
     // ── PLOGME's own chatbot-style on/off toggle ──
     // ".plogme on/off", "plogme on/off", "toggle plogme on/off",
-    // "enable/disable plogme". OFF = no auto-replies in this chat, exactly
-    // like the old .chatbot toggle — it uses setEnabled, never the
-    // command-toggle list. (@crysnovax—FIX10-08-26)
+    // "enable/disable plogme". ON/OFF is one universal switch for every
+    // group and DM — it uses setEnabled, never the command-toggle list.
     const selfOn = text.match(/^(?:plogme|plg|plog)\s+(on|off)$/i);
     // note: the verb group MUST be capturing — selfVerb[1] is the verb and
     // selfVerb[2] the optional state, so "enable plogme" / "toggle plogme on"
@@ -1217,13 +1221,9 @@ async function handleControlIntent(sock, m, opts, text) {
             next = state ? state.toLowerCase() === 'on' : verb === 'enable';
         }
         setEnabled(m.chat, next);
-        // Turning PLOGME off must also clear the global DM auto-reply, otherwise
-        // a DM keeps answering through the "on all" flag and OFF appears broken.
-        // (@crysnovax—FIX22-09-26)
-        if (!next) setGlobalPrivateEnabled(false);
         await opts.reply(next
-            ? '`✓ ENABLED` — auto-replies ON in this chat (send .plogme off to disable)'
-            : '`✘ DISABLED` — no auto-replies in this chat or DMs (send .plogme on to re-enable)');
+            ? '`✓ ENABLED` — Plogme auto-replies ON everywhere (send .plogme off to disable globally)'
+            : '`✘ DISABLED` — Plogme auto-replies OFF everywhere (send .plogme on to re-enable globally)');
         return true;
     }
 
@@ -1361,7 +1361,7 @@ async function handleControlIntent(sock, m, opts, text) {
             `│ 📎 Facts        : ${getFacts().length}\n` +
             `│ 💾 Commands     : ${getAll().size}\n` +
             `│ ⛔ Toggled off  : ${getToggledList().length}\n` +
-            `│ 🧠 This chat    : ${isEnabled(m.chat) ? '✓ ON' : 'OFF'} (mode: ${getMode(m.chat)})\n` +
+            `│ 🧠 Global toggle : ${isEnabled() ? '✓ ON' : 'OFF'} (mode: ${getMode(m.chat)})\n` +
             `╰──────────────────`
         );
         return true;
@@ -1967,14 +1967,14 @@ async function executeIntent(sock, m, opts, intent) {
                 const cmd = getCommand(String(intent.command || '').toLowerCase());
                 const name = cmd?.name || String(intent.command || '').toLowerCase();
                 if (SELF_NAMES.has(name)) {
-                    // toggling PLOGME itself = the chatbot on/off toggle for
-                    // this chat (the command-toggle list is for other commands)
+                    // Toggling PLOGME itself changes the universal switch;
+                    // the command-toggle list is for other commands.
                     const off = String(intent.state || 'off').toLowerCase() !== 'on';
                     setEnabled(m.chat, !off);
-                    logOp('toggle', `plogme ${off ? 'off' : 'on'} in this chat`);
+                    logOp('toggle', `plogme ${off ? 'off' : 'on'} globally`);
                     await opts.reply(off
-                        ? '`✘ DISABLED` — no auto-replies in this chat (send .plogme on to re-enable)'
-                        : '`✓ ENABLED` — auto-replies ON in this chat (send .plogme off to disable)');
+                        ? '`✘ DISABLED` — Plogme auto-replies OFF everywhere (send .plogme on to re-enable globally)'
+                        : '`✓ ENABLED` — Plogme auto-replies ON everywhere (send .plogme off to disable globally)');
                     return { handled: true };
                 }
                 const off = String(intent.state || 'off').toLowerCase() !== 'on';
@@ -2604,7 +2604,7 @@ async function execute(sock, m, opts) {
         if (isCommandLike && (isCommand || mode !== 'all') &&
             !( !isCommand && isCodyAiInvocation(text))) return false;
 
-        const autoReplyEnabled = isEnabled(m.chat) || (!m.isGroup && isGlobalPrivateEnabled());
+        const autoReplyEnabled = isEnabled();
         const socialMode = mode === 'all' || mode === 'contribute';
         const codyThreadSignal = isCodyThreadSignal(sock, m, m.chat);
         let engagementResult = null;
@@ -2690,11 +2690,9 @@ async function execute(sock, m, opts) {
         }
         if (!engaged && !plogmeControlInvocation) return false;
 
-        // An EXPLICIT ".plogme off" in a chat means SILENT — no free-form AI
-        // chat. Explicit control ("plogme on", "plogme status", "plogme run
-        // ping") still works so the user can always re-enable.
-        // (@crysnovax—FIX10-08-26)
-        const explicitlyOff = hasExplicitToggle(m.chat) && !isEnabled(m.chat);
+        // An EXPLICIT ".plogme off" means SILENT everywhere — no free-form AI
+        // chat. Explicit control still works so the owner can re-enable it.
+        const explicitlyOff = hasExplicitToggle() && !isEnabled();
 
         // Control intents — only for owner/sudo/dual. A "plogme run ping"
         // style message is treated the same as a bare control intent, and a
@@ -2730,7 +2728,7 @@ async function execute(sock, m, opts) {
             // called hi", "edit the ping command to say hi") with no hardcoded
             // phrasing. When the AI is unreachable we simply fall through to
             // the normal chat flow below. Skipped when plogme was explicitly
-            // toggled off in this chat — off means SILENT, so "Hey" after
+            // toggled off globally — off means SILENT, so "Hey" after
             // ".plogme off" must NOT get an AI chat reply.
             // (@crysnovax—FIX09-08-26 / FIX10-08-26)
             if (!isCommand && !explicitlyOff) {
@@ -2748,14 +2746,10 @@ async function execute(sock, m, opts) {
         }
 
         // Auto-reply chatbot. PLOGME is OFF by default everywhere: a chat only
-        // auto-replies after an explicit `.plogme on` (or `.plogme on all` for
-        // DM-wide). An explicit `.plogme off` is honored and stays off.
-        // (@crysnovax—FIX12-08-26)
-        // PLOGME is strictly opt-in. A chat or global-DM mode must be
-        // explicitly enabled with `.plogme on` or `.plogme on all`.
+        // Auto-replies require the one global `.plogme on` switch. An explicit
+        // `.plogme off` disables auto-replies in every group and DM.
         // Environment variables never implicitly enable auto-replies.
-        let on = isEnabled(m.chat);
-        if (!m.isGroup && !on && isGlobalPrivateEnabled()) on = true;
+        const on = isEnabled();
         if (!on) return false;
 
         // NEVER respond to messages that look like bot commands — anything

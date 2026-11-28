@@ -28,6 +28,20 @@ test('group tag mode ignores unmentioned ordinary messages', async () => {
     assert.equal(handled, false);
 });
 
+test('PLOGME on/off is one global switch, not a per-chat toggle', () => {
+    const otherGroup = '12025550123-2@g.us';
+    const privateChat = '12025550123@s.whatsapp.net';
+
+    plogme.setEnabled(chat, true);
+    assert.equal(plogme.isEnabled(chat), true);
+    assert.equal(plogme.isEnabled(otherGroup), true);
+    assert.equal(plogme.isEnabled(privateChat), true);
+
+    plogme.setEnabled(otherGroup, false);
+    assert.equal(plogme.isEnabled(chat), false);
+    assert.equal(plogme.isEnabled(privateChat), false);
+});
+
 test('contribute is a separate mode from all and tag', () => {
     plogme.setMode(chat, 'contribute');
     assert.equal(plogme.getMode(chat), 'contribute');

@@ -10,7 +10,7 @@ module.exports = {
     alias: ['plg', 'plog'],
     desc: 'PLOGME — internal processing AI: auto-reply chatbot + smart bot control (run/toggle commands, create/edit/delete .js files, fix/test code, reload, dev mode)',
     category: 'AI',
-    usage: '.plogme on | off | on all | off all | mode all|tag|contribute | train <text> | personality <text> | dev on|off | status | memory | clear | remember <fact> | forget <n> | add command <name>: <code> | delete command <name> | help',
+    usage: '.plogme on | off | mode all|tag|contribute | train <text> | personality <text> | dev on|off | status | memory | clear | remember <fact> | forget <n> | add command <name>: <code> | delete command <name> | help',
 
     execute: async (sock, m, { args, reply, prefix }) => {
         const sub = (args[0] || '').toLowerCase();
@@ -45,9 +45,7 @@ module.exports = {
 ` +
             `│ *Chatbot:*
 ` +
-            `│ • .plogme on / off (this chat)
-` +
-            `│ • .plogme on all / off all (global DM)
+            `│ • .plogme on / off (global — all chats)
 ` +
             `│ • .plogme mode all | tag
 ` +
@@ -94,25 +92,12 @@ module.exports = {
 
         switch (sub) {
             case 'on': {
-                if (rest === 'all') {
-                    plogme.setGlobalPrivateEnabled(true);
-                    return reply('`✓ ENABLED` — auto-replies ON in all DMs (send ' + (prefix || '.') + 'plogme off all to disable)');
-                }
                 plogme.setEnabled(m.chat, true);
-                return reply('`✓ ENABLED` — auto-replies ON in this chat (send ' + (prefix || '.') + 'plogme off to disable)');
+                return reply('`✓ ENABLED` — Plogme auto-replies ON everywhere (send ' + (prefix || '.') + 'plogme off to disable globally)');
             }
             case 'off': {
-                if (rest === 'all') {
-                    plogme.setGlobalPrivateEnabled(false);
-                    return reply('`✘ DISABLED` — no auto-replies in DMs (send ' + (prefix || '.') + 'plogme on all to re-enable)');
-                }
-                // OFF must mean OFF. Previously `.plogme off` only cleared this
-                // chat's toggle, so a DM kept auto-replying through the global
-                // "on all" flag and the setting looked impossible to disable.
-                // (@crysnovax—FIX22-09-26)
                 plogme.setEnabled(m.chat, false);
-                plogme.setGlobalPrivateEnabled(false);
-                return reply('`✘ DISABLED` — no auto-replies in this chat or DMs (send ' + (prefix || '.') + 'plogme on to re-enable)');
+                return reply('`✘ DISABLED` — Plogme auto-replies OFF everywhere (send ' + (prefix || '.') + 'plogme on to re-enable globally)');
             }
             case 'mode': {
                 const mode = (args[1] || '').toLowerCase();
@@ -188,8 +173,8 @@ module.exports = {
                     `│ 𓄄 Training     : ${plogme.getTraining() ? '✓ set' : '—'}\n` +
                     `│ 🛠️ Dev mode     : ${plogme.isDev() ? '✓ ON' : 'OFF'}\n` +
                     `│ 📎 Facts        : ${plogme.getFacts().length}\n` +
-                    `│ 🧠 This chat    : ${plogme.isEnabled(m.chat) ? '✓ ON' : 'OFF'} (mode: ${plogme.getMode(m.chat)})\n` +
-                    `│ 📥 DMs (all)    : ${plogme.isGlobalPrivateEnabled() ? '✓ ON' : 'OFF'}\n` +
+                    `│ 🧠 Global toggle : ${plogme.isEnabled() ? '✓ ON' : 'OFF'}\n` +
+                    `│ 🎛️ This chat mode: ${plogme.getMode(m.chat)}\n` +
                     `╰──────────────────`
                 );
             }
