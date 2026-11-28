@@ -74,8 +74,9 @@ module.exports = [
 
             try {
                 const image = await m.quoted.download();
-                // Use HD full-size upload flag
-                await sock.updateGroupPicture(m.chat, image, { quality: 'full' });
+                // Baileys uses updateProfilePicture for both user and group pictures.
+                // Keep the HD flag explicit for socket wrappers that support it.
+                await sock.updateProfilePicture(m.chat, image, { hd: true });
                 return reply(`✓ *Group icon updated (HD)*`);
             } catch (err) {
                 return reply(`⊘ Error: ${err.message}`);
