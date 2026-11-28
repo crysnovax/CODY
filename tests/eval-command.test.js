@@ -63,6 +63,18 @@ test('raw Python execution returns Python output', async () => {
     assert.match(context.replies[0], /2/);
 });
 
+test('raw Python bridge dispatches send_message and reply helpers', async () => {
+    const context = createContext(
+        'send_message(chat, "hello from Python")\nreply("bridge reply")',
+        { command: 'raw-python' }
+    );
+
+    await evalCommand.execute(context.sock, context.message, context);
+
+    assert.ok(context.sent.some(item => item.chat === context.message.chat && item.content.text === 'hello from Python'));
+    assert.ok(context.replies.some(value => value === 'bridge reply'));
+});
+
 test('eval control only accepts on/off and enables the raw trigger', async t => {
     t.after(() => executionToggle.setEnabled('eval', false));
     const context = createContext('on', { command: 'eval', args: ['on'] });

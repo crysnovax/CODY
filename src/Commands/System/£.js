@@ -58,19 +58,67 @@ module.exports = {
         }
 
         if (isRawPython) {
+            const bridgeMarker = '__CODY_BRIDGE__';
+            const pythonBridge = `
+import json
+import sys
+
+_BRIDGE_MARKER = ${JSON.stringify(bridgeMarker)}
+
+def _cody_action(action, **payload):
+    print(_BRIDGE_MARKER + json.dumps({"action": action, **payload}, ensure_ascii=False), flush=True)
+
+def send_message(chat, text):
+    if isinstance(text, dict):
+        text = text.get("text", "")
+    _cody_action("send_message", chat=str(chat), text=str(text))
+
+def reply(text):
+    _cody_action("reply", text=str(text))
+
+chat = ${JSON.stringify(m.chat)}
+_user_code = sys.stdin.read()
+exec(compile(_user_code, "<cody-python>", "exec"), globals(), globals())
+`;
+
+            const dispatchBridgeActions = async output => {
+                const visibleOutput = [];
+                let actionCount = 0;
+                for (const line of String(output || '').split(/\r?\n/)) {
+                    if (!line.startsWith(bridgeMarker)) {
+                        if (line) visibleOutput.push(line);
+                        continue;
+                    }
+                    try {
+                        const action = JSON.parse(line.slice(bridgeMarker.length));
+                        if (action.action === 'send_message' && action.chat && typeof action.text === 'string') {
+                            await sock.sendMessage(action.chat, { text: action.text }, { quoted: m });
+                            actionCount++;
+                        } else if (action.action === 'reply' && typeof action.text === 'string') {
+                            await reply(action.text);
+                            actionCount++;
+                        }
+                    } catch {}
+                }
+                return { output: visibleOutput.join('\n'), actionCount };
+            };
+
             try {
-                const result = execFileSync('python3', ['-c', text], {
+                const result = execFileSync('python3', ['-c', pythonBridge], {
                     encoding: 'utf8',
+                    input: text,
                     timeout: 30000,
                     maxBuffer: 1024 * 1024 * 20
                 });
                 const timeTaken = Date.now() - startTime;
-                const output = result || 'No output';
+                const dispatched = await dispatchBridgeActions(result);
+                const output = dispatched.output || (dispatched.actionCount ? '' : 'No output');
                 if (output.length > MAX_INLINE) return await sendAsFile(output, timeTaken);
                 return reply(`*⚉ Python* _(${timeTaken}ms)_\n\`\`\`\n${output}\n\`\`\``);
             } catch (err) {
                 const timeTaken = Date.now() - startTime;
-                const errOutput = err.stdout || err.stderr || err.message;
+                const dispatched = await dispatchBridgeActions(err.stdout || '');
+                const errOutput = err.stderr || dispatched.output || err.message;
                 if (errOutput.length > MAX_INLINE) return await sendAsFile(errOutput, timeTaken);
                 return reply(`*✘ Python Error* _(${timeTaken}ms)_\n\`\`\`\n${errOutput}\n\`\`\``);
             }
