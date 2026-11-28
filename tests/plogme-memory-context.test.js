@@ -96,6 +96,17 @@ test('Cody and Cody AI are conversational triggers while bare Plogme is not', ()
     assert.equal(plogme.stripCodyAiInvocation('Cody AI, what did I say?'), 'what did I say?');
 });
 
+test('classifier prompt includes Cody history for short follow-up requests', () => {
+    const contextChat = `plogme-classifier-${process.pid}@g.us`;
+    plogme.clearMemory(contextChat);
+    plogme.addToMemory(contextChat, 'assistant', 'You said the deployment failed after the config change.', {
+        messageId: 'classifier-cody-1', sender: 'cody@s.whatsapp.net'
+    });
+    const prompt = plogme.buildClassifierPrompt('what did I say?', { chatType: 'group' }, contextChat);
+    assert.match(prompt, /You said the deployment failed after the config change/);
+    plogme.clearMemory(contextChat);
+});
+
 test('engagement judge receives recent context and accepts only explicit engage JSON', async () => {
     const contextChat = `plogme-engagement-${process.pid}@g.us`;
     plogme.clearRecentMessages(contextChat);
@@ -117,6 +128,10 @@ test('engagement judge receives recent context and accepts only explicit engage 
     assert.match(prompt, /The deployment failed after the config change/);
     assert.equal(plogme.parseEngagementDecision('{"engage":false}'), false);
     assert.equal(plogme.parseEngagementDecision('not json'), false);
+    assert.deepEqual(plogme.parseEngagementResult('{"engage":true,"funny":true,"reaction":"😂"}'), {
+        engage: true, funny: true, reaction: '😂'
+    });
+    assert.equal(plogme.parseEngagementResult('{"funny":true,"reaction":"💣"}').reaction, '');
     plogme.clearRecentMessages(contextChat);
 });
 
